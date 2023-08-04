@@ -1,4 +1,4 @@
-from .curve_fitting import sigmoid_interpolation
+from utils.curve_fitting import sigmoid_interpolation
 from iapws import IAPWS97 as w_props
 import numpy as np
 
