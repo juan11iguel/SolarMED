@@ -6,11 +6,11 @@ Created on Mon Jul  3 16:06:32 2023
 @author: patomareao
 """
 
-from models import three_way_valve_model 
-from .constants import vars_info
+from utils.constants import vars_info
 import pandas as pd
 import numpy as np   
 import matplotlib.pyplot as plt
+import models 
 
 def get_Q_from_3wv_model(datos_name, sample_rate_str='1Min'):
     var_names = {v["signal_id"]: k for k, v in vars_info.items() if '3wv' in k or not '_' in k}
@@ -39,7 +39,7 @@ def get_Q_from_3wv_model(datos_name, sample_rate_str='1Min'):
     
     # Evaluate model
     for idx in range(len(data)):
-        Msrc_mod[idx], _ = three_way_valve_model(Mdis[idx], Tsrc[idx], T_dis_in[idx], T_dis_out[idx])
+        Msrc_mod[idx], _ = models.three_way_valve_model(Mdis[idx], Tsrc[idx], T_dis_in[idx], T_dis_out[idx])
         
     # Create a new dataframe with the output from the model
     data_mod = pd.DataFrame({'m_ts_dis': Msrc_mod}, index=data.index)

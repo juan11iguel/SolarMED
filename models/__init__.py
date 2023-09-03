@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass, field, asdict
 
 import numpy as np
-from eletrical_consumption_fit import evaluate_fit
+from model_calibrations.eletrical_consumption_fit import evaluate_fit
 import logging
 from utils.curve_fitting import polynomial_interpolation
 from typing import Union, List
@@ -657,7 +657,7 @@ class med_storage_model:
         elif name == "mmed_c":
             if (value < self.mmed_c_min or 
                 value > self.mmed_c_max or
-                value < self.mmed_f or
+                value > self.mmed_f or
                 not isinstance(value, (int,float))):
                 raise ValueError(f"""Value of {name} must be a number within: [{self.mmed_c_min}, {self.mmed_c_max}] ({value}) 
                                  and greater than mmed_f ({self.mmed_f})""")
