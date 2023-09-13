@@ -24,252 +24,378 @@ vars_info = {
     # General
     "time": {
         "signal_id": "TimeStamp",
-        "label": "Time"
+        "label": "Time",
+        "label_plotly": "Time"
     },
     "Tamb": {
         "signal_id": "TT-DES-030",
-        "unit_cs": 'ºC',
-        "label": r"$T_{amb}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{amb}$",
+        "label_plotly": "T<sub>amb</sub>"
     },
     "I": {
         "signal_id": "RE-SF-001",
-        "unit_cs": 'W/m²',
-        "label": r"$I$"
+        "units_scada": '',
+        "units_model": 'W/m²',
+        "label": r"$I$",
+        "label_plotly": "I"
     },
 
     # Thermal storage
     "Tts_h_t": {
         "signal_id": "TT-SF-004",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,h,t}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,h,t}$",
+        "label_plotly": "T_<sub>ts,h,t</sub>"
     },
     "Tts_h_m": {
         "signal_id": "TT-SF-005",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,h,m}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,h,m}$",
+        "label_plotly": "T_<sub>ts,h,m</sub>"
     },
     "Tts_h_b": {
         "signal_id": "TT-SF-006",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,h,b}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,h,b}$",
+        "label_plotly": "T_<sub>ts,h,b</sub>"
     },
     "Tts_c_t": {
         "signal_id": "TT-SF-001",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,c,t}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,c,t}$",
+        "label_plotly": "T_<sub>ts,c,t</sub>"
     },
     "Tts_c_m": {
         "signal_id": "TT-SF-002",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,c,m}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,c,m}$",
+        "label_plotly": "T_<sub><ts,c,m/sub>"
     },
     "Tts_c_b": {
         "signal_id": "TT-SF-003",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,c,b}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,c,b}$",
+        "label_plotly": "T_<sub>ts,c,b</sub>"
     },
     "Tts_t_in": {
         "signal_id": "TT-SF-008",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,t,in}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,t,in}$",
+        "label_plotly": "T_<sub>ts,t,in</sub>"
     },
     "Tts_b_in": {
         "signal_id": "TT-AQU-109",
-        "unit_cs": 'ºC',
-        "label": r"$T_{ts,b,in}$"
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{ts,b,in}$",
+        "label_plotly": "T_<sub>ts,b,in</sub>"
     },
     "mts_src": {
         "signal_id": "FT-SF-001",
-        "unit_cs": 'm³/h',
-        "label": r"$m_{ts,src}$"
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label": r"$m_{ts,src}$",
+        "label_plotly": "q_<sub>ts,src</sub>"
     },
     "mts_dis": {
         "signal_id": "FT-AQU-101",
-        "unit_cs": 'm³/h',
-        "label": r"$m_{ts,dis}$"
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label": r"$m_{ts,dis}$",
+        "label_plotly": "q_<sub>ts,dis</sub>"
     },
     
     # Three-way valve
-    "T3wv_src2": {
+    "T_3wv_src2": {
         "signal_id": "TT-SF-004",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{3wv,src \: (TS)}$",
-        "color": "#b85450"
+        "color": "#b85450",
+        "label_plotly": "T_<sub>3wv,src</sub>"
     },
-    "T3wv_dis_in": {
+    "T_3wv_dis_in": {
         "signal_id": "TT-AQU-107a",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{3wv,dis,in}$",
         "color": "#dd8452"
     },
-    "T3wv_dis_out": {
+    "T_3wv_dis_out": {
         "signal_id": "HW1TT21",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{3wv,dis,out \: (MED)}$",
         "color": "#7a98c4"
     },
     "m_3wv_dis": {
         "signal_id": "FT-AQU-100",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
         "label": r"$m_{3wv,dis}$"
     },
     "m_3wv_src": {
         "signal_id": "FT-AQU-101",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
         "label": r"$m_{3wv,src}$",
         "color": "#b85450"
     },
     "R_3wv": {
         "signal_id": "ZC-AQU-TCV102",
-        "unit_cs": r'%',
+        "units_scada": '',
+        "units_model": r'%',
         "label": r"$R_{3wv}$"
     },
     "T_3wv_dis_out2": {
         "signal_id": "TT-AQU-109",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{3wv,dis,out}$",
         "color": "#7a98c4"
     },
     "T_3wv_src": {
         "signal_id": "TT-AQU-106",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{3wv,src}$",
         "color": "#b85450"
     },
     
     
     # Solar field
+    "q_sf_l1": {
+        "signal_id": "FT-SF-003",
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label_plotly": "q<sub>sf,l1</sub>",
+        "label": r"$q_{sf,l1}$"
+    },
     "Tsf_l2_in": {
         "signal_id": "TT-SF-018",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l2,in</sub>",
         "label": r"$T_{sf,l2,in}$"
     },
     "Tsf_l2_out": {
         "signal_id": "TT-SF-019",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l2,out</sub>",
         "label": r"$T_{sf,l2,out}$"
     },
     "q_sf_l2": {
         "signal_id": "FT-SF-005",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label_plotly": "q<sub>sf,l2</sub>",
         "label": r"$q_{sf,l2}$"
     },
     "Tsf_l3_in": {
         "signal_id": "TT-SF-024",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l3,in</sub>",
         "label": r"$T_{sf,l3,in}$"
     },
     "Tsf_l3_out": {
         "signal_id": "TT-SF-025",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l3,out</sub>",
         "label": r"$T_{sf,l3,out}$"
     },
     "q_sf_l3": {
         "signal_id": "FT-SF-006",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label_plotly": "q<sub>sf,l3</sub>",
         "label": r"$q_{sf,l3}$"
     },
     "Tsf_l4_in": {
         "signal_id": "TT-SF-030",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l4,in</sub>",
         "label": r"$T_{sf,l4,in}$"
     },
     "Tsf_l4_out": {
         "signal_id": "TT-SF-031",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l4,out</sub>",
         "label": r"$T_{sf,l4,out}$"
     },
     "q_sf_l4": {
         "signal_id": "FT-SF-007",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label_plotly": "q<sub>sf,l4</sub>",
         "label": r"$q_{sf,l4}$"
     },
     "Tsf_l5_in": {
         "signal_id": "TT-SF-036",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l5,in</sub>",
         "label": r"$T_{sf,l5,in}$"
     },
     "Tsf_l5_out": {
         "signal_id": "TT-SF-037",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,l5,out</sub>",
         "label": r"$T_{sf,l5,out}$"
     },
     "q_sf_l5": {
         "signal_id": "FT-SF-008",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label_plotly": "q<sub>sf,l5</sub>",
         "label": r"$q_{sf,l5}$"
     },
     "q_sf": {
         "signal_id": "FT-SF-002",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
+        "label_plotly": "q<sub>sf</sub>",
         "label": r"$q_{sf}$"
     },
     "Tsf_in": {
         "signal_id": "TT-SF-009",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,in</sub>",
         "label": r"$T_{sf,in}$"
     },
     "Tsf_out": {
         "signal_id": "TT-SF-010",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label_plotly": "T<sub>sf,out</sub>",
         "label": r"$T_{sf,out}$"
     },
     
     # MED
     "Tmed_s_in": {
         "signal_id": "TT-AQU-algo",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{med,s,in}$"
     },
     "Tmed_c_out": {
         "signal_id": "completar",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{med,c,out}$"
     },
     "mmed_d": {
         "signal_id": "completar?",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
         "label": r"$q_{med,d}$"
     },
     "mmed_s": {
         "signal_id": "completar?",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
         "label": r"$q_{med,s}$"
     },
     "mmed_f": {
         "signal_id": "completar?",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
         "label": r"$q_{med,f}$"
     },
     "mmed_c": {
         "signal_id": "completar?",
-        "unit_cs": 'm³/h',
+        "units_scada": '',
+        "units_model": 'm³/h',
         "label": r"$q_{med,c}$"
     },
     "Tmed_s_out": {
         "signal_id": "TT-AQU-algo",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{med,s,out}$"
     },
     "Tmed_c_in": {
         "signal_id": "?",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$T_{med,c,in}$"
     },
     "wmed_f": {
         "signal_id": "?",
-        "unit_cs": 'ºC',
+        "units_scada": '',
+        "units_model": 'ºC',
         "label": r"$w_{med,f}$"
     },
     "STEC_med": {
         "signal_id": "?",
-        "unit_cs": 'kWhth/m³',
+        "units_scada": '',
+        "units_model": 'kWhth/m³',
         "label": r"$STEC_{med}$"
     },
     "SEEC_med": {
         "signal_id": "?",
-        "unit_cs": 'kWhe/m³',
+        "units_scada": '',
+        "units_model": 'kWhe/m³',
         "label": r"$SEEC_{med}$"
+    },
+    
+    # Heat exchanger
+    "Thx_p_in": {
+        "signal_id": "TT-SF-010",
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{hx,p,in}$",
+        "label_plotly": "T<sub>hx,p,in</sub>"
+    },
+    "Thx_s_out": { # Invertido temporalmente!!
+        "signal_id": "TT-SF-009",
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{hx,s,out}$",
+        "label_plotly": "T<sub>hx,s,out</sub>"
+    },
+    "Thx_s_in": {
+        "signal_id": "TT-SF-007",
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{hx,s,in}$",
+        "label_plotly": "T<sub>hx,s,in</sub>"
+    },
+    "Thx_p_out": { # Invertido temporalmente!!
+        "signal_id": "TT-SF-008",
+        "units_scada": '',
+        "units_model": 'ºC',
+        "label": r"$T_{hx,p,out}$",
+        "label_plotly": "T<sub>hx,p,out</sub>"
+    },
+    "mhx_p": {
+        "signal_id": "FT-SF-002",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label": r"$q_{hx,p}$",
+        "label_plotly": "q<sub>hx,p</sub>"
+    },
+    "mhx_s": {
+        "signal_id": "FT-SF-001",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label": r"$q_{hx,s}$",
+        "label_plotly": "q<sub>hx,s</sub>"
     },
 }
 

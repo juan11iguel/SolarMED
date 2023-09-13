@@ -5,6 +5,11 @@ Created on Tue Jun 27 13:05:08 2023
 
 @author: patomareao
 """
+# MATLAB model
+import os
+os.environ["MR"] = f"{os.environ['HOME']}/PSA/MATLAB_runtime"
+MR = os.environ["MR"]
+os.environ["LD_LIBRARY_PATH"] = f"{MR}/v911/runtime/glnxa64:{MR}/v911/bin/glnxa64:{MR}/v911/sys/os/glnxa64:{MR}/v911/sys/opengl/lib/glnxa64"
 
 import numpy as np
 import scipy
@@ -50,11 +55,11 @@ formatter.offset_formats = ['',
 
 
 #%% Import data
-os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/models_psa"))
+# os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/models_psa"))
 
 var_names = {v["signal_id"]: k for k, v in vars_info.items() if '3wv' in k or not '_' in k}
 
-data = pd.read_csv('datos/datos_valvula.csv', parse_dates=['TimeStamp'], date_format='%d-%b-%Y %H:%M:%S')
+data = pd.read_csv('data/datos_valvula_20230414.csv', parse_dates=['TimeStamp'], date_format='%d-%b-%Y %H:%M:%S')
 
 
 data = data.rename(columns=var_names)

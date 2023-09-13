@@ -22,7 +22,7 @@ os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/model
 
 from models import thermal_storage_model    
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
-from results_visualization import (plot_model_result_thermal_storage, 
+from visualization.calibrations import (plot_model_result_thermal_storage, 
                                    plot_energy_thermal_storage,
                                    plot_energy_evolution_thermal_storage)
 
@@ -123,7 +123,7 @@ for datos_name in ["20230621", "20230414"]:
 
 from models import thermal_storage_model_two_tanks    
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
-from results_visualization import (plot_model_result_thermal_storage, 
+from visualization.calibrations import (plot_model_result_thermal_storage, 
                                    plot_energy_thermal_storage,
                                    plot_energy_evolution_thermal_storage)
 
@@ -244,7 +244,7 @@ for datos_name in ["20230621", "20230414"]:
 
 from models import three_way_valve_model    
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
-from results_visualization import plot_model_result_three_way_valve
+from visualization.calibrations import plot_model_result_three_way_valve
 
 save_figure = True
 figure_path = '/home/patomareao/Nextcloud/Juanmi_MED_PSA/EURECAT/Modelos/attachments'

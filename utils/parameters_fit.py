@@ -6,7 +6,7 @@ Created on Tue Jun  6 20:09:28 2023
 @author: patomareao
 """
 
-import scipy
+# import scipy
 import numpy as np
 
 def objective_function(parameters, model_function, *args):
@@ -55,6 +55,8 @@ def objective_function(parameters, model_function, *args):
             segment_length = segment_size + (1 if i < remainder else 0)
             end = start + segment_length
             parameter = parameters[start:end]
+            # if len(parameter) == 1:
+            #     parameter = parameter[0] # To not input an array to a function that is probably expecting a number
             parameters_.append(parameter)
             start = end
     else:
@@ -104,7 +106,10 @@ def objective_function(parameters, model_function, *args):
     
     # Flatten the predicted_outputs so there will be only a vector for each iteration
     # predicted_outputs = np.concatenate(np.array(predicted_outputs, dtype=object), axis=1)
-    predicted_outputs = np.array( [np.concatenate(row) for row in predicted_outputs] )
+    if type(predicted_outputs[0]) in [list, tuple]:
+        predicted_outputs = np.array( [np.concatenate(row) for row in predicted_outputs] )
+    else:
+        predicted_outputs = np.array( predicted_outputs )
     # print(f'Dim predicted: {predicted_outputs.shape}, dim reference: {reference_outputs.shape}')
     
     if metric.upper() == 'IAE':

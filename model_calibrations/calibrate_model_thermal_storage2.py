@@ -186,7 +186,7 @@ plt.show()
 
 from models import thermal_storage_model_two_tanks, thermal_storage_model_single_tank
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
-from results_visualization import plot_model_result_thermal_storage
+from visualization.calibrations import plot_model_result_thermal_storage
 
 
 # Parameters
@@ -276,7 +276,7 @@ plot_model_result_thermal_storage(N*2, Tin_labels, data, np.concatenate((Ti_h_mo
 
 from parameters_fit import objective_function
 from models import thermal_storage_model_two_tanks
-from results_visualization import plot_model_result_thermal_storage
+from visualization.calibrations import plot_model_result_thermal_storage
 from optimparallel import minimize_parallel
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
 
