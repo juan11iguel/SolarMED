@@ -291,67 +291,78 @@ vars_info = {
         "signal_id": "TT-AQU-algo",
         "units_scada": '',
         "units_model": 'ºC',
-        "label": r"$T_{med,s,in}$"
+        "label": r"$T_{med,s,in}$",
+        "label_plotly": "T<sub>med,s,in</sub>",
     },
     "Tmed_c_out": {
         "signal_id": "completar",
         "units_scada": '',
         "units_model": 'ºC',
-        "label": r"$T_{med,c,out}$"
+        "label": r"$T_{med,c,out}$",
+        "label_plotly": "T<sub>med,c,out</sub>",
     },
     "mmed_d": {
         "signal_id": "completar?",
         "units_scada": '',
         "units_model": 'm³/h',
-        "label": r"$q_{med,d}$"
+        "label": r"$q_{med,d}$",
+        "label_plotly": "q<sub>med,d</sub>",
     },
     "mmed_s": {
         "signal_id": "completar?",
         "units_scada": '',
         "units_model": 'm³/h',
-        "label": r"$q_{med,s}$"
+        "label": r"$q_{med,s}$",
+        "label_plotly": "q<sub>med,s</sub>",
     },
     "mmed_f": {
         "signal_id": "completar?",
         "units_scada": '',
         "units_model": 'm³/h',
-        "label": r"$q_{med,f}$"
+        "label": r"$q_{med,f}$",
+        "label_plotly": "q<sub>med,f</sub>",
     },
     "mmed_c": {
         "signal_id": "completar?",
         "units_scada": '',
         "units_model": 'm³/h',
-        "label": r"$q_{med,c}$"
+        "label": r"$q_{med,c}$",
+        "label_plotly": "q<sub>med,c</sub>",
     },
     "Tmed_s_out": {
         "signal_id": "TT-AQU-algo",
         "units_scada": '',
         "units_model": 'ºC',
-        "label": r"$T_{med,s,out}$"
+        "label": r"$T_{med,s,out}$",
+        "label_plotly": "T<sub>med,s,out</sub>",
     },
     "Tmed_c_in": {
         "signal_id": "?",
         "units_scada": '',
         "units_model": 'ºC',
-        "label": r"$T_{med,c,in}$"
+        "label": r"$T_{med,c,in}$",
+        "label_plotly": "T<sub>med,c,in</sub>",
     },
     "wmed_f": {
         "signal_id": "?",
         "units_scada": '',
         "units_model": 'ºC',
-        "label": r"$w_{med,f}$"
+        "label": r"$w_{med,f}$",
+        "label_plotly": "w<sub>med,f</sub>",
     },
     "STEC_med": {
         "signal_id": "?",
         "units_scada": '',
         "units_model": 'kWhth/m³',
-        "label": r"$STEC_{med}$"
+        "label": r"$STEC_{med}$",
+        "label_plotly": "STEC<sub>med</sub>",
     },
     "SEEC_med": {
         "signal_id": "?",
         "units_scada": '',
         "units_model": 'kWhe/m³',
-        "label": r"$SEEC_{med}$"
+        "label": r"$SEEC_{med}$",
+        "label_plotly": "SEEC<sub>med</sub>",
     },
     
     # Heat exchanger

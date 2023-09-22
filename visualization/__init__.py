@@ -1,3 +1,5 @@
+import copy
+import os
 from utils.constants import colors
 from utils.constants import vars_info, colors_gnome
 import numpy as np
@@ -5,21 +7,23 @@ import plotly
 import plotly.graph_objs as go
 from plotly_resampler.figure_resampler import FigureWidgetResampler
 from plotly.subplots import make_subplots
+import plotly.colors as pc
+
 
 v = vars_info
 
-
-def solar_med_visualization(results_df):
+def solar_med_visualization(results_df, height = 1300, font_size=14, save_figure=False, filename='solar_med'):
+    
+    filename = filename +'_'+ results_df.index[0].date().strftime('%Y%m%d')
     
     nrows = 8
-    height = 1500
     trace_idx = 0
-    font_size=14
 
     color_blue = 'rgba(53, 132, 228, 0.5)'
     color_red  = 'rgba(224, 27, 36, 0.5)'
     
     r = results_df
+    x = r.index
 
     custom_data = np.stack((
         # Decision variables
@@ -60,23 +64,30 @@ def solar_med_visualization(results_df):
     
 
     # Wrap a figure with FigureWidgetResampler
-    fw_fig = FigureWidgetResampler(make_subplots(rows=nrows, shared_xaxes=True,
-                                                vertical_spacing=0.025,
-                                                subplot_titles=['Thermal storage temperature evolution', 'Solar Field temperature evolution', 'Flows',
-                                                                'Heat exchanger temperatures', 'MED flows', 'MED temperatures', 'System metrics', 'Environment'],
-                                                specs=[[{"secondary_y": False}],
-                                                        [{"secondary_y": False}],
-                                                        [{"secondary_y": False}],
-                                                        [{"secondary_y": False}],
-                                                        [{"secondary_y": True}],
-                                                        [{"secondary_y": True}],
-                                                        [{"secondary_y": True}],
-                                                        [{"secondary_y": True}]]),
-                                #    config={'toImageButtonOptions': {
-                                #                 'format': 'svg', # one of png, svg, jpeg, webp
-                                #                 'filename': 'librescada-plot',
-                                #             },}
-                                                )
+    fw_fig = FigureWidgetResampler(
+        make_subplots(
+            rows=nrows, shared_xaxes=True,
+            vertical_spacing=0.025,
+            subplot_titles=['Thermal storage temperature evolution', 'Solar Field temperature evolution', 'Flows',
+                            'Heat exchanger temperatures', 'MED flows', 'MED temperatures', 'System metrics', 'Environment'],
+            specs=[[{"secondary_y": False}],
+                    [{"secondary_y": False}],
+                    [{"secondary_y": False}],
+                    [{"secondary_y": False}],
+                    [{"secondary_y": True}],
+                    [{"secondary_y": True}],
+                    [{"secondary_y": True}],
+                    [{"secondary_y": True}]]
+        ),
+        default_n_shown_samples=len(x) if save_figure else 1000, # This is basically undoing the resampling
+        
+            #    config={'toImageButtonOptions': {
+            #                 'format': 'svg', # one of png, svg, jpeg, webp
+            #                 'filename': 'librescada-plot',
+            #             },}
+    )
+    
+    
     trace_idx+=1
 
     # MED Hot water inlet temperature
@@ -207,11 +218,11 @@ def solar_med_visualization(results_df):
 
     # fw_fig.add_trace(go.Scattergl(), hf_x=x, hf_y=results_df['Tts_c'], row=2, col=1)
 
-    fw_fig.update_yaxes(title_text="(ºC)", row=1, col=1)
+    fw_fig.update_yaxes(title_text="ºC", row=1, col=1)
     # fw_fig.update_yaxes(title_text="Cold tank", row=2, col=1)
-    fw_fig.update_yaxes(title_text="(ºC)", row=2, col=1)
-    fw_fig.update_yaxes(title_text="(m³/h)", row=3, col=1)
-    fw_fig.update_yaxes(title_text="(ºC)", row=4, col=1)
+    fw_fig.update_yaxes(title_text="ºC", row=2, col=1)
+    fw_fig.update_yaxes(title_text="m³/h", row=3, col=1)
+    fw_fig.update_yaxes(title_text="ºC", row=4, col=1)
     # fw_fig.update_yaxes(title_text="Energy", row=4, col=1)
     # fw_fig.update_layout(yaxis1=dict(domain=[1, 1/nrows]), yaxis2=dict(domain=[1/nrows, 2/nrows]))
 
@@ -234,7 +245,6 @@ def solar_med_visualization(results_df):
                             row=row_idx, col=1)
 
     ### Hot water
-
     var_name = 'mmed_s'
     label = v[var_name]['label'] + f" ({v[var_name]['units_model']})"
     fw_fig.add_trace(go.Scattergl(name=label,
@@ -329,11 +339,11 @@ def solar_med_visualization(results_df):
 
     ## STEC
     var_name = 'STEC_med'
-    label = v[var_name]['label'] + f" ({v[var_name]['units_model']})"
+    label = v[var_name]['label_plotly'] + f" ({v[var_name]['units_model']})"
     label_stec = label
     fw_fig.add_trace(go.Scattergl(name=label,
                                 meta=[label],
-                                    line=dict(color=colors_gnome['oranges'][-2]),
+                                line=dict(color=colors_gnome['oranges'][-2]),
                                 hovertemplate=hover_text, customdata=custom_data,
                                 legendgroup=f'{row_idx}',
                                 legendgrouptitle=dict(text='Metrics'),), 
@@ -342,7 +352,7 @@ def solar_med_visualization(results_df):
                     row=row_idx, col=1)
 
     var_name = 'SEEC_med'
-    label = v[var_name]['label'] + f" ({v[var_name]['units_model']})"
+    label = v[var_name]['label_plotly'] + f" ({v[var_name]['units_model']})"
     label_sec = label
     fw_fig.add_trace(go.Scattergl(name=label,
                                 meta=[label],
@@ -391,9 +401,10 @@ def solar_med_visualization(results_df):
     fw_fig.update_layout(
         # xaxis2=dict(domain=[0, 1], anchor="y2"),
         yaxis5=dict(
-            title="mmed_d",
+            title="q<sub>med,d</sub> <br>m³/h</br>",
             titlefont=dict(color=colors_gnome['blues'][1]),
             tickfont=dict(color=colors_gnome['blues'][1]),
+            range=[0, 3.5]
         ),
         # yaxis5=dict(
         #     title="mmed_d",
@@ -401,28 +412,28 @@ def solar_med_visualization(results_df):
         #     tickfont=dict(color="#d62728"),
         # ),
         yaxis7=dict(
-            title="Heat source",
+            title="Heat source <br>ºC</br>",
             titlefont=dict(color=colors[0]),
             tickfont=dict(color=colors[0]),
             range=[Ts_avg-span/2, Ts_avg+span/2],
             dtick=span/5
         ),
         yaxis8=dict(
-            title="Heat sink",
+            title="Heat sink <br>ºC</br>",
             titlefont=dict(color=colors[1]),
             tickfont=dict(color=colors[1]),
             range=[Tc_avg-span/2, Tc_avg+span/2],
             dtick=span/5
         ),
         yaxis9=dict(
-            title=label_stec,
+            title=v['SEEC_med']['label_plotly'] + '<br>' + v['SEEC_med']['units_model'] + '</br>',
             titlefont=dict(color=colors_gnome['oranges'][-2]),
             tickfont=dict(color=colors_gnome['oranges'][-2]),
             range=[30, 120],
             # dtick=span/5
         ),
         yaxis10=dict(
-            title=label_sec,
+            title=v['STEC_med']['label_plotly'] + '<br>' + v['STEC_med']['units_model'] + '</br>',
             titlefont=dict(color=colors_gnome['purples'][-2]),
             tickfont=dict(color=colors_gnome['purples'][-2]),
             range=[1, 20],
@@ -437,6 +448,7 @@ def solar_med_visualization(results_df):
     fw_fig.add_trace(
         go.Scattergl(
             name=label,
+            line=dict(color=colors_gnome['greens'][3]),
             meta=[label],        
             legendgroup=str(row_idx),
             legendgrouptitle=dict(text='Environment variables'),    
@@ -452,6 +464,7 @@ def solar_med_visualization(results_df):
     fw_fig.add_trace(
         go.Scattergl(
             name=label,
+            line=dict(color=colors_gnome['oranges'][2]),
             meta=[label],        
             legendgroup=str(row_idx),
         ), 
@@ -459,17 +472,32 @@ def solar_med_visualization(results_df):
         hf_x=x, hf_y=results_df[var_id],
         row=row_idx, col=1
     )
-    fw_fig.update_yaxes(title_text=vars_info[var_id]["units_model"], row=row_idx, col=1)
-
+    # fw_fig.update_yaxes(title_text=vars_info[var_id]["units_model"], row=row_idx, col=1)
     fw_fig.update_layout(
-        yaxis_title=vars_info['Tamb']["units_model"],
-        yaxis2_title=vars_info['I']["units_model"]
+        yaxis11=dict(
+            title=v['Tamb']['label'] + v['Tamb']['units_model'],
+            titlefont=dict(color=colors_gnome['greens'][3]),
+            tickfont=dict(color=colors_gnome['greens'][3]),
+            # range=[30, 120],
+            # dtick=span/5
+        ),
+        yaxis12=dict(
+            title=v['I']['label'] + v['I']['units_model'],
+            titlefont=dict(color=colors_gnome['oranges'][2]),
+            tickfont=dict(color=colors_gnome['oranges'][2]),
+            # range=[1, 20],
+            # dtick=span/5
+        ),
     )
+
+    # fw_fig.update_layout(
+    #     yaxis_title=vars_info['Tamb']["units_model"],
+    #     yaxis2_title=vars_info['I']["units_model"]
+    # )
     fw_fig.update_xaxes(tickfont=dict(size=font_size), row=row_idx, col=1)
     # Update Y-axis settings for both subplots
     fw_fig.update_yaxes(title_font=dict(size=font_size), tickfont=dict(size=font_size), row=row_idx, col=1)
 
-    height = 1000
     # Figure layout
     fw_fig.update_layout(height=height, showlegend=True, 
                         title='Simulation results',
@@ -481,5 +509,20 @@ def solar_med_visualization(results_df):
 
     # print([f"{i}: {data['name']}" for i, data in enumerate(fw_fig.data)])
     # print([f"{i}: {data['yaxis']}" for i, data in enumerate(fw_fig.data)])
+    
+    if save_figure:
+        # fw_copy = copy.deepcopy(fw_fig)
+        # fw_copy._global_n_shown_samples = len(x) # Deactivate resampling, otherwise it raises an error when saving
+        # fw_copy.reset_axes()
+        
+        
+        for figure_format in ['pdf', 'svg', 'png']:
+            try:
+                fw_fig.write_image(os.path.join('results', filename + '.' + figure_format), scale=2, format=figure_format)
+                print(f"Figure saved in {figure_format} format: {filename}")
+            except Exception as e:
+                print(f"Error saving figure in {figure_format} format: {e}")
+        
+        fw_fig.write_html(os.path.join('results', filename + '.html'), include_plotlyjs='cdn')
     
     return fw_fig
