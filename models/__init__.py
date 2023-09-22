@@ -686,6 +686,7 @@ class solar_MED:
     # cost_e:float = None # Cost of electricty (€/kWhe)
     # cost_w = None # Sale price of water (€/m³)
     curve_fits_path: str = 'datos/curve_fits.json' # Path to the file with the curve fits
+    default_penalty: float = 1e6 # Default penalty for infeasible solutions
     
     ## MED
     # Pumps to calculate SEEC_med, must be in the same order as in step method
@@ -1083,6 +1084,8 @@ class solar_MED:
             _type_: _description_
         """
         
+        self.penalty = 0
+        
         # Update limits that depend on other variables and can be calculated before the step
         # self.step_done = False; self.update_limits()
         
@@ -1139,20 +1142,28 @@ class solar_MED:
                                                                                                nargout=5 )
                     med_model_solved = True
                 except matlab.engine.MatlabExecutionError as e:
+                    
+                    # Introducir penalización
+                    
                     # If the error is raied bu mmed_c being out of range
                     if e.contains('mmed_c too high'):
-                        if Tmed_c_out + 0.2 < self.Tmed_c_in_max:
-                            Tmed_c_out += 0.2
-                        else: 
-                            med_model_solved = True
-                            self.med_active = False
+                    #     if Tmed_c_out + 0.2 < self.Tmed_c_in_max:
+                    #         Tmed_c_out += 0.2
+                    #     else: 
+                    #         med_model_solved = True
+                    #         self.med_active = False
                          
-                    elif e.contains('mmed_c too low'):
-                        if Tmed_c_out - 0.2 > self.Tmed_c_in_min:
-                            Tmed_c_out -= 0.2
-                        else: 
-                            self.med_active = False
-                            med_model_solved = True
+                    # elif e.contains('mmed_c too low'):
+                    #     if Tmed_c_out - 0.2 > self.Tmed_c_in_min:
+                    #         Tmed_c_out -= 0.2
+                    #     else: 
+                    #         self.med_active = False
+                    #         med_model_solved = True
+                        self.penalty = self.default_penalty
+                        
+                        self.logger.warning(f"Unfeasible operation in MED")
+                        
+                        return None, None, None, None
                             
                     else:
                         raise e
@@ -1217,28 +1228,48 @@ class solar_MED:
         msf = outputs.x[1]
         
         if msf < self.msf_min:
-            # If the solar field flow rate is below the minimum, fix the flow rate and calculate the new lower outlet temperature
-            self.msf = self.msf_min
-                        
-            initial_guess = [self.Tts_c[-1], self.Tsf_in+5]
-            bounds = ( (0, self.Tsf_in+0.5), (self.Tts_c[-2], self.Tsf_out-0.5) )
-            outputs = least_squares(self.energy_generation_and_storage_subproblem_temp, initial_guess,  bounds=bounds)
-            Tts_c_b = outputs.x[0]
-            self.Tsf_out = outputs.x[1]
             
-            self.logger.debug(f"msf ({msf}) is below the minimum ({self.msf_min}). Lowered Tsf_out to maximum achievable value ({self.Tsf_out}) with minimum flow rate ({self.msf})")
+            # Alternativa 1
+            # Introducir penalización
+            self.penalty = self.default_penalty
+            
+            self.logger.warning(f"Unfeasible operation in solar field, msf ({msf}) is below the minimum ({self.msf_min})")
+            
+            return None, None, None, None
+            
+            # Alternativa 2
+            # If the solar field flow rate is below the minimum, fix the flow rate and calculate the new lower outlet temperature
+            # self.msf = self.msf_min
+                        
+            # initial_guess = [self.Tts_c[-1], self.Tsf_in+5]
+            # bounds = ( (0, self.Tsf_in+0.5), (self.Tts_c[-2], self.Tsf_out-0.5) )
+            # outputs = least_squares(self.energy_generation_and_storage_subproblem_temp, initial_guess,  bounds=bounds)
+            # Tts_c_b = outputs.x[0]
+            # self.Tsf_out = outputs.x[1]
+            
+            # self.logger.debug(f"msf ({msf}) is below the minimum ({self.msf_min}). Lowered Tsf_out to maximum achievable value ({self.Tsf_out}) with minimum flow rate ({self.msf})")
 
         elif msf > self.msf_max:
-            # If the solar field flow rate is above the maximum, fix the flow and calculate the new higher outlet temperature
-            self.msf = self.msf_max
-                        
-            initial_guess = [self.Tts_c[-1], self.Tsf_in+5]
-            bounds = ( (0, self.Tsf_in+0.5), (self.Tts_c[-2], self.Tsf_max) )
-            outputs = least_squares(self.energy_generation_and_storage_subproblem_temp, initial_guess,  bounds=bounds)
-            Tts_c_b = outputs.x[0]
-            self.Tsf_out = outputs.x[1]
             
-            self.logger.debug(f"msf ({msf}) is below the minimum ({self.msf_min}). Increased Tsf_out to maximum achievable value ({self.Tsf_out}) with maximum flow rate ({self.msf})")
+            # Alternativa 1
+            # Introducir penalización
+            self.penalty = self.default_penalty
+            
+            self.logger.warning(f"Unfeasible operation in solar field, msf ({msf}) is above the maximum ({self.msf_max})")
+            
+            return None, None, None, None
+            
+            # Alternativa 2
+            # If the solar field flow rate is above the maximum, fix the flow and calculate the new higher outlet temperature
+            # self.msf = self.msf_max
+                        
+            # initial_guess = [self.Tts_c[-1], self.Tsf_in+5]
+            # bounds = ( (0, self.Tsf_in+0.5), (self.Tts_c[-2], self.Tsf_max) )
+            # outputs = least_squares(self.energy_generation_and_storage_subproblem_temp, initial_guess,  bounds=bounds)
+            # Tts_c_b = outputs.x[0]
+            # self.Tsf_out = outputs.x[1]
+            
+            # self.logger.debug(f"msf ({msf}) is below the minimum ({self.msf_min}). Increased Tsf_out to maximum achievable value ({self.Tsf_out}) with maximum flow rate ({self.msf})")
         else: self.msf = msf
         
         self.Tts_c_b = Tts_c_b
@@ -1316,19 +1347,23 @@ class solar_MED:
     
     def calculate_cost(self, cost_w=None, cost_e=None):
         
-        self.cost_w = cost_w if cost_w else self.cost_w # €/m³
-        self.cost_e = cost_e if cost_e else self.cost_e # €/kWhe
+        if self.penalty:
+            return self.penalty
         
-        # Operational costs (€/m³h)
-        self.cost_op = self.cost_e * ( self.SEEC_med + self.STEC_med*self.SEC_sf )
+        else:
+            self.cost_w = cost_w if cost_w else self.cost_w # €/m³
+            self.cost_e = cost_e if cost_e else self.cost_e # €/kWhe
+            
+            # Operational costs (€/m³h)
+            self.cost_op = self.cost_e * ( self.SEEC_med + self.STEC_med*self.SEC_sf )
+            
+            # Fixed costs (€/h)
+            if not hasattr(self, 'cost_fixed'):
+                self.cost_fixed = self.calculate_fixed_costs() 
+            
+            self.cost = ( (self.cost_w-self.cost_op)*self.mmed_d + self.cost_fixed ) * self.ts/3600
         
-        # Fixed costs (€/h)
-        if not hasattr(self, 'cost_fixed'):
-            self.cost_fixed = self.calculate_fixed_costs() 
-        
-        self.cost = ( (self.cost_w-self.cost_op)*self.mmed_d + self.cost_fixed ) * self.ts/3600
-        
-        return self.cost
+            return self.cost
 
     def get_properties(self):
         """
