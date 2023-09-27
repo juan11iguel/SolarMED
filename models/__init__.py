@@ -1,4 +1,5 @@
 import json
+import re
 # test
 import scipy
 from scipy.optimize import fsolve, least_squares
@@ -1141,12 +1142,12 @@ class solar_MED:
                                                                                                op_timeIn,# hours
                                                                                                nargout=5 )
                     med_model_solved = True
-                except matlab.engine.MatlabExecutionError as e:
+                except Exception as e:
                     
                     # Introducir penalización
-                    
+                    """ (OLD)
                     # If the error is raied bu mmed_c being out of range
-                    if e.contains('mmed_c too high'):
+                    #if e.contains('mmed_c'):
                     #     if Tmed_c_out + 0.2 < self.Tmed_c_in_max:
                     #         Tmed_c_out += 0.2
                     #     else: 
@@ -1159,15 +1160,13 @@ class solar_MED:
                     #     else: 
                     #         self.med_active = False
                     #         med_model_solved = True
+                    """
+                    if re.search('mmed_c', str(e)):
                         self.penalty = self.default_penalty
-                        
                         self.logger.warning(f"Unfeasible operation in MED")
-                        
                         return None, None, None, None
-                            
                     else:
                         raise e
-                    
                     TcwoutIn = matlab.double([Tmed_c_out], size=(1, 1))
 
             if self.med_active:
