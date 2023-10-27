@@ -1,0 +1,258 @@
+{
+  "main": {
+    "id": "4abf1d478e8aeb87",
+    "type": "split",
+    "children": [
+      {
+        "id": "3ae8c47afa7e362b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "42d427f516a4c9f8",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "models/Modelo intercambiador.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "8c2e4468cbfe1393",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Pending tasks.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "688bd1d1a17d9391",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "models/Modelo intercambiador.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "5391d14bb54e5317",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Validation signals list.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "ef98454f878c86be",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Pending tasks.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "e948361b1eee597e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "models/Modelo tanques.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ],
+        "currentTab": 4
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "14fb3fbd823ee314",
+    "type": "split",
+    "children": [
+      {
+        "id": "24432edd89bd7c0e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "170734c5ae00d06d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "asd",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c915cfc532236d46",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          },
+          {
+            "id": "9bed96b88033046a",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "00c67afb423c8e0c",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 304.5
+  },
+  "right": {
+    "id": "f98bbe65b6ba93ad",
+    "type": "split",
+    "children": [
+      {
+        "id": "9c8801716380bf61",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "083e9fc309ea6159",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Pending tasks.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": true,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "82a4432d5de94fc6",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {}
+            }
+          },
+          {
+            "id": "608b6df9cf7b385a",
+            "type": "leaf",
+            "state": {
+              "type": "advanced-tables-toolbar",
+              "state": {}
+            }
+          },
+          {
+            "id": "0dd79fa6bf6a702b",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency"
+              }
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 274.5,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "command-palette:Open command palette": false,
+      "markdown-importer:Open format converter": false,
+      "audio-recorder:Start/stop recording": false,
+      "canvas:Create new canvas": false,
+      "workspaces:Manage workspace layouts": false,
+      "table-editor-obsidian:Advanced Tables Toolbar": false,
+      "obsidian-excalidraw-plugin:Create new drawing": false
+    }
+  },
+  "active": "ef98454f878c86be",
+  "lastOpenFiles": [
+    "Historical data processing.md",
+    "Validation signals list.md",
+    "models/Modelo MED.md",
+    "Optimization.md",
+    "Ejecución modelo MED v1.md",
+    "Análisis de sensibilidad.md",
+    "Pending tasks.md",
+    "models/Modelo válvula tres vías.md",
+    "lu438236bww2.tmp",
+    "lu438236bwug.tmp",
+    "models/Modelo tanques.md",
+    "models/Modelo intercambiador.md",
+    "models/Sistema completo.md",
+    "material auxiliar/JuanMiguel.Serrano SFERAIIIDC_presentation.pdf",
+    "material auxiliar/presentacion_arm.pdf",
+    "material auxiliar",
+    "listado variables.ods",
+    "Nomenclature.md",
+    "models_psa/datos/datos_tanques.txt",
+    "tcwin_timeseries.csv",
+    "MED_model_installers.zip",
+    "sensitivity_analysis/ts_out_sensivity_sobol.png",
+    "sensitivity_analysis/stec_sensivity_sobol.png",
+    "sensitivity_analysis/seec_sensivity_sobol.png",
+    "sensitivity_analysis/SALib_sensitivity_analysis.pdf",
+    "sensitivity_analysis/mcw_out_sensivity_sobol.png",
+    "sensitivity_analysis/m_prod_sensivity_sobol.png",
+    "models_psa/results/newplot.png",
+    "models/Modelo campo solar.md",
+    "models/Restricciones.md",
+    "attachments/Hierarchical Control.png",
+    "models/attachments/solarMED_optimization-Optimization.drawio.png",
+    "models/attachments/result_model_ts_calibration_2023-07-07.svg",
+    "models/attachments/result_model_ts_calibration_2023-07-07.png",
+    "models/tanques.excalidraw.md",
+    "Excalidraw/Drawing 2023-06-22 11.26.14.excalidraw.md",
+    "EURECAT/attachments/Diagrama general.svg.md",
+    "EURECAT/Optimización.md",
+    "EURECAT/Nomenclatura.md"
+  ]
+}

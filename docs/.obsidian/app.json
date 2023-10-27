@@ -1,0 +1,17 @@
+{
+  "legacyEditor": false,
+  "livePreview": true,
+  "spellcheckLanguages": null,
+  "spellcheck": true,
+  "pdfExportSettings": {
+    "pageSize": "A4",
+    "landscape": false,
+    "margin": "0",
+    "downscalePercent": 100
+  },
+  "alwaysUpdateLinks": true,
+  "useMarkdownLinks": true,
+  "newFileLocation": "current",
+  "attachmentFolderPath": "./attachments",
+  "promptDelete": false
+}

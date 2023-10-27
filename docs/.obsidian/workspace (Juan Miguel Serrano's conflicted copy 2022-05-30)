@@ -1,0 +1,120 @@
+{
+  "main": {
+    "id": "4abf1d478e8aeb87",
+    "type": "split",
+    "children": [
+      {
+        "id": "8f05af4a666e3a9f",
+        "type": "leaf",
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "Acondicionamiento MED/Cosas pendientes.md",
+            "mode": "preview",
+            "source": false
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "14fb3fbd823ee314",
+    "type": "split",
+    "children": [
+      {
+        "id": "24432edd89bd7c0e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a4834373479028fd",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "170734c5ae00d06d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "#often_used",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c915cfc532236d46",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 407
+  },
+  "right": {
+    "id": "f98bbe65b6ba93ad",
+    "type": "split",
+    "children": [
+      {
+        "id": "9c8801716380bf61",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "083e9fc309ea6159",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Acondicionamiento MED/Cosas pendientes.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": true,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "82a4432d5de94fc6",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {}
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "active": "8f05af4a666e3a9f",
+  "lastOpenFiles": [
+    "Acondicionamiento MED/Cosas pendientes.md",
+    "reports/operation_pts/Ms_12_Ts_in_74_Mf_8_Tcwout_31.md",
+    "reports/operation_pts/Ms_12_Ts_in_74_Mf_8_Tcwout_32.md",
+    "reports/operation_pts/Ms_12_Ts_in_74_Mf_8_Tf_66_Tcwout_32.md",
+    "reports/operation_pts/Nominal conditions comparison - extended.md",
+    "reports/operation_pts/Nominal conditions.md",
+    "Reuniones/Reunión MED 13 May 2022.md",
+    "Ensayos a realizar.md",
+    "Acondicionamiento MED/Lazo refrigeración MED.md",
+    "Acondicionamiento MED/Modificaciones control piscinas.md"
+  ]
+}
