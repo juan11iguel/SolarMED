@@ -8,36 +8,12 @@
         "type": "tabs",
         "children": [
           {
-            "id": "42d427f516a4c9f8",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "models/Modelo intercambiador.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
             "id": "8c2e4468cbfe1393",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
                 "file": "Pending tasks.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "688bd1d1a17d9391",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "models/Modelo intercambiador.md",
                 "mode": "source",
                 "source": false
               }
@@ -66,21 +42,9 @@
                 "source": false
               }
             }
-          },
-          {
-            "id": "e948361b1eee597e",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "models/Modelo tanques.md",
-                "mode": "source",
-                "source": false
-              }
-            }
           }
         ],
-        "currentTab": 4
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -215,6 +179,16 @@
   },
   "active": "ef98454f878c86be",
   "lastOpenFiles": [
+    "models/heat_exchanger.md~",
+    "models/complete_system.md~",
+    "models/restrictions.md",
+    "models/three_way_valve.md",
+    "models/heat_storage.md",
+    "models/MED.md",
+    "models/heat_exchanger.md",
+    "Nomenclature.md~",
+    "models/complete_system.md",
+    "models/solar_field.md",
     "Historical data processing.md",
     "Validation signals list.md",
     "models/Modelo MED.md",
@@ -235,11 +209,9 @@
     "Nomenclature.md",
     "models_psa/datos/datos_tanques.txt",
     "tcwin_timeseries.csv",
-    "MED_model_installers.zip",
     "sensitivity_analysis/ts_out_sensivity_sobol.png",
     "sensitivity_analysis/stec_sensivity_sobol.png",
     "sensitivity_analysis/seec_sensivity_sobol.png",
-    "sensitivity_analysis/SALib_sensitivity_analysis.pdf",
     "sensitivity_analysis/mcw_out_sensivity_sobol.png",
     "sensitivity_analysis/m_prod_sensivity_sobol.png",
     "models_psa/results/newplot.png",
@@ -252,7 +224,6 @@
     "models/tanques.excalidraw.md",
     "Excalidraw/Drawing 2023-06-22 11.26.14.excalidraw.md",
     "EURECAT/attachments/Diagrama general.svg.md",
-    "EURECAT/Optimización.md",
-    "EURECAT/Nomenclatura.md"
+    "EURECAT/Optimización.md"
   ]
 }

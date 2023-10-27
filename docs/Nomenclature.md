@@ -4,7 +4,7 @@
 ![Nomenclatura](Sistema%20completo.md#Nomenclatura)
 
 ## MED
-![Nomenclatura](Modelo%20MED.md#Nomenclatura)
+![Nomenclatura](Models/Modelo%20MED.md#Nomenclatura)
 
 ## Solar field
 ![Nomenclatura](Modelo%20campo%20solar.md#Nomenclatura)

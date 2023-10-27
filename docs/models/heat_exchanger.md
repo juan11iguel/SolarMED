@@ -1,5 +1,5 @@
 
-![center | solarMED_optimization-Heat_exchanger | 500x500](solarMED_optimization-Heat_exchanger.svg)
+![center | solarMED_optimization-Heat_exchanger | 500x500](attachments/solarMED_optimization-Heat_exchanger.svg)
 
 ## Fuente
 
@@ -7,7 +7,7 @@
 [2] J. A. Duffie and W. A. Beckman, Solar engineering of thermal processes. John Wiley & Sons, 2013.
 
 
-### Nomenclatura
+### Nomenclature
 
 Loops (L):
 	- $p:$ Primary (hot sink / side) loop
@@ -65,4 +65,4 @@ $$
 
 ## Otros
 
-![Intercambiador campo](Validation%20signals%20list.md#Intercambiador%20campo)
+![Intercambiador campo](../Validation%20signals%20list.md#Intercambiador%20campo)

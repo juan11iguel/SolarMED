@@ -1,5 +1,5 @@
-## Nomenclatura
-![](attachments/Diagrama%20general.svg)
+## Nomenclature
+![](../attachments/Diagrama%20general.svg)
 - Hot water
 	- $M_{s} \rightarrow \dot{m}_s$  $[m^3/h]$ Hot water flow rate
 	- $T_{s,in}$  $[\degree C]$ Hot water inlet temperature
