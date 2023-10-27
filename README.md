@@ -2,12 +2,15 @@
 
 Repository with source code of a variety of models of a solar field - thermal storage and MED plant combined system located at Plataforma Solar de Almería.
 
+## Pending tasks
+
+![Pending tasks](docs/Pending%20tasks.md)
 
 ## Installation
 
 To run the combined model **Python 3.9** is required since it's the version that the MATLAB runtime was compiled for.
 
-## Installing MED model dependency
+### Installing MED model dependency
 
 The MED model is an ANN developed using the MATLAB Neural Network Toolbox. To run it, the MATLAB runtime must be 
 installed. The runtime can be downloaded from [here](https://www.mathworks.com/products/compiler/matlab-runtime.html).
@@ -21,7 +24,7 @@ export MR=$HOME/MATLAB_Runtime
 export LD_LIBRARY_PATH=$MR/v911/runtime/glnxa64:$MR/v911/bin/glnxa64:$MR/v911/sys/os/glnxa64:$MR/v911/sys/opengl/lib/glnxa64
 ```
 
-## Setting up the python environment
+### Setting up the python environment
 
 Initialize a virtual environment with python 3.9 (requirement of MATLAB runtime) and install the dependencies.
 
@@ -57,13 +60,6 @@ python samples/MED_modelSample1.py
 
 ## Examples
 
+Check [test_combined_model](./test_combined_model.ipynb) for examples of how to use the combined model.
 
-## Pendiente
 
-- [ ] Volver a entrenar modelo de la MED directamente desde Python para tener libertad de versión de python y simplificar código
-- [ ] Configurar release automáticamente de un paquete pip cada vez que se haga un nuevo pull con etiqueta de versión?
-
-### Visualización de resultados
-
-- [ ] Renderizar texto en latex adecuadamente
-- [ ] Incluir energía almacenada en almacenamiento térmico
