@@ -1,22 +1,31 @@
-El campo solar es básicamente un conversor de energía eléctrica a térmica, el factor de conversión es el SEC ($kW_{e}/kW_{th}$), si es menor de uno quiere decir que tenemos que dar al sistema más energía eléctrica que la térmica que obtenemos, valores por encima de uno significa que hay una ganancia. Pero no sólo importa el factor de intercambio si no también a qué temperatura se obtiene el calor (exergía).
+# Solar field model
 
-En el diagrama se muestran los lazos individuales que conforman el campo, en condiciones de estacionario y para el modelo se considera que los caudales y temperaturas son iguales en cada uno de los  lazos, y por lo tanto se puede simplificar a un único lazo con área de captador la suma de los lazos individuales.
+The solar field is basically a converter of electrical to thermal energy, the conversion factor is the SEC ($kW_{e}/kW_{th}$), if it is less than one it means that we have to give the system more electrical energy than the thermal energy we get, values above one means that there is a gain. But it is not only the exchange factor that matters but also at what temperature the heat is obtained (exergy).
+
+The diagram shows the individual loops that make up the field, in stationary conditions and for the model it is considered that the flow rates and temperatures are equal in each of the loops, and therefore can be simplified to a single loop with collector area the sum of the individual loops.
+
+
+## Bibliography
+
+[1] G. Ampuño, L. Roca, M. Berenguel, J. D. Gil, M. Pérez, and J. E. Normey-Rico, “Modeling and simulation of a solar field based on flat-plate collectors,” Solar Energy, vol. 170, pp. 369–378, Aug. 2018, doi: 10.1016/j.solener.2018.05.076.
+
+[2] G. Ampuño, L. Roca, J. D. Gil, M. Berenguel, and J. E. Normey-Rico, “Apparent delay analysis for a flat-plate solar field model designed for control purposes,” Solar Energy, vol. 177, pp. 241–254, Jan. 2019, doi: 10.1016/j.solener.2018.11.014.
+
+### Nomenclature
 
 ![center | solarMED_optimization-solar_field.drawio](solarMED_optimization-solar_field.drawio.svg)
 
-## Fuente
-
-[1] G. Ampuño, L. Roca, M. Berenguel, J. D. Gil, M. Pérez, and J. E. Normey-Rico, “Modeling and simulation of a solar field based on flat-plate collectors,” Solar Energy, vol. 170, pp. 369–378, Aug. 2018, doi: 10.1016/j.solener.2018.05.076.
-[2] G. Ampuño, L. Roca, J. D. Gil, M. Berenguel, and J. E. Normey-Rico, “Apparent delay analysis for a flat-plate solar field model designed for control purposes,” Solar Energy, vol. 177, pp. 241–254, Jan. 2019, doi: 10.1016/j.solener.2018.11.014.
-
-### Nomenclatura
+#### Inputs / outputs
 
 - $T_{in} : (\degree C):$ Inlet temperature
 - $T_{out} : (\degree C):$ Outlet temperature
-- $\dot{m}_{sf}: (kg/s):$  Flow rate
+- $\dot{m}_{sf}: (kg/s):$  Total solar field flow rate
 - $P_{gen} : (kW_{th}):$ Thermal power generated
-- $I : \left( \frac{W}{m^{2}} \right):$ Ambient temperature
+- $I : \left( \frac{W}{m^{2}} \right):$ Solar irradiance
 - $T_{amb} : (\degree C):$ Ambient temperature
+
+#### Parameters
+
 - $n_p:$ Number of parallel collectors in each loop
 - $n_s:$ Number of serial connections of collectors rows
 - $n_t:$ Number of parallel tubes in each collector

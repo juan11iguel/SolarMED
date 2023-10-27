@@ -1,4 +1,5 @@
-## 1. Detección de operación en estado estacionario
+## Detección de operación en estado estacionario
+
 Ventana temporal móvil donde se comprueba que la desviación máxima respecto al valor medio esté dentro de un margen permitido para cada una de las variables de interés. Si todas están dentro de los márgenes permitidos por el tiempo establecido se considera operación en estacionario.
 
 Variables consideradas:

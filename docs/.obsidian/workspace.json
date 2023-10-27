@@ -13,38 +13,26 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Pending tasks.md",
+                "file": "models/thermal_storage.md",
                 "mode": "source",
                 "source": false
               }
             }
           },
           {
-            "id": "5391d14bb54e5317",
+            "id": "d97e853eed673590",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Validation signals list.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "ef98454f878c86be",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Pending tasks.md",
+                "file": "Historical data processing.md",
                 "mode": "source",
                 "source": false
               }
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -119,7 +107,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Pending tasks.md",
+                "file": "Historical data processing.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -177,25 +165,27 @@
       "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "ef98454f878c86be",
+  "active": "d97e853eed673590",
   "lastOpenFiles": [
+    "Validation signals list.md",
+    "Pending tasks.md",
+    "Optimization.md",
+    "Nomenclature.md",
+    "models/thermal_storage.md",
+    "models/heat_exchanger.md",
+    "models/MED.md",
+    "models/restrictions.md",
+    "models/solar_field.md",
+    "models/three_way_valve.md",
+    "models/MED.md~",
     "models/heat_exchanger.md~",
     "models/complete_system.md~",
-    "models/restrictions.md",
-    "models/three_way_valve.md",
-    "models/heat_storage.md",
-    "models/MED.md",
-    "models/heat_exchanger.md",
     "Nomenclature.md~",
     "models/complete_system.md",
-    "models/solar_field.md",
     "Historical data processing.md",
-    "Validation signals list.md",
     "models/Modelo MED.md",
-    "Optimization.md",
     "Ejecución modelo MED v1.md",
     "Análisis de sensibilidad.md",
-    "Pending tasks.md",
     "models/Modelo válvula tres vías.md",
     "lu438236bww2.tmp",
     "lu438236bwug.tmp",
@@ -206,9 +196,6 @@
     "material auxiliar/presentacion_arm.pdf",
     "material auxiliar",
     "listado variables.ods",
-    "Nomenclature.md",
-    "models_psa/datos/datos_tanques.txt",
-    "tcwin_timeseries.csv",
     "sensitivity_analysis/ts_out_sensivity_sobol.png",
     "sensitivity_analysis/stec_sensivity_sobol.png",
     "sensitivity_analysis/seec_sensivity_sobol.png",

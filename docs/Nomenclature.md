@@ -1,19 +1,33 @@
-# Nomenclatura
-
-## Complete system
-![Nomenclatura](Sistema%20completo.md#Nomenclatura)
+# Nomenclature
 
 ## MED
-![Nomenclatura](Models/Modelo%20MED.md#Nomenclatura)
+
+When considering complete system, `med` suffix is added to the component  variables.
+
+![Nomenclature](models/MED.md#Nomenclature)
 
 ## Solar field
-![Nomenclatura](Modelo%20campo%20solar.md#Nomenclatura)
 
-## Tanks
-![Nomenclatura](Modelo%20tanques.md#Nomenclatura)
+When considering complete system, `sf` suffix is added to the component  variables.
 
+![Nomenclature](solar_field.md#Nomenclature)
+
+## Thermal storage
+
+When considering complete system, `ts` suffix is added to the component  variables.
+
+![Nomenclature](thermal_storage.md#Nomenclature)
 ## Heat exchanger
-![Nomenclatura](Modelo%20intercambiador.md#Nomenclatura)
 
+When considering complete system, `hx` suffix is added to the component  variables.
+
+![Nomenclature](heat_exchanger.md#Nomenclature)
 ## Three-way valve
-![Nomenclatura](Modelo%20válvula%20tres%20vías.md#Nomenclatura)
+
+When considering complete system, `3wv` suffix is added to the component  variables.
+
+![Nomenclature](three_way_valve.md#Nomenclature)
+
+## Complete system
+
+![Nomenclature](models/complete_system.md#Nomenclature)

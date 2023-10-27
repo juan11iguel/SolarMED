@@ -29,11 +29,11 @@ donde:
 ### Diagrama del sistema simulado
 Sistema simulado usado para entrenar agente de RL. 
 
-![[Simulated_system_diagram.svg]]
+![Simulated_system_diagram](attachments/Simulated_system_diagram.svg)
 
 ### Arquitectura sistema óptimo. RL en capa optimización
 
-![[optimal_system_diagram_RL.svg]]
+![optimal_system_diagram_RL](attachments/optimal_system_diagram_RL.svg)
 
 
 
@@ -43,7 +43,7 @@ Sistema simulado usado para entrenar agente de RL.
 
 Se parte de un fluido con una energía finita a una temperatura determinada. La idea es gestionar esta energía disponible de manera que se maximice la producción total de destilado. Este caso es más interesante pues operar en condiciones nominales puede no ser la mejor estrategia. En este caso el factor tiempo es fundamental. Se pueden plantear distintos puntos de partida y distintas capacidades de almacenamiento térmico. Como referencia el almacenamiento instalado para la MED de la PSA proporciona autonomía para unas 2-5 h dependiendo de las condiciones de operación.
 
-![MED_case2](MED_case2.svg)
+![MED_case2](attachments/MED_case2.svg)
 
 
 $$\min\limits_{U} \left(a·STEC + b·SEEC - M_{prod}·c·t)
@@ -60,7 +60,8 @@ Se parte de un volumen en los tanques a una temperatura determinada ($T_{tank,0}
 ## Case study 3. MED + thermal storage + solar field
 
 (sustituir diagrama)
-![Hierarchical Control](Hierarchical%20Control.svg)
+![Hierarchical Control](attachments/Hierarchical%20Control.svg)
+
 Pendiente de actualizar nomenclatura:
 ![solarMED_optimization-general_diagram](solarMED_optimization-general_diagram.svg)
 

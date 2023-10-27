@@ -1,25 +1,26 @@
+# Multi-effect distillation plant model
 ## Nomenclature
 ![](../attachments/Diagrama%20general.svg)
 - Hot water
-	- $M_{s} \rightarrow \dot{m}_s$  $[m^3/h]$ Hot water flow rate
+	- $\dot{m}_s$  $[m^3/h]$ Hot water flow rate
 	- $T_{s,in}$  $[\degree C]$ Hot water inlet temperature
 	- $T_{s,out}$  $[\degree C]$ Hot water outlet temperature
 - Feed water
-	- $M_f\rightarrow \dot{m}_f$  $[m^3/h]$ Feed water flow rate
+	- $\dot{m}_f$  $[m^3/h]$ Feed water flow rate
 	- $T_f$  $[\degree C]$ Feed water temperature at first effect (preheated seawater)
 - Cooling water
-	- $M_{cw}\rightarrow \dot{m}_{cw}$  $[m^3/h]$ Cooling water flow rate
-	- $T_{cw,in}$  $[\degree C]$ Cooling water temperature at inlet of condenser
-	- $T_{cw,out}$  $[\degree C]$ Cooling water temperature at outlet of condenser
+	- $\dot{m}_{c}$  $[m^3/h]$ Cooling water flow rate
+	- $T_{c,in}$  $[\degree C]$ Cooling water temperature at inlet of condenser
+	- $T_{c,out}$  $[\degree C]$ Cooling water temperature at outlet of condenser
 - Products
 	- Condensate
-		- $M_{prod}\rightarrow \dot{m}_{d}$  $[m^3/h]$ Distillate production flow rate
-		- $T_{prod}\rightarrow T_d$  $[\degree C]$ Distillate production temperature
-		- $X_{prod}\rightarrow T_d$  $[g/L]$ Distillate production salinity
+		- $\dot{m}_{d}$  $[m^3/h]$ Distillate production flow rate
+		- $T_d$  $[\degree C]$ Distillate production temperature
+		- $\omega_d$  $[g/L]$ Distillate production salinity
 	- Brine
-		- $M_{brine}$  $[m^3/h]$ Brine flow rate
-		- $T_{brine}$  $[\degree C]$ Brine temperature
-		- $X_{brine}$  $[g/L]$ Brine salinity
+		- $\dot{m}_{b}$  $[m^3/h]$ Brine flow rate
+		- $T_{b}$  $[\degree C]$ Brine temperature
+		- $\omega_{b}$  $[g/L]$ Brine salinity
 - Others
 	- $T_{v,1}$  $[\degree C]$ Vapor temperature in first effect
 	- $T_{v,N}$  $[\degree C]$ Vapor temperature in last effect
@@ -31,12 +32,13 @@
 
 ### Inputs / outputs
 
-$$ M_{prod}, T_{s,out}, M_{cw} = f(M_{s}, T_{s,in}, M_{f}, T_{cw,in}, T_{cw,out}, [t_{operated, i}]_{i=1..N_{ef}}) $$
+$$ \dot{m}_{d}, T_{s,out}, \dot{m}_{c} = f(\dot{m}_{s}, T_{s,in}, \dot{m}_{f}, T_{c,in}, T_{c,out}, [t_{operated, i}]_{i=1..N_{ef}}) $$
 $$ \dot{m}_{d}, T_{s,out}, \dot{m}_{c} = f(\dot{m}_{s}, T_{s,in}, \dot{m}_{f}, T_{c,in}, T_{c,out}) $$
-Justificación de salidas seleccionadas:
-- $M_{prod}$ forma directamente parte de la función de coste, así como es necesario para calcular el resto de términos.
-- $T_{s,out}$. Necesario para calcular $STEC$.
-- $M_{cw}$. Necesario para estimar $SEEC$.
+
+Reasoning behind chosen outputs:
+- $\dot{m}_{d}$ is part of the cost function.
+- $T_{s,out}$. Necessary to estimate thermal performance.
+- $\dot{m}_{c}$. Necessary to estimate electrical performance and feasibility of operation.
 
 
 #### Análisis sensibilidad

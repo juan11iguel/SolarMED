@@ -1,17 +1,18 @@
 
-**NOTA:** Puede ser que a veces aparezcan nombres de variables sin o con el prefijo del sistema ($3wv$), pero son iguales.
+# Three-way valve model
 
-![center](solarMED_optimization-Three-way%20valve%20model.png)
+**NOTA:** Puede ser que a veces aparezcan nombres de variables sin o con el prefijo del sistema ($3wv$), pero son iguales.
 
 ## Inputs / outputs
 
 $$ \dot{m}_{src}, R = f(\dot{m}_{dis}, T_{src}, T_{dis,in}, T_{dis,out}) $$
-
 ## Fuente
 
 Lidia
 
-### Nomenclatura
+### Nomenclature
+
+![center](solarMED_optimization-Three-way%20valve%20model.png)
 
 - $T_{src} \: (\degree C):$ Temperature from source (thermal storage)
 - $T_{dis,in} \: (\degree C):$ Inlet temperature to discharge (MED heat source inlet, $T_{med,s,in}$)
@@ -19,7 +20,7 @@ Lidia
 - $\dot{m}_{dis} \: (kg/s):$  Flow rate through load / discharge
 - $\dot{m}_{src} \: (kg/s)=(1-R)·\dot{m}_{dis} :$  Flow rate from source
 - $\dot{m}_{mix}=R·\dot{m}_{dis} \: (kg/s):$  Fraction of flow rate from discharge that is mixed with source
-- R: Ratio of $\dot{m}_{dis}$ that is mixed with $\dot{m}_{src}$
+- $R$: Ratio of $\dot{m}_{dis}$ that is mixed with $\dot{m}_{src}$
 
 
 ## Equations
