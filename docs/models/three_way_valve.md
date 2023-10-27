@@ -12,7 +12,7 @@ Lidia
 
 ### Nomenclature
 
-![center](solarMED_optimization-Three-way%20valve%20model.png)
+![center](attachments/solarMED_optimization-Three-way%20valve%20model.png)
 
 - $T_{src} \: (\degree C):$ Temperature from source (thermal storage)
 - $T_{dis,in} \: (\degree C):$ Inlet temperature to discharge (MED heat source inlet, $T_{med,s,in}$)

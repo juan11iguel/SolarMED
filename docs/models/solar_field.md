@@ -13,7 +13,7 @@ The diagram shows the individual loops that make up the field, in stationary con
 
 ### Nomenclature
 
-![center | solarMED_optimization-solar_field.drawio](solarMED_optimization-solar_field.drawio.svg)
+![center | solarMED_optimization-solar_field.drawio](attachments/solarMED_optimization-solar_field.drawio.svg)
 
 #### Inputs / outputs
 
