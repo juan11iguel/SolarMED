@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.dates as mdates
-import models 
+import models_psa 
 
 sns.set_theme()
 myFmt = mdates.DateFormatter('%H:%M')
@@ -66,7 +66,7 @@ def get_Q_from_3wv_model(datos_name, sample_rate_str='1Min'):
     
     # Evaluate model
     for idx in range(len(data)):
-        Msrc_mod[idx], _ = models.three_way_valve_model(Mdis[idx], Tsrc[idx], T_dis_in[idx], T_dis_out[idx])
+        Msrc_mod[idx], _ = models_psa.three_way_valve_model(Mdis[idx], Tsrc[idx], T_dis_in[idx], T_dis_out[idx])
         
     # Create a new dataframe with the output from the model
     data_mod = pd.DataFrame({'m_ts_dis': Msrc_mod}, index=data.index)

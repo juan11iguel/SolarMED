@@ -28,7 +28,7 @@ import numpy as np
 import time
 from utils import generate_env_variables
 
-from models import med_storage_model
+from models_psa import med_storage_model
 
 
 

@@ -154,7 +154,7 @@ data_val.reset_index(drop=True, inplace=True) # reset index
 
 
 #%%% Test model prior to parameter fit
-from models import thermal_storage_model    
+from models_psa import thermal_storage_model    
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
 
 Tin_labels = ["Tts_h_t", "Tts_h_m", "Tts_c_t", "Tts_c_m"] # "Tts_h_b", "Tts_c_b"

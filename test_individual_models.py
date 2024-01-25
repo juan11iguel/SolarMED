@@ -20,7 +20,7 @@ os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/model
 
 #%% Test thermal storage model
 
-from models import thermal_storage_model    
+from models_psa import thermal_storage_model    
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
 from visualization.calibrations import (plot_model_result_thermal_storage, 
                                    plot_energy_thermal_storage,
@@ -121,7 +121,7 @@ for datos_name in ["20230621", "20230414"]:
 
 #%% Test thermal storage model V2
 
-from models import thermal_storage_model_two_tanks    
+from models_psa import thermal_storage_model_two_tanks    
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
 from visualization.calibrations import (plot_model_result_thermal_storage, 
                                    plot_energy_thermal_storage,
@@ -242,7 +242,7 @@ for datos_name in ["20230621", "20230414"]:
 
 #%% Test three way valve model
 
-from models import three_way_valve_model    
+from models_psa import three_way_valve_model    
 from parameters_fit import calculate_iae, calculate_ise, calculate_itae
 from visualization.calibrations import plot_model_result_three_way_valve
 

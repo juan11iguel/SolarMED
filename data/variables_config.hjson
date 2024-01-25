@@ -1,0 +1,541 @@
+{
+
+    # (20240125) Available instruments for uncertainty:
+    # - pt1000_class_A
+    # - pt100_class_A
+    # - conductivity_meter_prominent_portamess_911
+    # - flow_meter_ABB_ProcessMaster_630
+    # - pressure_transmitter_WIKA_S10
+    # - pressure_transmitter_Cerabar_TPMC131
+    # - power_meter_Circutor_CEM31
+    # - level_meter_IGEMA_NA750
+    # - flow_meter_ABB_TRIO_WIRL_VT4
+    # - flow_meter_EH_Proline_Promag_P300
+    # - flow_meter_EH_Proline_Promag_50P
+
+    # Actuators with power consumption fit:
+    # 
+
+    # There are several variables that share the same signal, 
+    # for example, Tsf,out == Thx,p,out
+
+    # Environment
+    "Tamb": {
+        var_id: "Tamb",
+        signal_id: "TT-DES-030",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt1000_class_A"
+        label_html: "T<sub>amb</sub>",
+        label_latex: "$T_{amb}$",
+        // range: [],
+        description: "Ambient temperature",
+    },
+
+    "I": {
+        var_id: "I",
+        signal_id: "RE-SF-001",
+        units_scada: "W/m2",
+        units_model: "W/m2",
+        // instrument: "" // TODO: Add pyranometer to instruments
+        label_html: "I (W/m<sup>2</sup>)",
+        label_latex: "$I\:(W/m^2)$",
+        range: [0, ],
+        description: "Solar irradiation",
+    },
+
+    "Tmed_c_in": {
+        var_id: "Tmed_c_in",
+        signal_id: "TE-DES-015",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>med,c,in</sub> (⁰C)",
+        label_latex: "$T_{med,c,in}\:(^\circ$C)",
+        // range: [],
+        description: "Seawater inlet temperature / MED condenser inlet temperature",
+    },
+
+    "wmed_f": {
+        var_id: "wmed_f",
+        signal_id: "CT-DES-001",
+        units_scada: "mS/cm",
+        units_model: "g/kg",
+        instrument: "conductivity_meter_prominent_portamess_911"
+        label_html: "ω<sub>med,f</sub> (mS/cm)",
+        label_latex: "$w_{med,f}$ (mS/cm)",
+        // range: [],
+        description: "MED feedwater salinity",
+    },
+
+
+    # MED
+
+    ## Temperatures
+    "Tmed_s_in": {
+        var_id: "Tmed_s_in",
+        signal_id: "TT-AQU-107a",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>med,s,in</sub> (⁰C)",
+        label_latex: "$T_{med,s,in}\:(^\circ$C)",
+        // range: [],
+        description: "MED heat source inlet temperature",
+    },
+
+    "Tmed_s_out": {
+        var_id: "Tmed_s_out",
+        signal_id: "HW1TT21",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>med,s,out</sub> (⁰C)",
+        label_latex: "$T_{med,s,out}\:(^\circ$C)",
+        // range: [],
+        description: "MED heat source outlet temperature",
+    },
+
+    "Tmed_c_out": {
+        var_id: "Tmed_c_out",
+        signal_id: "SW2TC1",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>med,c,out</sub> (⁰C)",
+        label_latex: "$T_{med,c,out}\:(^\circ$C)",
+        // range: [],
+        description: "MED condenser outlet temperature",
+    },
+
+    ## Flows
+    "qmed_s": {
+        var_id: "qmed_s",
+        signal_id: "HW1FT21",
+        units_scada: "L/s",
+        units_model: "m3/h",
+        instrument: "flow_meter_EH_Proline_Promag_50P"
+        label_html: "q<sub>med,s</sub> (L/s)",
+        label_latex: "$q_{med,s}\:(kg/s)$",
+        range: [0, 15], // L/s
+        description: "MED heat source flow rate",
+    },
+
+    "qmed_f": {
+        var_id: "qmed_f",
+        signal_id: "FT-DES-003",
+        units_scada: "m3/h",
+        units_model: "m3/h",
+        instrument: "flow_meter_EH_Proline_Promag_P300"
+        label_html: "q<sub>med,f</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{med,f}\:(m^3/h)$",
+        range: [0, 9], // m³/h
+        description: "MED feedwater flow rate",
+    },
+
+    "qmed_c": {
+        var_id: "qmed_c",
+        signal_id: "FT-DES-002_VFD",
+        units_scada: "m3/h",
+        units_model: "m3/h",
+        instrument: "flow_meter_ABB_ProcessMaster_630"
+        label_html: "q<sub>med,c</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{med,c}\:(m^3/h)$",
+        range: [8, 22], // m³/h
+        description: "MED condenser flow rate",
+    },
+
+    "qmed_d": {
+        var_id: "qmed_d",
+        signal_id: "FT-DES-005",
+        units_scada: "m3/h",
+        units_model: "m3/h",
+        instrument: "flow_meter_ABB_TRIO_WIRL_VT4"
+        label_html: "q<sub>med,d</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{med,d}\:(m^3/h)$",
+        range: [1.3, 3.1], // m³/h
+        description: "MED distillate flow rate",
+    },
+
+    ## Electrical consumption
+    "Jmed_d": {
+        var_id: "Jmed_d",
+        signal_id: "JT-DES-001",
+        units_scada: "kW",
+        units_model: "kW",
+        instrument: "power_meter_Circutor_CEM31"
+        label_html: "J<sub>med,d</sub> (kW)",
+        label_latex: "$J_{med,d}\:(kW)$",
+        range: [0, 1.5], // kW
+        description: "MED distillate pump power consumption",
+    },
+
+    "Jmed_b": {
+        var_id: "Jmed_b",
+        signal_id: "JT-DES-002",
+        units_scada: "kW",
+        units_model: "kW",
+        instrument: "power_meter_Circutor_CEM31"
+        label_html: "J<sub>med,b</sub> (kW)",
+        label_latex: "$J_{med,b}\:(kW)$",
+        range: [0, 1.5], // kW
+        description: "MED brine pump power consumption",
+    },
+
+    "Jmed_c": {
+        var_id: "Jmed_c",
+        signal_id: "JT-DES-003",
+        units_scada: "W",
+        units_model: "kW",
+        instrument: "power_meter_Circutor_CEM31"
+        label_html: "J<sub>med,c</sub> (kW)",
+        label_latex: "$J_{med,c}\:(kW)$",
+        range: [0, 5.5], // kW
+        description: "MED condenser pump power consumption",
+    },
+
+    "Jmed_s_f": {
+        var_id: "Jmed_s_f",
+        signal_id: "JT-DES-004",
+        units_scada: "W",
+        units_model: "kW",
+        instrument: "power_meter_Circutor_CEM31"
+        label_html: "J<sub>med,s,f</sub> (kW)",
+        label_latex: "$J_{med,s,f}\:(kW)$",
+        range: [0, 1.5], // kW
+        description: "MED heat source and feed pumps power consumption",
+    },
+
+
+    # Solar field
+
+    ## Temperatures
+    "Tsf_in": {
+        var_id: "Tsf_in",
+        signal_id: "TT-SF-009",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>sf,in</sub> (⁰C)",
+        label_latex: "$T_{sf,in}\:(^\circ$C)",
+        // range: [],
+        description: "Solar field inlet temperature",
+    },
+
+    "Tsf_out": {
+        var_id: "Tsf_out",
+        signal_id: "TT-SF-010",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>sf,out</sub> (⁰C)",
+        label_latex: "$T_{sf,out}\:(^\circ$C)",
+        // range: [],
+        description: "Solar field outlet temperature",
+    },
+
+    # Flows
+    "qsf": {
+        var_id: "qsf",
+        signal_id: "FT-SF-002",
+        units_scada: "m3/h", # TODO: Unidades?
+        units_model: "m3/h",
+        // instrument: "" TODO: Add flow meter to instruments
+        label_html: "q<sub>sf</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{sf}\:(m^3/h)$",
+        range: [0, 9], // m³/h
+        description: "Solar field flow rate",
+    },
+
+    # Thermal storage
+
+    ## Temperatures
+    "Tts_h_t_in": {
+        var_id: "Tts_h_t_in",
+        signal_id: "TT-SF-008",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,h,t,in</sub> (⁰C)",
+        label_latex: "$T_{ts,h,t,in}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage hot tank inlet temperature from solar field heat exchanger",
+    },
+
+    "Tts_h_out": {
+        var_id: "Tts_h_out",
+        signal_id: "TT-AQU-106",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,h,out</sub> (⁰C)",
+        label_latex: "$T_{ts,h,out}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage hot tank outlet temperature, to MED three-way valve",
+    },
+
+    "Tts_c_b_in": {
+        var_id: "Tts_c_b_in",
+        signal_id: "TT-AQU-109",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,c,b,in</sub> (⁰C)",
+        label_latex: "$T_{ts,c,b,in}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage cold tank bottom inlet temperature, return from the MED",
+    },
+
+    "Tts_c_b_out": {
+        var_id: "Tts_c_b_out",
+        signal_id: "TT-SF-007",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,c,b,out</sub> (⁰C)",
+        label_latex: "$T_{ts,c,b,out}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage cold tank bottom outlet temperature, to solar field heat exchanger",
+    },
+
+    "Tts_h_t": {
+        var_id: "Tts_h_t",
+        signal_id: "TT-SF-004",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,h,t</sub> (⁰C)",
+        label_latex: "$T_{ts,h,t}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage hot tank top temperature",
+    },
+
+    "Tts_h_m": {
+        var_id: "Tts_h_m",
+        signal_id: "TT-SF-005",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,h,m</sub> (⁰C)",
+        label_latex: "$T_{ts,h,m}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage hot tank middle temperature",
+    },
+
+    "Tts_h_b": {
+        var_id: "Tts_h_b",
+        signal_id: "TT-SF-006",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,h,b</sub> (⁰C)",
+        label_latex: "$T_{ts,h,b}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage hot tank bottom temperature",
+    },
+
+    "Tts_c_t": {
+        var_id: "Tts_c_t",
+        signal_id: "TT-SF-001",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,c,t</sub> (⁰C)",
+        label_latex: "$T_{ts,c,t}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage cold tank top temperature",
+    },
+
+    "Tts_c_m": {
+        var_id: "Tts_c_m",
+        signal_id: "TT-SF-002",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,c,m</sub> (⁰C)",
+        label_latex: "$T_{ts,c,m}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage cold tank middle temperature",
+    },
+
+    "Tts_c_b": {
+        var_id: "Tts_c_b",
+        signal_id: "TT-SF-003",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,c,b</sub> (⁰C)",
+        label_latex: "$T_{ts,c,b}\:(^\circ$C)",
+        // range: [],
+        description: "Thermal storage cold tank bottom temperature",
+    },
+
+    ## Flows
+    // "qts_h_t_out": {
+    //     var_id: "qts_h_t_out",
+    //     signal_id: "FT-AQU-100",
+    //     units_scada: "L/s",
+    //     units_model: "m3/h",
+    //     instrument: "flow_meter_EH_Proline_Promag_50P", // TODO: Comprobar que sea el mismo
+    //     label_html: "q<sub>ts,h,t,out</sub> (m<sup>3</sup>/h)",
+    //     label_latex: "$q_{ts,h}\:(m^3/h)$",
+    //     range: [0, 15], // L/s
+    //     description: "Thermal storage hot tank outlet flow rate, to MED three-way valve",
+    // },
+
+    "qts_dis": {
+        var_id: "qts_dis",
+        signal_id: "FT-AQU-101",
+        units_scada: "L/s",
+        units_model: "m3/h",
+        instrument: "flow_meter_EH_Proline_Promag_50P", // TODO: Comprobar que sea el mismo
+        label_html: "q<sub>ts,c,b,in</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{ts,c,b,in}\:(m^3/h)$",
+        // range: [0, 9], // m³/h
+        description: "Thermal storage hot tank outlet flow rate, to the MED, return flow rate to cold tank",
+    },
+
+    "qts_src": {
+        var_id: "qts_src",
+        signal_id: "FT-SF-001",
+        units_scada: "L/min",
+        units_model: "m3/h",
+        instrument: "flow_meter_EH_Proline_Promag_50P", // TODO: Comprobar que sea el mismo
+        label_html: "q<sub>ts,c_b_out</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{ts,c_b_out}\:(m^3/h)$",
+        // range: [0, 9], // m³/h
+        description: "Thermal storage cold tank outlet flow rate, to solar field heat exchanger, flow rate to hot tank",
+    },
+
+
+    # Heat exchanger
+
+    ## Temperatures
+    "Thx_p_in": {
+        var_id : "Thx_p_in",
+        signal_id: "TT-SF-010",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>hx,p,in</sub> (⁰C)",
+        label_latex: "$T_{hx,p,in}\:(^\circ$C)",
+        description: "Heat exchanger primary circuit (hot side) inlet temperature"
+    },
+
+    "Thx_p_out": {
+        var_id : "Thx_p_out",
+        signal_id: "TT-SF-009",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>hx,p,out</sub> (⁰C)",
+        label_latex: "$T_{hx,p,out}\:(^\circ$C)",
+        description: "Heat exchanger primary circuit (hot side) outlet temperature"
+    },
+
+    "Thx_s_in": {
+        var_id : "Thx_s_in",
+        signal_id: "TT-SF-007",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>hx,s,in</sub> (⁰C)",
+        label_latex: "$T_{hx,s,in}\:(^\circ$C)",
+        description: "Heat exchanger secondary circuit (cold side) inlet temperature"
+    },
+
+    "Thx_s_out": {
+        var_id : "Thx_s_out",
+        signal_id: "TT-SF-008",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>ts,h,b</sub> (⁰C)",
+        label_latex: "$T_{ts,h,b}\:(^\circ$C)",
+        description: "Heat exchanger secondary circuit (cold side) outlet temperature"
+    },
+
+    ## Flows
+    "qhx_p": {
+        var_id : "qhx_p",
+        signal_id: "FT-SF-002",
+        units_scada: "L/min",
+        units_model: "m3/h",
+        // instrument: "" // TODO: Add instrument
+        label_html: "q<sub>hx,p</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{hx,p}\:(m^3/h)",
+        description: "Heat exchanger primary circuit (hot side) flow rate"
+    },
+
+    "qhx_s": {
+        var_id : "qhx_s",
+        signal_id: "FT-SF-001",
+        units_scada: "L/min",
+        units_model: "m3/h",
+        // instrument: "" // TODO: Add instrument
+        label_html: "q<sub>hx,s</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{hx,s}\:(m^3/h)",
+        description: "Heat exchanger secondary circuit (cold side) flow rate"
+    }
+
+
+    # Three-way valve
+
+    ## Temperatures
+    "T3wv_src": {
+        var_id : "T3wv_src",
+        signal_id: "TT-SF-004",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>3wv,dis,in</sub> (⁰C)",
+        label_latex: "$T_{3wv,dis,in}\:(^\circ$C)",
+        description: "Three-way valve source temperature, from thermal storage"
+    },
+
+    "T3wv_dis_in": {
+        var_id : "T3wv_dis_in",
+        signal_id: "TT-AQU-107a",
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>3wv,dis,in</sub> (⁰C)",
+        label_latex: "$T_{3wv,dis,in}\:(^\circ$C)",
+        description: "Three-way valve discharge inlet, to MED"
+    },
+
+    "T3wv_dis_out": {
+        var_id : "T3wv_dis_out",
+        signal_id: "TT-AQU-109", // equivalent to HW1TT21
+        units_scada: "C",
+        units_model: "C",
+        instrument: "pt100_class_A"
+        label_html: "T<sub>3wv,dis,out</sub> (⁰C)",
+        label_latex: "$T_{3wv,dis,out}\:(^\circ$C)",
+        description: "Three-way valve discharge outlet, return from MED"
+    },
+    
+
+    ## Flows
+    "q3wv_src": {
+        var_id : "q3wv_src",
+        signal_id: "FT-AQU-101",
+        units_scada: "L/s",
+        units_model: "m3/h",
+        // instrument: "" // TODO: Add instrument
+        label_html: "q<sub>3wv,src</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{3wv,src}\:(m^3/h)",
+        description: "Three-way valve source flow rate, from/to thermal storage"
+    },
+
+    "q3wv_dis": {
+        var_id : "q3wv_dis",
+        signal_id: "FT-AQU-100",
+        units_scada: "L/s",
+        units_model: "m3/h",
+        // instrument: "" // TODO: Add instrument
+        label_html: "q<sub>3wv,dis</sub> (m<sup>3</sup>/h)",
+        label_latex: "$q_{3wv,dis}\:(m^3/h)",
+        description: "Three-way valve discharge flow rate, from/to MED"
+    },
+}
