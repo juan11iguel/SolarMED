@@ -8,31 +8,43 @@
         "type": "tabs",
         "children": [
           {
-            "id": "8c2e4468cbfe1393",
+            "id": "d97e853eed673590",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "models/thermal_storage.md",
+                "file": "Validation signals list.md",
                 "mode": "source",
                 "source": false
               }
             }
           },
           {
-            "id": "d97e853eed673590",
+            "id": "29253b085f2b050e",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "models/complete_system.md",
+                "file": "Issues.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "fd00b1ae0c1ea549",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Pending tasks.md",
                 "mode": "source",
                 "source": false
               }
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -107,7 +119,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "models/complete_system.md",
+                "file": "Pending tasks.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -140,7 +152,9 @@
             "state": {
               "type": "all-properties",
               "state": {
-                "sortOrder": "frequency"
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
               }
             }
           }
@@ -165,24 +179,30 @@
       "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "d97e853eed673590",
+  "active": "fd00b1ae0c1ea549",
   "lastOpenFiles": [
+    "Profiling.md",
+    "Issues.md",
+    "attachments/solar_med_20230807.png",
+    "attachments/Pasted image 20240130104144.png",
+    "attachments/Pasted image 20240130104058.png",
+    "attachments/Pasted image 20240130102651.png",
+    "Validation signals list.md",
+    "Pending tasks.md",
+    "Optimization.md",
+    "Nomenclature.md",
+    "Historical data processing.md",
+    "models/complete_system.md",
     "models/heat_exchanger.md",
     "models/MED.md",
     "models/restrictions.md",
     "models/solar_field.md",
     "models/thermal_storage.md",
     "models/three_way_valve.md",
-    "Nomenclature.md",
-    "Historical data processing.md",
-    "Validation signals list.md",
-    "Pending tasks.md",
-    "Optimization.md",
     "models/MED.md~",
     "models/heat_exchanger.md~",
     "models/complete_system.md~",
     "Nomenclature.md~",
-    "models/complete_system.md",
     "models/Modelo MED.md",
     "Ejecución modelo MED v1.md",
     "Análisis de sensibilidad.md",
@@ -204,13 +224,7 @@
     "models_psa/results/newplot.png",
     "models/Modelo campo solar.md",
     "models/Restricciones.md",
-    "attachments/Hierarchical Control.png",
-    "models/attachments/solarMED_optimization-Optimization.drawio.png",
-    "models/attachments/result_model_ts_calibration_2023-07-07.svg",
-    "models/attachments/result_model_ts_calibration_2023-07-07.png",
     "models/tanques.excalidraw.md",
-    "Excalidraw/Drawing 2023-06-22 11.26.14.excalidraw.md",
-    "EURECAT/attachments/Diagrama general.svg.md",
-    "EURECAT/Optimización.md"
+    "Excalidraw/Drawing 2023-06-22 11.26.14.excalidraw.md"
   ]
 }

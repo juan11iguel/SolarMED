@@ -1220,7 +1220,7 @@ class solar_MED:
         # Solve solar field + heat exchanger + thermal storage subproblem
         
         initial_guess = [self.Tts_c[-1], self.msf if hasattr(self, 'msf') else self.msf_min]
-        bounds = ( (0, self.msf_min-1), (self.Tts_c[-2], self.msf_max) )
+        bounds = ( (0, self.msf_min), (self.Tts_c[-2], self.msf_max) )
         
         outputs = least_squares(self.energy_generation_and_storage_subproblem, initial_guess,  bounds=bounds)
         Tts_c_b = outputs.x[0]

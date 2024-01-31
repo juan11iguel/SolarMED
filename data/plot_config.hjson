@@ -10,6 +10,9 @@
   // - In between flow and temperature, include plot like active to show energy 
   // available at current Ts_in
 
+  // INFO:
+  // Available dash types: ['dash', 'dashdot', 'dot', 'longdash', 'longdashdot', 'solid (default)'] 
+
   # General plot attributes
   title: "Solar MED",
   subtitle: "Experimental results", // Model validation?
@@ -113,7 +116,7 @@
           color: "plotly_yellow", # plotly green
           showlegend: false,
           axis_arrow: true,
-          arrow_yrel_pos: 0.9,
+          arrow_yrel_pos: 1.1,
         },
       ]
     },
@@ -125,9 +128,9 @@
       # ylabels_left: ["C (u.m.)"],
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
       ylabels_left: ["B (u.m.)"],
-      ylabels_right: ["q<sub>d</sub> (m<sup>3</sup>)", C<sub>e</sub> (kW<sub>e</sub>)],
+      ylabels_right: ["q<sub>d</sub> (m<sup>3</sup>)", "C<sub>e</sub> (kW<sub>e</sub>)"],
 
-      traces_left:
+      traces_left: [
       #[
       #  {
       #    name: "C",
@@ -139,19 +142,19 @@
       #    arrow_yrel_pos: 1.05
       #  }
       #],
-      [
+      
+          // {
+          //   var_id: "Ce_opt",
+          //   name: "C<sub>e,opt</sub>",
+          //   mode: "lines",
+          //   color: "gray", # green DC
+          //   width: 0.5,
+          //   dash: "dashdot", # "dot", "dash", "dashdot"
+          //   showlegend: false,
+          // },
           {
-            var_id: "Ce_opt",
-            name: "C<sub>e,opt</sub>",
-            mode: "lines",
-            color: "gray", # green DC
-            width: 0.5,
-            dash: "dashdot", # "dot", "dash", "dashdot"
-            showlegend: false,
-          },
-          {
-            var_id: "Ce",
-            name: "C<sub>e,ts</sub>",
+            var_id: "B",
+            name: "B (u.m.)",
             mode: "lines",
             color: "dc_green", # gray
             showlegend: false,
@@ -197,7 +200,7 @@
           
           // Experimental
           {
-            var_id: "Ce", # TODO: To be calculated
+            var_id: "Ce",
             name: "C<sub>e</sub>",
             mode: "lines",
             color: "wct_purple", # gray
@@ -218,9 +221,9 @@
       tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
 
       # Plotted between this plot and the next one
-      // show_active: false,
-      // active_var_id: "dc_active",
-      // active_color: "dc_green_rgb", # Needs to end with _rgb
+      show_active: true,
+      active_var_id: "sf_active",
+      active_color: "plotly_yellow_rgb", # Needs to end with _rgb
 
 
       traces_left: [
@@ -265,7 +268,7 @@
         //   name: "T<sub>sf,out,mod</sub>",
         //   mode: "lines",
         //   color: "plotly_orange",
-        //   dash: dashdot,
+        //   dash: "dashdot",
         // },
         {
           var_id: "Tsf_out",
@@ -371,14 +374,14 @@
         {
           var_id: "Tts_h_m",
           mode: "lines",
-          dash: dash,
+          dash: "dash",
           color: "plotly_red", # gray
         },
         {
           var_id: "Tts_h_b",
           mode: "lines",
           color: "plotly_red", # gray
-          dash: dot,
+          dash: "dot",
         },
 
         # Cold tank
@@ -390,14 +393,14 @@
         {
           var_id: "Tts_c_m",
           mode: "lines",
-          dash: dash,
+          dash: "dash",
           color: "plotly_green",
         },
         {
           var_id: "Tts_c_b",
           mode: "lines",
           color: "plotly_green",
-          dash: dot,
+          dash: "dot",
         },
 
         // To MED
@@ -405,7 +408,7 @@
           var_id: "Tts_h_out",
           mode: "lines",
           color: "wct_purple",
-          dash: dashdot,
+          dash: "dashdot",
         },
 
         // From MED
@@ -413,7 +416,7 @@
           var_id: "Tts_c_b_in",
           mode: "lines",
           color: "c_blue",
-          dash: dashdot,
+          dash: "dashdot",
         },
 
         // From solar field
@@ -421,7 +424,7 @@
           var_id: "Tts_h_out",
           mode: "lines",
           color: "plotly_red",
-          dash: dashdot,
+          dash: "dashdot",
         },        
       ]
 
@@ -485,6 +488,11 @@
       ylabels_left: ["m<sup>3</sup>/h"],
       ylabels_right: ["m<sup>3</sup>/h"],
       tigth_vertical_spacing: true,
+
+      # Plotted between this plot and the next one
+      show_active: true,
+      active_var_id: "med_active",
+      active_color: "dc_green_rgb", # Needs to end with _rgb
 
       traces_left: [
         {
