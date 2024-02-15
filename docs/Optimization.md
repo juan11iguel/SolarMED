@@ -63,7 +63,9 @@ Se parte de un volumen en los tanques a una temperatura determinada ($T_{tank,0}
 ![Hierarchical Control](attachments/Hierarchical%20Control.svg)
 
 Pendiente de actualizar nomenclatura:
+
 ![solarMED_optimization-general_diagram](solarMED_optimization-general_diagram.svg)
+
 
 Pendiente de actualizar nomenclatura:
 ![center | solarMED_optimization-Optimization.drawio | 700](models/attachments/solarMED_optimization-Optimization.drawio.svg)

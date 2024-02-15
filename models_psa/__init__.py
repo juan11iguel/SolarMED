@@ -1,672 +1,358 @@
 import json
 import re
-# test
-import scipy
-from scipy.optimize import fsolve, least_squares
-from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
-import math
-from dataclasses import dataclass, field, asdict
-import logging
-
 import numpy as np
-from model_calibrations.eletrical_consumption_fit import evaluate_fit
-import logging
-from utils.curve_fitting import polynomial_interpolation
-from typing import Union, List
-dot = np.multiply
-from utils.validation import validate_input_types
-import py_validate as pv # https://github.com/gfyoung/py-validate
+from dataclasses import dataclass, field
+from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
+from loguru import logger
+from scipy.optimize import least_squares
+from enum import Enum
+from typing_extensions import Annotated
+from pydantic import (
+    BaseModel,
+    Field,
+    ConfigDict,
+    field_validator,
+    computed_field,
+    ValidationError,
+    ValidationInfo,
+    PositiveFloat,
+)
+from pathlib import Path
+
+# from utils.curve_fitting import polynomial_interpolation
+# from utils.validation import validate_input_types
+# import py_validate as pv # https://github.com/gfyoung/py-validate
 
 # MATLAB MED model
 import MED_model
 import matlab
 
-logger = logging.getLogger(__name__)
+from .validation import rangeType, within_range_or_zero_or_max, within_range_or_min_or_max
+from .curve_fitting import evaluate_fit
+from .solar_field import solar_field_model
+from .heat_exchanger import heat_exchanger_model
+from .thermal_storage import thermal_storage_model_two_tanks
+from .power_consumption import Actuator, SupportedActuators
 
-"""
+dot = np.multiply
+conHotTemperatureType = Annotated[float, Field(..., ge=0, le=110)]
+Nsf_max = 100  # Maximum number of steps to keep track of the solar field flow rate, should be higher than the maximum expected delay
 
-PENDIENTE:
-    - [ ] Ajuste de curvas de consumo eléctrico de las bombas
-    - [ ] Implementar ecuaciones válvula tres vías
-    - [ ] Implementar ecuaciones intercambiador
-    - [ ] Actualizar modelo de campo solar para que calcule Msf en lugar de Tsf_out
-    - [x] Meter modelo de válvula de tres vías
-    - [ ] Actualizar modelo de tanques para que calcule temperatura actual en base a temperatura
-          anterior, ahora mismo sólo es válida cuando Pin=Pout
-    - [ ] Incluir modelo de MED de MATLAB
-    - [ ] Versión nueva de modelo de MED directamente en Python
-    - [ ] Incluir curvas de consumo de las bombas de MATLAB
-    
-    En solar_MED:
-        - [ ] Método para actualizar parámetros (solar_MED.update_parameters())
-        - [ ] Un millón de cosas más
-        
-    - [ ] Validar modelo de campo solar con datos experimentales
-    - [ ] Validar modelo de tanques con datos experimentales
-    - [ ] Validar modelo de intercambiador con datos experimentales
-        
-        
-    Modelos dinámicos para control de bajo nivel:
-    - [ ] Campo solar
-    - [ ] Tanques?
-    - [ ] Intercambiador?
-        
-"""
-
-# Initialize logger
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
-
-
-def solar_field_model(Tin, Tout, I, Tamb, beta, H, nt=1, np=7*5, ns=2, Lt=1.15*20):
-    """Steady state model of a flat plate collector solar field
-       with any number of collectors in series and parallel.
-    
-    [1] G. Ampuño, L. Roca, M. Berenguel, J. D. Gil, M. Pérez, and J. E. Normey-Rico,
-        “Modeling and simulation of a solar field based on flat-plate collectors,” Solar Energy,
-        vol. 170, pp. 369–378, Aug. 2018, doi: 10.1016/j.solener.2018.05.076.
-
-
-    Args:
-        I (float): Solar radiation [W/m2]
-        Tin (float): Inlet fluid temperature [ºC]
-        Tout (float): Current outlet fluid temperature [ºC]
-        Tout_ant (float): Prior outlet fluid temperature [ºC]
-        Tamb (float): Ambient temperature [ºC]
-        period (int): Time elapsed [s]
-        beta (float, optional): Irradiance model parameter [m]. Defaults to 0.0975.
-        H (float, optional): Thermal losses coefficient [J·s^-1·C^-1]. Defaults to 2.2.
-        nt (int, optional): Number of tubes in parallel per collector. Defaults to 1.
-        np (int, optional): Number of collectors in parallel per loop. Defaults to 7.
-        ns (int, optional): Number of loops in series. Defaults to 2.
-        Lt (float, optional): Collector tube length [m]. Defaults to 97.
-        Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
-        
-    Returns:
-        Q (float): Total volumetric solar field flow rate [m^3/s]
-        Pgen (float): Power generated [kWth]
-        SEC (float): Conversion factor / Specific energy consumption  [kWe/kWth]
+class ts_states(Enum):
     """
-    
-    Leq = ns*Lt
-    cf = np*nt*1 # Convertir m^3/h a kg/s y algo más
-    Tavg = (Tin+Tout)/2 # ºC
-        
-    w_props_avg = w_props(P=0.16, T=Tavg+273.15) # P=1 bar  -> 0.1MPa, T=Tin C, 
-    cp_avg = w_props_avg.cp*1e3 # [kJ/kg·K]
-    rho_avg = w_props_avg.rho # [kg/m³]
-    
-    # cp_Tamb = w_props(P=0.1, T=Tamb+273.15).cp # P=1 bar  -> 0.1MPa, T=Tamb C, cp [kJ/kg·K]
-    # m = Q/3600*w_props(P=0.1, T=Tin+273.15).rho # rho [kg/m³] # Convertir m^3/s a kg/s
-    
-    if Tout-Tin < 0.5:
-        m = 0
-        logger.warning(f'Negative or null temperature gradient. Flow set to 0')
-    else:
-        # Temporary removed: - H*(Tavg-Tamb)
-        m = (Leq*beta*I - H*(Tavg-Tamb)) / (cp_avg/cf*(Tout-Tin))
-        # m = (-rho*cp_avg*Acs*(Tout-Tout_ant)/period - beta*I + H/Leq*(Tavg-Tamb))/\
-        #     (cf/cp_avg*Leq*(Tout_ant-Tin)) # kg/s, seguro? comprobar unidades
-    
-    # Tout = I * (beta)/( 1/Leq*(H/2+cp_Tin/cf*m) ) + \
-    #        Tin * ( m-(H*cf)/(2*cp_Tin) )/( m+(H*cf)/(2*cp_Tin) ) + \
-    #        Tamb * ( 2 )/( 1+(2*cp_Tamb)/(cf*H)*m ) # ºC
-           
-    # cp_Tout = w_props(P=0.1, T=Tout+273.15).cp # P=1 bar  -> 0.1MPa, T=Tout C, cp [KJ/kg·K]
-           
-    # Pth = m * cp_avg * (Tout-Tin) / 1000 # kWth
-    
-    Q = m*3600/rho_avg # kg/s -> m^3/h
-    
-    Q = Q*4*np # 4 loops
-    
-    # if Q>20: Q=20
-    # if Q<0: Q=0
-    
-    return Q
+    Enumerates the possible states of the thermal storage system
 
-def solar_field_model_temp(Tin, Q, I, Tamb, beta, H, nt=1, np=7*5, ns=2, Lt=1.15*20):#, Acs=7.85e-5):
-    """Steady state model of a flat plate collector solar field
-       with any number of collectors in series and parallel.
-    
-    [1] G. Ampuño, L. Roca, M. Berenguel, J. D. Gil, M. Pérez, and J. E. Normey-Rico,
-        “Modeling and simulation of a solar field based on flat-plate collectors,” Solar Energy,
-        vol. 170, pp. 369–378, Aug. 2018, doi: 10.1016/j.solener.2018.05.076.
-
-
-    Args:
-        I (float): Solar radiation [W/m2]
-        Tin (float): Inlet fluid temperature [ºC]
-        Tout (float): Current outlet fluid temperature [ºC]
-        Tout_ant (float): Prior outlet fluid temperature [ºC]
-        Tamb (float): Ambient temperature [ºC]
-        period (int): Time elapsed [s]
-        nt (int, optional): Number of tubes in parallel per collector. Defaults to 1.
-        np (int, optional): Number of collectors in parallel per loop. Defaults to 7.
-        ns (int, optional): Number of loops in series. Defaults to 2.
-        Lt (float, optional): Collector tube length [m]. Defaults to 97.
-        H (float, optional): Thermal losses coefficient [J·s^-1·C^-1]. Defaults to 2.2.
-        nt (int, optional): Number of tubes in parallel per collector. Defaults to 1.
-        np (int, optional): Number of collectors in parallel per loop. Defaults to 7.
-        ns (int, optional): Number of loops in series. Defaults to 2.
-        Lt (float, optional): Collector tube length [m]. Defaults to 97.
-        Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
-        
-    Returns:
-        Q (float): Total volumetric solar field flow rate [m^3/s]
-        Pgen (float): Power generated [kWth]
-        SEC (float): Conversion factor / Specific energy consumption  [kWe/kWth]
+    Examples:
+        ts_state = Ts_state.JUST_RECHARGING or Ts_state(1) or Ts_state['JUST_RECHARGING'] # <Ts_state.JUST_RECHARGING: 1>
+        ts_state.value # 1
+        ts_state.name # 'JUST_RECHARGING'
     """
+    # name  = value
+    JUST_RECHARGING = 1
+    JUST_DISCHARGING = 2
+    RECHARGING = 3
+    DISCHARGING = 4
+    IDLE = 5
     
-    def inner_function(Tout):
-        
-        error = abs( Tin + (beta*I - H*((Tin+Tout)/2-Tamb)) / (m*cp/cf*1/Leq) - Tout )# ºC
-        
-        return error
-    
-    Leq = ns*Lt
-    cf = np*nt*1 # Convertir m^3/h a kg/s y algo más
-    w_props_avg = w_props(P=0.16, T=Tin+273.15) # P=1 bar  -> 0.1MPa, T=Tin C, 
-    cp = w_props_avg.cp * 1e3 # [kJ/kg·K] -> [J/kg·K] 
-    rho = w_props_avg.rho # [kg/m³]
-    m = Q*rho/3600 / np # m^3/h -> kg/s (entre número de captadores en paralelo)
-    
-    # cp_Tamb = w_props(P=0.1, T=Tamb+273.15).cp # P=1 bar  -> 0.1MPa, T=Tamb C, cp [kJ/kg·K]
-    # m = Q/3600*w_props(P=0.1, T=Tin+273.15).rho # rho [kg/m³] # Convertir m^3/s a kg/s
-    
-    
-    if Q < 0:
-        Tout = Tin
-        logger.warning(f'Negative or null temperature gradient. Flow set to 0')
-    else:
-        # Temporary removed: - H*(Tavg-Tamb)
-        # bounds = (Tin, 110)
-        Tout0 = Tin + (beta*I - H*(Tin-Tamb)) / (m*cp/cf*1/Leq) # ºC
-        Tout = fsolve(inner_function, Tout0)[0] # ºC bounds=bounds
-        
-    return Tout
-
-def heat_exchanger_model(Tp_in, Ts_in, Qp, Qs, Tamb, UA=28000, H=0): # eta_p, eta_s):
-    """Heat exhanger steady state model.
-    
-    [1] G. Ampuño, L. Roca, M. Berenguel, J. D. Gil, M. Pérez, and J. E. Normey-Rico,
-    “Modeling and simulation of a solar field based on flat-plate collectors,” Solar Energy,
-    vol. 170, pp. 369–378, Aug. 2018, doi: 10.1016/j.solener.2018.05.076.
-
-    Args:
-        Tp_in (float): Primary circuit inlet temperature [C]
-        Ts_in (float): Secondary circuit inlet temperature [C]
-        Qp (float): Primary circuit volumetric flow rate [m^3/h]
-        Qs (float): Secondary circuit volumetric flow rate [m^3/h]
-        UA (float, optional): Heat transfer coefficient multiplied by the exchange surface area [W·ºC^-1]. Defaults to 28000.
-
-    Returns:
-        Tp_out: Primary circuit outlet temperature [C]
-        Ts_out: Secondary circuit outlet temperature [C]
-        Pgen: Power supplied by the primary circuit [kWth]
-        Pabs: Power absorbed by the secondary circuit [kWth]
+class SolarMED_states(Enum):
     """
-    
-    w_props_Tp_in = w_props(P=0.16, T=Tp_in+273.15)
-    w_props_Ts_in = w_props(P=0.16, T=Ts_in+273.15)
-    cp_Tp_in = w_props_Tp_in.cp*1e3 # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
-    cp_Ts_in = w_props_Ts_in.cp*1e3 # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
-    
-    mp = Qp/3600*w_props_Tp_in.rho # rho [kg/m³] # Convertir m^3/s a kg/s
-    ms = Qs/3600*w_props_Ts_in.rho # rho [kg/m³] # Convertir m^3/s a kg/s
-    
-    # mcp_min = min([mp*cp_Tp_in, ms*cp_Ts_in])
-    # mcp_max = max([mp*cp_Tp_in, ms*cp_Ts_in])
-    
-    # theta = UA*(1/mcp_max-1/mcp_min)
-    
-    # eta_p = (1-math.e**theta)/( 1-math.e**theta*(mcp_min/mcp_max) )
-    # eta_s = mp*cp_Tp_in/(ms*cp_Ts_in) 
-    
-    # Tp_out = Tp_in - eta_p*(mcp_min)/(mp*cp_Tp_in)*(Tp_in-Ts_in) - H*(Tp_in-Tamb) # ºC
-    # Ts_out = Ts_in + eta_s*(Tp_in-Tp_out) # ºC
-    
-    
-    if Qp == 0:
-        Tp_out = Tamb
-        if Qs == 0:
-            Ts_out = Tamb
-        else:
-            Ts_out = Ts_in
-    
-        return Tp_out, Ts_out
-    
-    if Qs == 0:
-        Ts_out = Tamb
-        if Qp == 0:
-            Tp_out = Tamb
-        else:
-            Tp_out = Tp_in
-    
-        return Tp_out, Ts_out
-        
-        
-    
-    delta_T1 = Tp_in - Ts_in
-    # Direction of exchange should be inverted, temporary just bypass hex
-    if delta_T1 < 0:
-        
-        logger.warning('Inverted operation in heat exchanger, bypassing')
-        Tp_out = Tp_in
-        Ts_out = Ts_in
-        
-        return Tp_out, Ts_out
-    
-    delta_T2 = delta_T1 - (ms / mp) * delta_T1
-    
-    # if abs(delta_T1 - delta_T2) < 0.5:
-    #     logger.warning('delta_T1 equal to delta_T2 in hex')
-    #     Tp_out = Tp_in
-    #     Ts_out = Ts_in
-        
-    #     return Tp_out, Ts_out
-        
-            
-    delta_T_lm = (delta_T1 - delta_T2) / math.log(delta_T1 / delta_T2)
+    Enumerates the possible states of the Multi-effect distillation pilot plant
 
-    # Calculate the heat transfer rate (Q)
-    Q = UA * delta_T_lm
-
-    # Calculate the outlet temperatures
-    Tp_out = Tp_in - (Q / (mp * cp_Tp_in)) - H*(Tp_in-Tamb)
-    Ts_out = Ts_in + (Q / (ms * cp_Ts_in))
-
-    if Ts_out>Tp_out:
-        # logger.warning('Unfesible result')
-        Ts_out = Tp_out-0.5
-
-        # cp_Tp_out = w_props(P=0.1, T=Tp_out+273.15).cp # P=0.1 bar->0.1 MPa, T=Tp_out C, cp [kJ/kg·K]
-        # cp_Ts_out = w_props(P=0.1, T=Ts_out+273.15).cp # P=0.1 bar->0.1 MPa, T=Ts_out C, cp [kJ/kg·K]
-
-        # Pgen = mp*(cp_Tp_in+cp_Tp_out)/2*(Tp_in-Tp_out)/1000 # kWth
-        # Pabs = ms*(cp_Ts_in+cp_Ts_out)/2*(Ts_out-Ts_in)/1000 # kWth
-    
-    return Tp_out, Ts_out
-
-# def heat_exchanger_model_simple(Tp_in_C, Ts_in_C, qp_m3h, qs_m3h, eta=0.85):
-    
-#     """Simplified Heat exhanger steady state model.
-    
-#     Args:
-#         Tp_in (float): Primary (heat source) circuit inlet temperature [ºC]
-#         Ts_in (float): Secondary (heat sink) circuit inlet temperature [ºC]
-#         qp (float): Primary circuit volumetric flow rate [m³/h]
-#         qs (float): Secondary circuit volumetric flow rate [m³/h]
-#         eta (float, optional): Exchange efficiency parameter. Defaults to 0.85.
-
-#     Returns:
-#         Tp_out: Primary circuit outlet temperature [C]
-#         Ts_out: Secondary circuit outlet temperature [C]
-#     """
-    
-#     Cp_p = w_props(P=0.1, T=Tp_in_C+273.15).Cp # KJ/kg·K
-#     Cp_s = w_props(P=0.1, T=Ts_in_c+273.15).Cp
-    
-#     Tp_out_C = Tp_in_C - eta* (qp_m3h*Cp_p)/(qs_m3h*Cp_s) * (Tp_in_C-Ts_in_C)
-#     Ts_out_C = Ts_in_C + eta* (qp_m3h*Cp_p)/(qs_m3h*Cp_s) * (Tp_in_C-Tp_out_C)
-    
-#     return Tp_out_C, Ts_out_C 
-
-def three_way_valve_model(Mdis, Tsrc, Tdis_in, Tdis_out):
-    
-    """Three way valve steady state model.
-    
-    Args:
-        Mdis (float): Discharge flow rate [m^3/h or any]
-        Tdis_in (float): Discharge / load inlet temperature [ºC]
-        Tdis_out (float): Discharge / load outlet temperature [ºC]
-        Tsrc (float): Source temperature [ºC]
-
-    Returns:
-        Msrc: Source flow rate [Same units as Mdis]
-        R: Ratio of mixing, se puede usar, tras ajustar una curva de apertura de válvula,
-           para implementar un controlador con feedforward
+    Examples:
+        med_state = MED_state.JUST_RECHARGING or MED_state(1) or MED_state['JUST_RECHARGING'] # <MED_state.JUST_RECHARGING: 1>
+        med_state.value # 1
+        med_state.name # 'JUST_RECHARGING'
     """
-    
-    Tsrc     = Tsrc + 273.15
-    Tdis_in  = Tdis_in + 273.15
-    Tdis_out = Tdis_out + 273.15
-    
-    cp_src = w_props(P=0.1, T=Tsrc).cp # P=0.1 bar->0.1 MPa, T [K], cp [kJ/kg·K]
-    cp_dis_in = w_props(P=0.1, T=Tdis_in).cp # P=0.1 bar->0.1 MPa, T [K], cp [kJ/kg·K]
-    cp_dis_out = w_props(P=0.1, T=Tdis_out).cp # P=0.1 bar->0.1 MPa, T [K], cp [kJ/kg·K]
-    
-    # Msrc = Mdis * ( Tdis_in*cp_dis_in  - Tdis_out*cp_dis_out ) / ( Tsrc*cp_src - Tdis_out*cp_dis_out )
-    R = (Tdis_in*cp_dis_in - Tsrc*cp_src) / (Tdis_out*cp_dis_out - Tsrc*cp_src)
+    # name  = value
 
-    # Saturation
-    if R>1: R=1
-    elif R<0: R=0
-        
-    Msrc = Mdis*(1-R)
-    
-    return Msrc, R
-    
-    
-def MED(Ms, Ts_in, Mf, Tcw_in, Tcw_out, t_operated):
-    
-    # return Mprod, Ts_out, Mcw
-    
-    pass
+    IDLE = 1  # No operation, just losses to the environment in thermal storage and solar field
+    SOLAR_FIELD_HEATING = 2  # Solar field heating up, no heat transfer to thermal storage, no MED operation
+    SOLAR_FIELD_THERMAL_STORAGE = 3  # Solar field heating up, heat transfer to thermal storage, no MED operation
+    SOLAR_FIELD_THERMAL_STORAGE_MED = 4  # Solar field heating up, heat transfer to thermal storage, MED operation
+    THERMAL_STORAGE_MED = 5  # Solar field idle, thermal storage discharging, MED operation
 
 
-def thermal_storage_model(Ti_ant:np.array, Tt_in, Tb_in, Tamb, msrc, mdis, 
-                          UA:np.array([0.00677724, 0.0039658 , 0.02872586, 0.00688542]), 
-                          V_i:np.array([2.97217468, 1.71277001, 9.4345576 , 3.7807375 ]), 
-                          N=4, ts=60, Tmin=60, V=30, calculate_energy=False):
-    
-    """ Thermal storage steady state model
-
-    Args:
-        Ti_ant (List[Float]): List of previous temperatures in storage [ºC]
-        Tt_in (float): Inlet temperature to top of the tank after heat source [ºC]
-        Tb_in (float): Inlet temperature to bottom of the tank after load [ºC]
-        msrc (float): Flow rate from heat source [kg/s]
-        mdis (float): Flow rate to energy sink [kg/s]
-        Tmin (float, optional): Useful temperature limit [ºC]. Defaults to 60.
-        Tamb (float): Ambient temperature [ºC]
-        UA (List[Float]): Losses to the environment, it depends on the total outer surface
-            of the tanks and the heat transfer coefficient [W/K].
-        V_i (List[Float]): Volume of each control volume [m³]
-        V (float, optional): Total volume of the tank(s) [m³]. Defaults to 30.
-        ts (int, optional): Sample rate [sec]. Defaults to 60.
-        N (int, optional): Number of control volumes. Defaults to 4.
-        calculate_energy (bool, optional): Whether or not to calculate and return
-            energy stored above Tmin. Defaults to False.
-
-    Returns:
-        Ti: List of temperatures at each control volume [List of ºC]
-        energy: Only if calculate_energy == True. Useful energy stored in the 
-            tank (reference Tmin) [kWh]
+class SolarMED(BaseModel):
     """
-    
-    def model_function(x):
-    
-        # Ti = x+273.15 # K
-        Ti = x
-        
-        if any(Ti < Tmin_) or any(Ti > Tmax_):
-            # Return large error values if temperature limits are violated
-            return [1e6] * N
-        # if np.sum(V_i) > 1.1*V or np.sum(V_i) < 0.9*V:
-        #     # Return large error values if total volume limits are violated
-        #     return [1e6] * N            
-            
-        eqs = [None for _ in range(N)]
-            
+    Model of a Multi-effect distillation pilot plant, static collectors solar field  and thermal storage system
+    located at Plataforma Solar de Almería.
+
+    See more at: https://www.psa.es/es/instalaciones/desalacion/med.php (outdated?)
+
+    How to use:
+        1. Create an instance of the class, for initialization it requires: thermal storage initial state, and solar
+        field initial temperature.
+        2. Evaluate the system evolution using the step method, it requires the environmental conditions and the
+        values of the decision variables.
+        3. Terminate the model using the terminate method.
+
+    Some notes:
+        - For the flows, if the input value is below it's minimum operating value, it's set to zero.
+        - If some decision variable produces an output outside operating limits, the variable is set to its saturated
+        value
+        - Systems can be activated or deactivated depending on the decision variables and conditions. The different
+        operating modes are defined in the SolarMED_states.
+        - To export (serialize) the model, use pydantic's built in method `solar_med.model_dump()` (being solar an
+        instance of the class `solar_med = SolarMED(...)`)  to produce a dictionary representation of the model.
+        By default, fields are configured to be exported or not, but this can be overided with arguments to the
+        method, check its [docs](https://docs.pydantic.dev/latest/concepts/serialization/).
+        - Alternatively, the model can be serialized to a JSON using the `solar_med.model_dump_json()` method.
+    """
+
+    # Limits
+    # Important to define first, so that they are available for validation
+    ## Flows. Need to be defined separately to validate using `within_range_or_zero_or_max`
+    lims_mts_src: rangeType = Field([0, 8.48], title="mts,src limits", json_schema_extra={"units": "m3/h"},
+                                    description="Thermal storage heat source flow rate range (m³/h)", repr=False)
+    ## Solar field, por comprobar!!
+    lims_msf: rangeType = Field([5, 14], title="msf limits", json_schema_extra={"units": "m3/h"},
+                                    description="Solar field flow rate range (m³/h)", repr=False)
+    lims_mmed_s: rangeType = Field([5.56*3.6, 14.8*3.6], title="mmed,s limits", json_schema_extra={"units": "m3/h"},
+                                    description="MED hot water flow rate range (m³/h)", repr=False)
+    lims_mmed_f: rangeType = Field([5, 9], title="mmed,f limits", json_schema_extra={"units": "m3/h"},
+                                    description="MED feedwater flow rate range (m³/h)", repr=False)
+    lims_mmed_c: rangeType = Field([8, 21], title="mmed,c limits", json_schema_extra={"units": "m3/h"},
+                                    description="MED condenser flow rate range (m³/h)", repr=False)
+
+
+    # Tmed_s_in, límite dinámico
+    lims_Tmed_s_in: rangeType = Field([60, 89], title="Tmed,s,in limits", json_schema_extra={"units": "C"},
+                                    description="MED hot water inlet temperature range (ºC)", repr=False)
+
+    ## Common
+    lims_T_hot = rangeType = Field([0, 110], title="T* limits", json_schema_extra={"units": "C"},
+                                    description="Solar field and thermal storage temperature range (ºC)", repr=False)
+
+    # Parameters
+    ## General parameters
+    ts: float = Field(60, description="Sample rate (seg)", title="sample rate", json_schema_extra={"units": "s"})
+    curve_fits_path: Path = Field(Path('data/curve_fits.json'), description="Path to the file with the curve fits", repr=False)
+    default_penalty: float = Field(1e6, description="Default penalty for infeasible solutions",
+                                   title="default penalty", json_schema_extra={"units": "u.m."}, repr=False)
+
+    ## MED
+    med_actuators: list[Actuator] = Field(["med_brine_pump", "med_feed_pump",
+                                    "med_distillate_pump", "med_cooling_pump", "med_heatsource_pump"],
+                                     description="Actuators to estimate electricity consumption for the MED",
+                                     title="MED actuators", repr=False)
+
+    ## Thermal storage
+    ts_actuators: list[Actuator] = Field(["ts_src_pump"], title="Thermal storage actuators", repr=False,
+                                        description="Actuators to estimate electricity consumption for the thermal storage")
+
+    UAts_h: list[PositiveFloat] = Field([0.0069818 , 0.00584034, 0.03041486], title="UAts,h", json_schema_extra={"units": "W/K"},
+                                description="Heat losses to the environment from the hot tank (W/K)", repr=False)
+    UAts_c: list[PositiveFloat] = Field([0.01396848, 0.0001    , 0.02286885], title="UAts,c", json_schema_extra={"units": "W/K"},
+                                description="Heat losses to the environment from the cold tank (W/K)", repr=False)
+    Vts_h: list[PositiveFloat]  = Field([5.94771006, 4.87661781, 2.19737023], title="Vts,h", json_schema_extra={"units": "m3"},
+                                description="Volume of each control volume of the hot tank (m³)", repr=False)
+    Vts_c: list[PositiveFloat]  = Field([5.33410037, 7.56470594, 0.90547187], title="Vts,c", json_schema_extra={"units": "m3"},
+                                description="Volume of each control volume of the cold tank (m³)", repr=False)
+
+    ## Solar field
+    sf_actuators: list[Actuator] = Field(["sf_pump"], title="Solar field actuators", repr=False,
+                                        description="Actuators to estimate electricity consumption for the solar field")
+
+    beta_sf: float = Field(0.001037318, title="βsf", json_schema_extra={"units": "1/K"}, repr=False,
+                           description="Solar field. Gain coefficient", gt=0)
+    H_sf: float = Field(0, title="Hsf", json_schema_extra={"units": "W/m2"}, repr=False,
+                        description="Solar field. Losses to the environment", ge=0)
+    nt_sf: int = Field(1, title="nt,sf", repr=False,
+                       description="Solar field. Number of tubes in parallel per collector. Defaults to 1.", ge=0)
+    np_sf: int = Field(7 * 5, title="np,sf", repr=False,
+                       description="Solar field. Number of collectors in parallel per loop. Defaults to 7 packages * 5 compartments.", ge=0)
+    ns_sf: int = Field(2, title="ns,sf", repr=False,
+                       description="Solar field. Number of loops in series", ge=0)
+    Lt_sf: float = Field(1.15 * 20, title="Ltsf", repr=False,
+                         json_schema_extra={"units": "m"}, description="Solar field. Collector tube length", gt=0)
+
+    ## Heat exchanger
+    UA_hx: float = Field(2.16e3, title="UA,hx", json_schema_extra={"units": "W/K"}, repr=False,
+                         description="Heat exchanger. Heat transfer coefficient", gt=0)
+    H_hx: float = Field(0.05, title="Hhx", json_schema_extra={"units": "W/m2"}, repr=False,
+                        description="Heat exchanger. Losses to the environment")
+
+    # Variables (states, outputs, decision variables, inputs, etc.)
+    # Environment
+    wmed_f: float = Field(35, title="wmed,f", json_schema_extra={"units": "g/kg"}, description="Environment. Seawater / MED feedwater salinity (g/kg)", gt=0)
+    Tamb: float = Field(None, title="Tamb", json_schema_extra={"units": "C"}, description="Environment. Ambient temperature (ºC)", ge=-15, le=50)
+    I: float = Field(None, title="I", json_schema_extra={"units": "W/m2"}, description="Environment. Solar irradiance (W/m2)", ge=0, le=2000)
+    Tmed_c_in: float = Field(None, title="Tmed,c,in", json_schema_extra={"units": "C"}, description="Environment. Seawater temperature (ºC)", ge=10, le=28)
+
+    # Thermal storage
+    Tts_h: list[conHotTemperatureType]  = Field(..., title="Tts,h", json_schema_extra={"units": "C"}, description="Output. Temperature profile in the hot tank (ºC)")
+    Tts_c: list[conHotTemperatureType] = Field(..., title="Tts,c", json_schema_extra={"units": "C"}, description="Output. Temperature profile in the cold tank (ºC)")
+    mts_src: PositiveFloat = Field(None, title="mts,src*", json_schema_extra={"units": "m3/h"}, description="Decision variable. Thermal storage recharge flow rate (m³/h)")
+
+    # Solar field
+    Tsf_out: conHotTemperatureType = Field(None, title="Tsf,out*", json_schema_extra={"units": "C"}, description="Decision variable. Solar field outlet temperature (ºC)")
+
+    Tsf_in: conHotTemperatureType = Field(..., title="Tsf,in", json_schema_extra={"units": "C"}, description="Output. Solar field inlet temperature (ºC)")
+    msf: PositiveFloat = Field(None, title="msf", json_schema_extra={"units": "m3/h"}, description="Output. Solar field flow rate (m³/h)")
+    SEC_sf: PositiveFloat = Field(None, title="SEC_sf", json_schema_extra={"units": "kWhe/kWth"}, description="Output. Solar field conversion efficiency (kWhe/kWth)")
+    Jsf_e: PositiveFloat = Field(None, title="Jsf,e", json_schema_extra={"units": "kW"}, description="Output. Solar field electrical power consumption (kWe)")
+
+    # MED
+    mmed_s: PositiveFloat = Field(None, title="mmed,s*", json_schema_extra={"units": "m3/h"}, description="Decision variable. MED hot water flow rate (m³/h)")
+    mmed_f: PositiveFloat = Field(None, title="mmed,f*", json_schema_extra={"units": "m3/h"}, description="Decision variable. MED feedwater flow rate (m³/h)")
+    # Here absolute limits are defined, but upper limit depends on Tts_h_t
+    Tmed_s_in: float = Field(None, title="Tmed,s,in*", json_schema_extra={"units": "C"}, description="Decision variable. MED hot water inlet temperature (ºC)", ge=0, le=89)
+    Tmed_c_out: float = Field(None, title="Tmed,c,out*", json_schema_extra={"units": "C"}, description="Decision variable. MED condenser outlet temperature (ºC)", ge=0)
+
+    mmed_c: PositiveFloat = Field(None, title="mmed,c", json_schema_extra={"units": "m3/h"}, description="Output. MED condenser flow rate (m³/h)")
+    Tmed_s_out: float = Field(None, title="Tmed,s,out", json_schema_extra={"units": "C"}, description="Output. MED heat source outlet temperature (ºC)")
+    mmed_d: PositiveFloat = Field(None, title="mmed,d", json_schema_extra={"units": "m3/h"}, description="Output. MED distillate flow rate (m³/h)")
+    mmed_b: PositiveFloat = Field(None, title="mmed,b", json_schema_extra={"units": "m3/h"}, description="Output. MED brine flow rate (m³/h)")
+    Jmed_e: PositiveFloat = Field(None, title="Jmed,e", json_schema_extra={"units": "kWe"}, description="Output. MED electrical power consumption (kW)")
+    Jmed_th: PositiveFloat = Field(None, title="Jmed,th", json_schema_extra={"units": "kWth"}, description="Output. MED thermal power consumption (kW)")
+    STEC_med: PositiveFloat = Field(None, title="STEC_med", json_schema_extra={"units": "kWhe/m3"}, description="Output. MED specific thermal energy consumption (kWhe/m³)")
+    SEEC_med: PositiveFloat = Field(None, title="SEEC_med", json_schema_extra={"units": "kWhth/m3"}, description="Output. MED specific electrical energy consumption (kWhth/m³)")
+
+    # Heat exchanger
+    # Basically copies of existing variables, but with different names, no bounds checking
+    Thx_p_in: conHotTemperatureType = Field(None, title="Thx,p,in", json_schema_extra={"units": "C"}, description="Output. Heat exchanger primary circuit (hot side) inlet temperature (ºC)")
+    Thx_p_out: conHotTemperatureType = Field(None, title="Thx,p,out", json_schema_extra={"units": "C"}, description="Output. Heat exchanger primary circuit (hot side) outlet temperature (ºC)")
+    Thx_s_in: conHotTemperatureType = Field(None, title="Thx,s,in", json_schema_extra={"units": "C"}, description="Output. Heat exchanger secondary circuit (cold side) inlet temperature (ºC)")
+    Thx_s_out: conHotTemperatureType = Field(None, title="Thx,s,out", json_schema_extra={"units": "C"}, description="Output. Heat exchanger secondary circuit (cold side) outlet temperature (ºC)")
+    mhx_p: PositiveFloat = Field(None, title="mhx,p", json_schema_extra={"units": "m3/h"}, description="Output. Heat exchanger primary circuit (hot side) flow rate (m³/h)")
+    mhx_s: PositiveFloat = Field(None, title="mhx,s", json_schema_extra={"units": "m3/h"}, description="Output. Heat exchanger secondary circuit (cold side) flow rate (m³/h)")
+
+    # Three-way valve
+    # Same case as with heat exchanger
+    R3wv: float = Field(None, title="R3wv", json_schema_extra={"units": "-"}, description="Output. Three-way valve mix ratio (-)")
+    m3wv_src: PositiveFloat = Field(None, title="m3wv,src", json_schema_extra={"units": "m3/h"}, description="Output. Three-way valve source flow rate == mts,dis (m³/h)")
+    m3wv_dis: PositiveFloat = Field(None, title="m3wv,dis", json_schema_extra={"units": "m3/h"}, description="Output. Three-way valve discharge flow rate == mmed,s (m³/h)")
+    T3wv_src: conHotTemperatureType = Field(None, title="T3wv,src", json_schema_extra={"units": "C"}, description="Output. Three-way valve source temperature == Tts,h,t (ºC)")
+    T3wv_dis_in: conHotTemperatureType = Field(None, title="T3wv,dis,in", json_schema_extra={"units": "C"}, description="Output. Three-way valve discharge inlet temperature == Tmed,s,in (ºC)")
+    T3wv_dis_out: conHotTemperatureType = Field(None, title="T3wv,dis,out", json_schema_extra={"units": "C"}, description="Output. Three-way valve discharge outlet temperature == Tmed,s,out (ºC)")
+
+    # Others
+    MED_model = Field(None, repr=False, exclude=True, description="MATLAB MED model instance")
+    msf_prior: float = Field(None, repr=False, exclude=False, description='Solar field flow rate in the previous Nsf_max steps', max_items=Nsf_max)
+
+
+    # So that fields are validated, not only when created, but every time they are set
+    model_config = ConfigDict(validate_assignment=True)
+
+
+    @computed_field
+    def consumption_fits(self) -> dict:
+        # Load electrical consumption fit curves
         try:
-            w_props_i = [w_props(P=0.1, T=ti) for ti in Ti]
-        except NotImplementedError:
-            print(f'Attempted inputs: {Ti}')
-            
-            raise
-            
-        cp_i  = [w.cp for w in w_props_i]  # [KJ/kg·K]
-        rho_i = [w.rho for w in w_props_i] # [kg/m³]
-        
-        # Volumen i
-        for i in range(1, N-1):
-            eqs[i] = (  - rho_i[i]*V_i[i]*cp_i[i]*(Ti[i]-Ti_ant[i])/ts +   # Cambio de temperatura en el volumen
-                        msrc*cp_i[i-1]*Ti[i-1] - mdis*cp_i[i]*Ti[i] +      # Recirculación con volumen superior
-                        - msrc*cp_i[i]*Ti[i] + mdis*cp_i[i+1]*Ti[i+1] +    # Recirculación con volumen inferior
-                        - UA[i]*(Ti[i]-Tamb) )                             # Pérdidas al ambiente
-                            
-        # Volumen superior
-        eqs[0] = (  - rho_i[0]*V_i[0]*cp_i[0]*(Ti[0]-Ti_ant[0])/ts +  # Cambio de temperatura en el volumen
-                    msrc*cp_Ttin*Tt_in - mdis*cp_i[0]*Ti[0] +         # Aporte externo
-                    - msrc*cp_i[0]*Ti[0] + mdis*cp_i[1]*Ti[1] +       # Recirculación con volumen inferior
-                    - UA[0]*(Ti[0]-Tamb) )                            # Pérdidas al ambiente
-                    
-        # Volumen inferior
-        eqs[-1] = ( - rho_i[-1]*V_i[-1]*cp_i[-1]*(Ti[-1]-Ti_ant[-1])/ts + # Cambio de temperatura en el volumen
-                    mdis*cp_Tbin*Tb_in - msrc*cp_i[-1]*Ti[-1] +           # Aporte externo
-                    + msrc*cp_i[-2]*Ti[-2] - mdis*cp_i[-1]*Ti[-1] +       # Recirculación con volumen superior
-                    - UA[-1]*(Ti[-1]-Tamb) )                              # Pérdidas al ambiente
-        
-        return eqs
-    
-    Tmin_ = 273.15 # K
-    Tmax_ = 623.15 # K
-    
-    # Initial checks
-    if len(Ti_ant) != N:
-        raise Exception('Ti_ant must have the same length as N')
-        
-    if len(V_i) != N:
-        raise Exception('Vi must have the same length as N')
-    
-    # if np.any( np.diff(Ti_ant) ) > 0:
-    #     raise Exception('Values of previous temperatures profile needs to be monotonically decreasing')
-    
-    # Check temperature is within limits
-    # if any(Ti_ant > 120):
-    #     raise ValueError(f'Temperature must be below {120} ºC')
-    
-    # Initialize variables
-    Tt_in = Tt_in + 273.15 # K
-    Tb_in = Tb_in + 273.15 # K
-    Tamb  = Tamb  + 273.15 # K
-    Ti_ant = Ti_ant + 273.15 # K
-    
-    w_props_Ttin = w_props(P=0.1, T=Tt_in)
-    w_props_Tbin = w_props(P=0.1, T=Tb_in)
-    
-    cp_Ttin = w_props_Ttin.cp # P=1 bar->0.1 MPa, T=Tin C, cp [kJ/kg·K]
-    cp_Tbin = w_props_Tbin.cp # P=1 bar->0.1 MPa, T=Tin C, cp [kJ/kg·K]
-    
-    # V_i = V/N # Volumen de cada volumen de control
-    
-    initial_guess = Ti_ant
-    Ti = scipy.optimize.fsolve(model_function, initial_guess)
-    
-    
-    # Tt = ( Tamb*( UA**2+UA*cp_Tbin*(msrc+2*mdis) ) + Tt_in*(msrc*cp_Ttin*(UA+cp_Tbin*(msrc+mdis))) + Tb_in*(mdis**2*cp_Tbin**2) )/ \
-    #      ( UA**2+UA*(msrc+mdis)*(cp_Tbin+cp_Ttin)+(msrc+mdis)**2*cp_Ttin*cp_Tbin - msrc*mdis*cp_Ttin*cp_Tbin ) # ºC
-         
-    # Tb = (Tt*msrc*cp_Ttin + Tb_in*mdis*cp_Tbin + Tamb*UA)/(UA + (msrc+mdis)*cp_Tbin) # ºC
-    
-    if calculate_energy:
-        return Ti-273.15, calculate_stored_energy(Ti-273.15, V_i, Tmin)
-    
-    else:
-        return Ti-273.15
-    
-def thermal_storage_model_single_tank(Ti_ant:np.ndarray, 
-                                      Tt_in: Union[float, List[float]], 
-                                      Tb_in: Union[float, List[float]], 
-                                      Tamb: float, 
-                                      mt_in: Union[float, List[float]], 
-                                      mb_in: Union[float, List[float]], 
-                                      mt_out: float, 
-                                      mb_out: float, 
-                                      UA:np.ndarray=np.array([0.00677724, 0.0039658 , 0.02872586]), 
-                                      V_i:np.ndarray=np.array([2.97217468, 1.71277001, 9.4345576]), 
-                                      N=3, ts=60, Tmin=60, V=15, calculate_energy=False):
-    
-    """ Thermal storage steady state model
+            with open(self.curve_fits_path, 'r') as file:
+                return json.load(file)
 
-    Args:
-        Ti_ant (List[Float]): List of previous temperatures in storage [ºC]
-        Tt_in (float): Inlet temperature to top of the tank after heat source [ºC]
-        Tb_in (float): Inlet temperature to bottom of the tank after load [ºC]
-        msrc (float): Flow rate from heat source [kg/s]
-        mdis (float): Flow rate to energy sink [kg/s]
-        Tmin (float, optional): Useful temperature limit [ºC]. Defaults to 60.
-        Tamb (float): Ambient temperature [ºC]
-        UA (List[Float]): Losses to the environment, it depends on the total outer surface
-            of the tanks and the heat transfer coefficient [W/K].
-        V_i (List[Float]): Volume of each control volume [m³]
-        V (float, optional): Total volume of the tank(s) [m³]. Defaults to 30.
-        ts (int, optional): Sample rate [sec]. Defaults to 60.
-        N (int, optional): Number of control volumes. Defaults to 4.
-        calculate_energy (bool, optional): Whether or not to calculate and return
-            energy stored above Tmin. Defaults to False.
+        except FileNotFoundError:
+            raise ValidationError(f'Curve fits file not found in {self.curve_fits_path}')
 
-    Returns:
-        Ti: List of temperatures at each control volume [List of ºC]
-        energy: Only if calculate_energy == True. Useful energy stored in the 
-            tank (reference Tmin) [kWh]
-    """
-    
-    def model_function(x):
-    
-        # Ti = x+273.15 # K
-        Ti = x
-        
-        if any(Ti < Tmin_) or any(Ti > Tmax_):
-            # Return large error values if temperature limits are violated
-            return [1e6] * N
-        # if np.sum(V_i) > 1.1*V or np.sum(V_i) < 0.9*V:
-        #     # Return large error values if total volume limits are violated
-        #     return [1e6] * N            
-            
-        eqs = [None for _ in range(N)]
-            
-        try:
-            w_props_i = [w_props(P=0.1, T=ti) for ti in Ti]
-        except NotImplementedError:
-            print(f'Attempted inputs: {Ti}')
-            
-            raise
-            
-        cp_i  = [w.cp for w in w_props_i]  # [KJ/kg·K]
-        rho_i = [w.rho for w in w_props_i] # [kg/m³]
-        
-        # Volumen i
-        for i in range(1, N-1):
-            eqs[i] = (  - rho_i[i]*V_i[i]*cp_i[i]*(Ti[i]-Ti_ant[i])/ts +           # Cambio de temperatura en el volumen
-                        np.sum(mt_in)*cp_i[i-1]*Ti[i-1] - mt_out*cp_i[i]*Ti[i] +   # Recirculación con volumen superior
-                        - mb_out*cp_i[i]*Ti[i] + np.sum(mb_in)*cp_i[i+1]*Ti[i+1] + # Recirculación con volumen inferior
-                        - UA[i]*(Ti[i]-Tamb) )                                     # Pérdidas al ambiente
-                            
-        # Volumen superior
-        eqs[0] = (  - rho_i[0]*V_i[0]*cp_i[0]*(Ti[0]-Ti_ant[0])/ts +                  # Cambio de temperatura en el volumen
-                    np.sum( dot(dot(mt_in,cp_Ttin), Tt_in) ) - mt_out*cp_i[0]*Ti[0] + # Aporte externo
-                    - np.sum(mt_in)*cp_i[0]*Ti[0] + mt_out*cp_i[1]*Ti[1] +            # Recirculación con volumen inferior
-                    - UA[0]*(Ti[0]-Tamb) )                                            # Pérdidas al ambiente
-                    
-        # Volumen inferior
-        eqs[-1] = ( - rho_i[-1]*V_i[-1]*cp_i[-1]*(Ti[-1]-Ti_ant[-1])/ts +              # Cambio de temperatura en el volumen
-                    np.sum( dot(dot(mb_in,cp_Tbin),Tb_in) ) - mb_out*cp_i[-1]*Ti[-1] + # Aporte externo
-                    + mb_out*cp_i[-2]*Ti[-2] - np.sum(mb_in)*cp_i[-1]*Ti[-1] +         # Recirculación con volumen superior
-                    - UA[-1]*(Ti[-1]-Tamb) )                                           # Pérdidas al ambiente
-        
-        return eqs
-    
-    Tmin_ = 273.15 # K
-    Tmax_ = 623.15 # K
-    
-    # Initial checks    
-    if len(Ti_ant) != N:
-        raise Exception('Ti_ant must have the same length as N')
-        
-    if len(V_i) != N:
-        raise Exception('Vi must have the same length as N')
-        
-    if isinstance(Tt_in, list):
-        if len(Tt_in) != len(mt_in):
-            raise Exception('Tt_in must have the same length as mt_in')
-            
-    if isinstance(Tb_in, list):
-        if len(Tb_in) != len(mb_in):
-            raise Exception('Tb_in must have the same length as mb_in')
-    
-    # if np.any( np.diff(Ti_ant) ) > 0:
-    #     raise Exception('Values of previous temperatures profile needs to be monotonically decreasing')
-    
-    # Check temperature is within limits
-    # if any(Ti_ant > 120):
-    #     raise ValueError(f'Temperature must be below {120} ºC')
-    
-    # Initialize variables
-    Tamb  = Tamb  + 273.15 # K
-    Ti_ant = Ti_ant + 273.15 # K
-    
-    Tt_in = Tt_in if isinstance(Tt_in, list) else [Tt_in] # Make sure it's a list
-    mt_in = mt_in if isinstance(mt_in, list) else [mt_in] # Make sure it's a list
-    Tt_in = [t+273.15 for t in Tt_in] # K
-    cp_Ttin = [w_props(P=0.1, T=t).cp for t in Tt_in] # P=1 bar-> 0.1 MPa, T=Tin C, cp [kJ/kg·K]
-    
-    Tb_in = Tb_in if isinstance(Tb_in, list) else [Tb_in] # Make sure it's a list
-    mb_in = mb_in if isinstance(mb_in, list) else [mb_in] # Make sure it's a list
-    Tb_in = [t+273.15 for t in Tb_in] # K
-    cp_Tbin = [w_props(P=0.1, T=t).cp for t in Tb_in] # P=1 bar-> 0.1 MPa, T=Tin C, cp [kJ/kg·K]
-    
-    # V_i = V/N # Volumen de cada volumen de control
-    
-    initial_guess = Ti_ant
-    Ti = scipy.optimize.fsolve(model_function, initial_guess)
-    
-    
-    # Tt = ( Tamb*( UA**2+UA*cp_Tbin*(msrc+2*mdis) ) + Tt_in*(msrc*cp_Ttin*(UA+cp_Tbin*(msrc+mdis))) + Tb_in*(mdis**2*cp_Tbin**2) )/ \
-    #      ( UA**2+UA*(msrc+mdis)*(cp_Tbin+cp_Ttin)+(msrc+mdis)**2*cp_Ttin*cp_Tbin - msrc*mdis*cp_Ttin*cp_Tbin ) # ºC
-         
-    # Tb = (Tt*msrc*cp_Ttin + Tb_in*mdis*cp_Tbin + Tamb*UA)/(UA + (msrc+mdis)*cp_Tbin) # ºC
-    
-    if calculate_energy:
-        return Ti-273.15, calculate_stored_energy(Ti-273.15, V_i, Tmin)
-    
-    else:
-        return Ti-273.15
+    @field_validator("med_actuators", "sf_actuators", "ts_actuators", mode='before')
+    @classmethod
+    def generate_actuators(cls, actuator_ids: SupportedActuators | list[SupportedActuators]) -> list[Actuator]:
+        if isinstance(actuator_ids, str):
+            actuator_ids = [actuator_ids]
 
-def thermal_storage_model_two_tanks(Ti_ant_h:np.ndarray, Ti_ant_c:np.ndarray, 
-                                    Tt_in: Union[float, List[float]], 
-                                    Tb_in: Union[float, List[float]], 
-                                    Tamb: float, 
-                                    msrc: float, 
-                                    mdis: float, 
-                                    UA_h:np.array([0.00677724, 0.0039658 , 0.02872586]), 
-                                    UA_c:np.array([0.00677724, 0.0039658 , 0.02872586]),
-                                    Vi_h:np.array([2.97217468, 1.71277001, 9.4345576]), 
-                                    Vi_c:np.array([2.97217468, 1.71277001, 9.4345576]),
-                                    ts=60, Tmin=60, V=30, unified_output=False,
-                                    calculate_energy=False):
-    
-    if mdis-msrc > 0:
-        # print('from cold to hot!')
-        # Recirculation from cold to hot
-        Ti_c = thermal_storage_model_single_tank(
-                                     Ti_ant_c, Tt_in=0, Tb_in=Tb_in, Tamb=Tamb, 
-                                     mt_in=0, mb_in=mdis, mt_out=mdis-msrc, mb_out=msrc,
-                                     UA=UA_c, V_i=Vi_c, 
-                                     N=3, ts=ts, calculate_energy=False) # ºC!!
-        
-        Ti_h = thermal_storage_model_single_tank(
-                                     Ti_ant_h, Tt_in=Tt_in, Tb_in=Ti_c[-1], Tamb=Tamb, 
-                                     mt_in=msrc, mb_in=mdis-msrc, mt_out=mdis, mb_out=0, 
-                                     UA=UA_h, V_i=Vi_h, 
-                                     N=3, ts=ts, calculate_energy=False) # ºC!!
-    else:
-        # print('from hot to cold!')
-        # Recirculation from hot to cold
-        Ti_h = thermal_storage_model_single_tank(
-                                     Ti_ant_h, Tt_in=Tt_in, Tb_in=0, Tamb=Tamb, 
-                                     mt_in=msrc, mb_in=0, mt_out=mdis, mb_out=msrc-mdis, 
-                                     UA=UA_h, V_i=Vi_h, 
-                                     N=3, ts=ts, calculate_energy=False) # ºC!!
+        return [Actuator(id=actuator_id) for actuator_id in actuator_ids]
 
-        Ti_c = thermal_storage_model_single_tank(
-                                     Ti_ant_c, Tt_in=Ti_h[-1], Tb_in=Tb_in, Tamb=Tamb, 
-                                     mt_in=msrc-mdis, mb_in=mdis, mt_out=0, mb_out=msrc,
-                                     UA=UA_c, V_i=Vi_c, 
-                                     N=3, ts=ts, calculate_energy=False) # ºC!!
-        
-    if calculate_energy:
-        E_avail_h = calculate_stored_energy(Ti_h, Vi_h, Tmin)
-        E_avail_c = calculate_stored_energy(Ti_c, Vi_c, Tmin)
-        return Ti_h, Ti_c, E_avail_h, E_avail_c
-    
-    else:
-        return Ti_h, Ti_c
-    
-    
+    # Limits validation for flows
+    @field_validator("mmed_s", "mmed_f", "mmed_c", "mts_src", "msf")
+    @classmethod
+    def validate_flow(cls, flow: PositiveFloat, info: ValidationInfo) -> PositiveFloat:
+        lims_field = "m_" + info.field_name
+
+        return within_range_or_zero_or_max(flow, range=info.data[lims_field])
+
+    @field_validator("Tmed_s_in")
+    @classmethod
+    def validate_Tmed_s_in(cls, Tmed_s_in: float, info: ValidationInfo) -> float:
+        # Lower limit set by pre-defined operational limit, if lower -> 0
+        # Upper bound, take the lower between the hot tank top temperature and the pre-defined operational limit
+        return within_range_or_zero_or_max(
+            # The upper limit is not really needed, its value is an output restrained already by mmed_c upper lower bound
+            Tmed_s_in, range=( info.data["lims_Tmed_s_in"][0], info.data["Tmed_s_in"][1]-10 )
+        )
+
+    @field_validator("Tmed_c_out")
+    @classmethod
+    def validate_Tmed_c_out(cls, Tmed_c_out: float, info: ValidationInfo) -> float:
+        return within_range_or_min_or_max(Tmed_c_out, range=(info.data["Tmed_c_in"],
+                                                             info.data["lims_T_hot"][1]))
+
+    @field_validator("Tsf_out")
+    @classmethod
+    def validate_Tsf_out(cls, Tsf_out: float, info: ValidationInfo) -> float:
+        return within_range_or_min_or_max(Tsf_out, range=(info.data["Tsf_in"],
+                                                          info.data["lims_T_hot"][1]))
+
+    def __post_init__(self):
+
+        # Initialize the MATLAB engine
+        self.init_matlab_engine()
+
+    def step(self, wmed_f: float = None):
+
+        # mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float,  # MED decision variables
+        # mts_src: float,  # Thermal storage decision variables
+        # Tsf_out: float,  # Solar field decision variables
+        # Tmed_c_in: float, wmed_f: float, Tamb: float, I: float):  # Environment variables
+
+        """
+        Calculate model outputs given current environment variables and decision variables
+
+            Inputs:
+                - Decision variables
+                    MED
+                    ---------------------------------------------------
+                    + mmed_s (m³/h): Heat source flow rate
+                    + mmed_f (m³/h): Feed water flow rate
+                    + Tmed_s_in (ºC): Heat source inlet temperature
+                    + Tmed_c_out (ºC): Cooling water outlet temperature
+
+                    THERMAL STORAGE
+                    ---------------------------------------------------
+                    + mts_src (m³/h): Thermal storage heat source flow rate
+
+                    SOLAR FIELD
+                    ---------------------------------------------------
+                    + Tsf_out (ºC): Solar field outlet temperature
+
+                - Environment variables
+                    + Tmed_c_in (ºC): Seawater temperature
+                    + wmed_f (g/kg): Seawater salinity
+                    + Tamb (ºC): Ambient temperature
+                    + I (W/m²): Solar irradiance
+
+        Returns:
+            _type_: _description_
+        """
+
+
+        # Process inputs
+        if wmed_f is not None:
+            self.wmed_f = wmed_f
+
+        # Set operating mode
+
+        # Solve model for current step
+
+        # Update states
+
+    def terminate(self):
+        """
+        Terminate the model and free resources. To be called when no more steps are needed.
+        It just terminates the MATLAB engine, all the data and states are preserved.
+        """
+
+        self.MED_model.terminate()
+
+    def init_matlab_engine(self):
+        """
+        Manually initialize the MATLAB MED model, in case it was terminated.
+        """
+
+        self.MED_model = MED_model.initialize()
+        self.logger.info('MATLAB MED model initialized')
+
+
 @dataclass
 class solar_MED:
     """
@@ -678,8 +364,8 @@ class solar_MED:
     
     # States (need to be initialized)
     ## Thermal storage
-    Tts_h: List[float] # Hot tank temperature profile (ºC)
-    Tts_c: List[float] # Cold tank temperature profile (ºC)
+    Tts_h: list[float] # Hot tank temperature profile (ºC)
+    Tts_c: list[float] # Cold tank temperature profile (ºC)
     
     
     # Parameters
@@ -696,10 +382,10 @@ class solar_MED:
                  "hotwater_electrical_consumption"]
     
     ## Thermal storage
-    UAts_h: List[float] = field(default_factory=lambda: [0.0069818 , 0.00584034, 0.03041486]) # Heat losses to the environment from the hot tank (W/K)
-    UAts_c: List[float] = field(default_factory=lambda: [0.01396848, 0.0001    , 0.02286885]) # Heat losses to the environment from the cold tank (W/K)
-    Vts_h: List[float]  = field(default_factory=lambda: [5.94771006, 4.87661781, 2.19737023]) # Volume of each control volume of the hot tank (m³)
-    Vts_c: List[float]  = field(default_factory=lambda: [5.33410037, 7.56470594, 0.90547187]) # Volume of each control volume of the cold tank (m³)
+    UAts_h: list[float] = field(default_factory=lambda: [0.0069818 , 0.00584034, 0.03041486]) # Heat losses to the environment from the hot tank (W/K)
+    UAts_c: list[float] = field(default_factory=lambda: [0.01396848, 0.0001    , 0.02286885]) # Heat losses to the environment from the cold tank (W/K)
+    Vts_h: list[float]  = field(default_factory=lambda: [5.94771006, 4.87661781, 2.19737023]) # Volume of each control volume of the hot tank (m³)
+    Vts_c: list[float]  = field(default_factory=lambda: [5.33410037, 7.56470594, 0.90547187]) # Volume of each control volume of the cold tank (m³)
     
     ## Solar field
     beta_sf = 0.001037318
@@ -915,8 +601,8 @@ class solar_MED:
         
         # Solar field
         elif name == "msf":
-            if (value > self.msf_max or 
-                not isinstance(value, (int,float))):
+            if (value > self.msf_max or
+                    not isinstance(value, (int,float))):
                 raise ValueError(f"The given decision variables produce unsafe operation for the solar field, {name} is above the maximum ({self.mmed_f_max})")
                 # raise ValueError(f"Value of {name} must be a number within: [{self.mmed_f_min}, {self.mmed_f_max}] ({value})")
         
@@ -927,11 +613,12 @@ class solar_MED:
     
     def __post_init__(self):
         # Initialize logger
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
-        
-        # Filter matplotlib logging
-        logging.getLogger("matplotlib").setLevel(logging.WARNING)
+        self.logger = logger
+        # self.logger = logging.getLogger(__name__)
+        # self.logger.setLevel(logging.DEBUG)
+        #
+        # # Filter matplotlib logging
+        # logging.getLogger("matplotlib").setLevel(logging.WARNING)
         
         # Initalize MATLAB MED model
         self.MED_model = MED_model.initialize()
@@ -1002,51 +689,53 @@ class solar_MED:
         msf = solar_field_model(Tsf_in, self.Tsf_out, self.I, self.Tamb, beta=self.beta_sf, H=self.H_sf, nt=self.nt_sf, np=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf)
         
         # Thermal storage
-        _, Tts_c = thermal_storage_model_two_tanks(Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c, # [ºC], [ºC]
-                                                       Tt_in = Tts_t_in,                    # ºC
-                                                       Tb_in = self.Tmed_s_out,                  # ºC 
-                                                       Tamb = self.Tamb,                              # ºC
-                                                       msrc = self.mts_src,                           # m³/h
-                                                       mdis = self.mts_dis,                      # m³/h
-                                                       UA_h = self.UAts_h,                       # W/K
-                                                       UA_c = self.UAts_c,                       # W/K
-                                                       Vi_h = self.Vts_h,                        # m³
-                                                       Vi_c = self.Vts_c,                        # m³
-                                                       ts=self.ts, Tmin=self.Tmed_s_in_min)      # seg, ºC
+        _, Tts_c = thermal_storage_model_two_tanks(
+            Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c, # [ºC], [ºC]
+            Tt_in = Tts_t_in, # ºC
+            Tb_in = self.Tmed_s_out, # ºC
+            Tamb = self.Tamb, # ºC
+            msrc = self.mts_src, # m³/h
+            mdis = self.mts_dis, # m³/h
+            UA_h = self.UAts_h, # W/K
+            UA_c = self.UAts_c, # W/K
+            Vi_h = self.Vts_h, # m³
+            Vi_c = self.Vts_c, # m³
+            ts=self.ts, Tmin=self.Tmed_s_in_min # seg, ºC
+        )
         
         return [ abs(Tts_c[-1]-inputs[0]), abs(msf-inputs[1]) ]
         
-    def energy_generation_and_storage_subproblem_temp(self, inputs):
-        
-        Tts_c_b = inputs[0] 
-        Tsf_out = inputs[1]
-        
-        # Heat exchanger of solar field - thermal storage
-        Tsf_in, Tts_t_in = heat_exchanger_model(Tp_in=Tsf_out, # Solar field outlet temperature (decision variable, ºC)
-                                                Ts_in=Tts_c_b, # Cold tank bottom temperature (ºC) 
-                                                Qp=self.msf, # Solar field flow rate (m³/h)
-                                                Qs=self.mts_src, # Thermal storage charge flow rate (decision variable, m³/h) 
-                                                Tamb=self.Tamb,
-                                                UA=self.UA_hx,
-                                                H=self.H_hx)
-        
-        # Solar field
-        Tsf_out = solar_field_model_temp(Tsf_in, self.msf, self.I, self.Tamb, beta=self.beta_sf, H=self.H_sf, nt=self.nt_sf, np=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf)
-        
-        # Thermal storage
-        _, Tts_c = thermal_storage_model_two_tanks(Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c, # [ºC], [ºC]
-                                                       Tt_in = Tts_t_in,                    # ºC
-                                                       Tb_in = self.Tmed_s_out,                  # ºC 
-                                                       Tamb = self.Tamb,                              # ºC
-                                                       msrc = self.mts_src,                           # m³/h
-                                                       mdis = self.mts_dis,                      # m³/h
-                                                       UA_h = self.UAts_h,                       # W/K
-                                                       UA_c = self.UAts_c,                       # W/K
-                                                       Vi_h = self.Vts_h,                        # m³
-                                                       Vi_c = self.Vts_c,                        # m³
-                                                       ts=self.ts, Tmin=self.Tmed_s_in_min)      # seg, ºC
-        
-        return [ abs(Tts_c[-1]-inputs[0]), abs(Tsf_out-inputs[1]) ]
+    # def energy_generation_and_storage_subproblem_temp(self, inputs):
+    #
+    #     Tts_c_b = inputs[0]
+    #     Tsf_out = inputs[1]
+    #
+    #     # Heat exchanger of solar field - thermal storage
+    #     Tsf_in, Tts_t_in = heat_exchanger_model(Tp_in=Tsf_out, # Solar field outlet temperature (decision variable, ºC)
+    #                                             Ts_in=Tts_c_b, # Cold tank bottom temperature (ºC)
+    #                                             Qp=self.msf, # Solar field flow rate (m³/h)
+    #                                             Qs=self.mts_src, # Thermal storage charge flow rate (decision variable, m³/h)
+    #                                             Tamb=self.Tamb,
+    #                                             UA=self.UA_hx,
+    #                                             H=self.H_hx)
+    #
+    #     # Solar field
+    #     Tsf_out = solar_field_model_temp(Tsf_in, self.msf, self.I, self.Tamb, beta=self.beta_sf, H=self.H_sf, nt=self.nt_sf, np=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf)
+    #
+    #     # Thermal storage
+    #     _, Tts_c = thermal_storage_model_two_tanks(Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c, # [ºC], [ºC]
+    #                                                    Tt_in = Tts_t_in,                    # ºC
+    #                                                    Tb_in = self.Tmed_s_out,                  # ºC
+    #                                                    Tamb = self.Tamb,                              # ºC
+    #                                                    msrc = self.mts_src,                           # m³/h
+    #                                                    mdis = self.mts_dis,                      # m³/h
+    #                                                    UA_h = self.UAts_h,                       # W/K
+    #                                                    UA_c = self.UAts_c,                       # W/K
+    #                                                    Vi_h = self.Vts_h,                        # m³
+    #                                                    Vi_c = self.Vts_c,                        # m³
+    #                                                    ts=self.ts, Tmin=self.Tmed_s_in_min)      # seg, ºC
+    #
+    #     return [ abs(Tts_c[-1]-inputs[0]), abs(Tsf_out-inputs[1]) ]
         
     # @pv.validate_inputs(a="number", mmed_s="number", mmed_f="number", Tmed_s_in="number", Tmed_c_out="number", 
     #                     Tmed_c_in="number", wmed_f="number", mts_src="number", Tamb="number")

@@ -218,6 +218,7 @@
       row_height: 0.33,
       bg_color: "bg_gray", # bg gray
       ylabels_left: ["m<sup>3</sup>/h"],
+      ylabels_right: ["P<sub>th</sub> (kW<sub>th</sub>)"],
       tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
 
       # Plotted between this plot and the next one
@@ -236,6 +237,18 @@
           // dash: "dashdot", # "dot", "dash", "dashdot"
           // showlegend: true,
           // legend_id: 'temperatures_dc_cv',
+        }
+      ],
+
+      traces_right: [
+        // Experimental
+        {
+          var_id: "Psf",
+          name: "P<sub>sf</sub> (kW<sub>th</sub>)",
+          mode: "lines",
+          color: "plotly_yellow",
+          axis_arrow: true,
+          arrow_yrel_pos: 1.05,
         }
       ]
     },
@@ -272,7 +285,6 @@
         // },
         {
           var_id: "Tsf_out",
-          name: "setpoint", # "T<sub>dc,sp</sub>",
           mode: "lines",
           color: "plotly_red",
           dash: "dash", # "dot", "dash", "dashdot"
@@ -338,21 +350,42 @@
       row_height: 0.33,
       bg_color: "bg_gray", # bg gray
       ylabels_left: ["m<sup>3</sup>/h"],
+      ylabels_right: ["kW<sub>th</sub>"],
       tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
 
       traces_left: [
         {
           var_id: "qts_dis",
-          name: "q<sub>ts,dis,out</sub>",
+          name: "q<sub>ts,dis</sub>",
           mode: "lines",
           color: "plotly_blue",
         },
         {
           var_id: "qts_src",
-          name: "q<sub>ts,dis,in</sub>"
+          name: "q<sub>ts,src</sub>"
           mode: "lines",
           color: "plotly_red",
         },
+      ],
+
+      traces_right: [
+        {
+          var_id: "Pts_src",
+          name: "P<sub>ts,src</sub> (kW<sub>th</sub>)",
+          mode: "lines",
+          color: "plotly_yellow",
+          axis_arrow: true,
+          arrow_yrel_pos: 1.05,
+        },
+        {
+          var_id: "Pts_dis",
+          name: "P<sub>ts,dis</sub> (kW<sub>th</sub>)",
+          mode: "lines",
+          color: "wct_purple",
+          dash: "dash",
+          axis_arrow: true,
+          arrow_yrel_pos: 0.95,
+        }
       ]
 
       # TODO: Estaría guay añadir trazas a la derecha con power balance
