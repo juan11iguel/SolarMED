@@ -23,6 +23,10 @@ def heat_exchanger_model(Tp_in, Ts_in, Qp, Qs, Tamb, UA=28000, H=0):  # eta_p, e
         Pabs: Power absorbed by the secondary circuit [kWth]
     """
 
+    # TODO: Add losses to the environment (H)
+    # TODO: Add option to simplify model by using constant water properties
+    # TODO: Allow inversion of the heat exchanger?
+
     w_props_Tp_in = w_props(P=0.16, T=Tp_in + 273.15)
     w_props_Ts_in = w_props(P=0.16, T=Ts_in + 273.15)
     cp_Tp_in = w_props_Tp_in.cp * 1e3  # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]

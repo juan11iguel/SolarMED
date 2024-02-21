@@ -1,8 +1,11 @@
+import numpy as np
 from loguru import logger
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
 from scipy.optimize import fsolve
+from .validation import conHotTemperatureType
+from pydantic import PositiveFloat
 
-def solar_field_model(Tin, Tout, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20):
+def solar_field_model_inverse(Tin, Tout, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20) -> PositiveFloat:
     """Steady state model of a flat plate collector solar field
        with any number of collectors in series and parallel.
 
@@ -68,6 +71,24 @@ def solar_field_model(Tin, Tout, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15
     # if Q<0: Q=0
 
     return Q
+
+def solar_field_model(Tin: conHotTemperatureType, qsf: PositiveFloat, qsf_ant: np.ndarray[PositiveFloat], I: PositiveFloat, Tamb: float,
+                      beta: float, H: float, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20, sample_time=1):
+
+    if qsf == 0:
+        # Just thermal losses
+        Tout = Tin - H * (Tin - Tamb) * sample_time
+
+        """
+            A more thorough approach would include radiation and convection losses:
+            T = T - (H * (T - Tamb) + eta * (T⁴-T⁴)) * sample_time
+        """
+
+    else:
+        # TODO: Usar modelo de Lidia incluyendo retardo variable calibrado de Julio Normey
+        Tout = Tin
+
+    return Tout
 
 
 def solar_field_model_temp(Tin, Q, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20):  # , Acs=7.85e-5):

@@ -18,6 +18,10 @@ def three_way_valve_model(Mdis, Tsrc, Tdis_in, Tdis_out):
            para implementar un controlador con feedforward
     """
 
+    if Mdis == 0:
+        return 0, 0.5
+
+
     Tsrc = Tsrc + 273.15
     Tdis_in = Tdis_in + 273.15
     Tdis_out = Tdis_out + 273.15

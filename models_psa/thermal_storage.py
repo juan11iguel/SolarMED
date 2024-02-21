@@ -183,7 +183,8 @@ def thermal_storage_model_two_tanks(
         ts=60, Tmin=60, V=30, unified_output=False,
         calculate_energy=False
 ):
-    """ Thermal storage steady state model
+    """
+    Thermal storage steady state model
 
 
     """
@@ -194,32 +195,34 @@ def thermal_storage_model_two_tanks(
         Ti_c = thermal_storage_model_single_tank(
             Ti_ant_c, Tt_in=0, Tb_in=Tb_in, Tamb=Tamb,
             mt_in=0, mb_in=mdis, mt_out=mdis - msrc, mb_out=msrc,
-            UA=UA_c, V_i=Vi_c,
-            N=3, ts=ts, calculate_energy=False)  # ºC!!
+            UA=UA_c, V_i=Vi_c, N=3, ts=ts, calculate_energy=False
+        )  # ºC
 
         Ti_h = thermal_storage_model_single_tank(
             Ti_ant_h, Tt_in=Tt_in, Tb_in=Ti_c[-1], Tamb=Tamb,
             mt_in=msrc, mb_in=mdis - msrc, mt_out=mdis, mb_out=0,
-            UA=UA_h, V_i=Vi_h,
-            N=3, ts=ts, calculate_energy=False)  # ºC!!
+            UA=UA_h, V_i=Vi_h, N=3, ts=ts, calculate_energy=False
+        )  # ºC!!
+
     else:
         # print('from hot to cold!')
         # Recirculation from hot to cold
         Ti_h = thermal_storage_model_single_tank(
             Ti_ant_h, Tt_in=Tt_in, Tb_in=0, Tamb=Tamb,
             mt_in=msrc, mb_in=0, mt_out=mdis, mb_out=msrc - mdis,
-            UA=UA_h, V_i=Vi_h,
-            N=3, ts=ts, calculate_energy=False)  # ºC!!
+            UA=UA_h, V_i=Vi_h, N=3, ts=ts, calculate_energy=False
+        )  # ºC!!
 
         Ti_c = thermal_storage_model_single_tank(
             Ti_ant_c, Tt_in=Ti_h[-1], Tb_in=Tb_in, Tamb=Tamb,
             mt_in=msrc - mdis, mb_in=mdis, mt_out=0, mb_out=msrc,
-            UA=UA_c, V_i=Vi_c,
-            N=3, ts=ts, calculate_energy=False)  # ºC!!
+            UA=UA_c, V_i=Vi_c, N=3, ts=ts, calculate_energy=False
+        )  # ºC!!
 
     if calculate_energy:
         E_avail_h = calculate_stored_energy(Ti_h, Vi_h, Tmin)
         E_avail_c = calculate_stored_energy(Ti_c, Vi_c, Tmin)
+
         return Ti_h, Ti_c, E_avail_h, E_avail_c
 
     else:
