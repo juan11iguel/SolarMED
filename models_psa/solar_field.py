@@ -3,9 +3,11 @@ from loguru import logger
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
 from scipy.optimize import fsolve
 from .validation import conHotTemperatureType
-from pydantic import PositiveFloat
+from pydantic import PositiveFloat, PositiveInt
 
-def solar_field_model_inverse(Tin, Tout, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20) -> PositiveFloat:
+def solar_field_model_inverse(Tin:PositiveFloat, Tout:PositiveFloat, I:PositiveFloat, Tamb:float,
+                              beta:PositiveFloat, H:float, nt:PositiveInt=1, np: PositiveInt=7 * 5,
+                              ns: PositiveInt=2, Lt:PositiveFloat=1.15 * 20, nloops:PositiveInt =4) -> float:
     """Steady state model of a flat plate collector solar field
        with any number of collectors in series and parallel.
 
@@ -63,19 +65,23 @@ def solar_field_model_inverse(Tin, Tout, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2,
 
     # Pth = m * cp_avg * (Tout-Tin) / 1000 # kWth
 
-    Q = m * 3600 / rho_avg  # kg/s -> m^3/h
-
-    Q = Q * 4 * np  # 4 loops
+    Q = m * 3600 / rho_avg  * np # kg/s -> m^3/h
+    Q = Q * nloops  # 4 loops in parallel merged at outlet
 
     # if Q>20: Q=20
     # if Q<0: Q=0
 
     return Q
 
-def solar_field_model(Tin: conHotTemperatureType, qsf: PositiveFloat, qsf_ant: np.ndarray[PositiveFloat], I: PositiveFloat, Tamb: float,
-                      beta: float, H: float, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20, sample_time=1):
+def solar_field_model(Tin: conHotTemperatureType, q: PositiveFloat, I: PositiveFloat, Tamb: float,
+                      Tout_ant: float, q_ant: np.ndarray[float] = None,
+                      beta: float = 0.0975, H: float = 2.2, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20, Acs:float= 7.85e-5,
+                      sample_time=1):
 
-    if qsf == 0:
+    # Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
+
+
+    if q == 0:
         # Just thermal losses
         Tout = Tin - H * (Tin - Tamb) * sample_time
 
@@ -85,8 +91,20 @@ def solar_field_model(Tin: conHotTemperatureType, qsf: PositiveFloat, qsf_ant: n
         """
 
     else:
+        Leq = ns * Lt
+        cf = np * nt * 1  # Convertir m^3/h a kg/s y algo más
+        Tavg = (Tin + Tout_ant) / 2  # ºC
+
+        w_props_avg = w_props(P=0.16, T=Tin + 273.15)  # P=1 bar  -> 0.1MPa, T=Tin C,
+        rho = w_props_avg.rho  # [kg/m³]
+        cp = w_props_avg.cp * 1e3  # [kJ/kg·K] -> [J/kg·K]
+
+        K1 = beta / (rho * cp * Acs)
+        K2 = H / (Leq * Acs * rho * cp)
+        K3 = 1/(Leq * Acs * 3600)
+
         # TODO: Usar modelo de Lidia incluyendo retardo variable calibrado de Julio Normey
-        Tout = Tin
+        Tout = Tin + (beta * I - H * (Tin - Tamb)) / (m * cp / cf * 1 / Leq)  # ºC
 
     return Tout
 

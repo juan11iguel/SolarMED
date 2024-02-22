@@ -4,8 +4,19 @@ from pydantic import BaseModel, Field, model_validator
 from loguru import logger
 
 # TODO: Update this with all curve fits, merge with 
+# TODO: Only use polynomial for curve fitting
 
-SupportedActuators = Literal['fan_wct', 'fan_dc', 'pump_c']
+SupportedActuators = Literal[
+    # MED
+    "med_brine_pump", "med_feed_pump", "med_distillate_pump", "med_cooling_pump", "med_heatsource_pump",
+    # Thermal storage
+    "ts_src_pump",
+    # Solar field
+    "sf_pump",
+
+    # Others
+    "fan_dc", "pump_c", "fan_wct"
+]
 
 # This would be used for the equivalent type hinting for uncertainty determination
 # supported_instruments = Literal['pt100', 'pt1000', 'humidity_capacitive', 'vortex_flow_meter', 'paddle_wheel_flow_meter']
@@ -18,6 +29,21 @@ actuator_coefficients = {
     # otherwise the type checker will raise an error.
 
     # Note 3: Importante que el ajuste se haga para que la unidad de salida sean kW
+
+    # MED
+    'med_brine_pump': [0.010371467694486103, -0.025160600483389525, 0.03393870518526908],
+    'med_feed_pump': [0.019077706335712326, -0.09466303549610014, 0.7035299527191431],
+    'med_distillate_pump': [0.9484207971761789, -3.6572156762250954, 4.149635559273511],
+    'med_cooling_pump': [0.056680794931454774, -0.9238542100009888, 5.2178993694785625],
+    'med_heatsource_pump': [0.0013320144040346285, -0.01857544733009508, 0.031175213554380448],
+
+    # Thermal storage
+    # TODO: Add coefficients for thermal storage pump
+    'ts_src_pump': [0.0, 0.0, 0.0, 0.0, 0.0],
+
+    # Solar field
+    # TODO: Add coefficients for solar field pumps
+    'sf_pump': [0.0, 0.0, 0.0, 0.0, 0.0],
 
     # Cuidado! En MATLAB se definieron al revés!
     'fan_wct': [189.4, -11.54, 0.4118],
@@ -47,9 +73,9 @@ class Actuator(BaseModel):
 
         if self.coefficients is None:
             self.coefficients = get_coeffs(self.id)
-
-        # If coefficients are provided, skip the default coefficients
-        logger.debug(f'Custom coefficients provided for actuator {self.id}. Skipping default coefficients.')
+        else:
+            # If coefficients are provided, skip the default coefficients
+            logger.debug(f'Custom coefficients provided for actuator {self.id}. Skipping default coefficients.')
         return self
 
     def calculate_power_consumption(self, input: float | int | np.ndarray) -> float | np.ndarray:

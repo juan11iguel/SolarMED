@@ -37,7 +37,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "models/three_way_valve.md",
+                "file": "models/solar_field.md",
                 "mode": "source",
                 "source": false
               }
@@ -119,7 +119,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "models/three_way_valve.md",
+                "file": "models/solar_field.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -181,11 +181,11 @@
   },
   "active": "fd00b1ae0c1ea549",
   "lastOpenFiles": [
+    "models/three_way_valve.md",
     "Optimization.md",
     "models/attachments/solarMED_optimization-general_diagram.svg",
     "models/MED.md",
     "models/solar_field.md",
-    "models/three_way_valve.md",
     "models/restrictions.md",
     "models/heat_exchanger.md",
     "models/complete_system.md",
