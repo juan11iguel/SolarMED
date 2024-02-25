@@ -76,14 +76,46 @@ def solar_field_model_inverse(Tin:PositiveFloat, Tout:PositiveFloat, I:PositiveF
 def solar_field_model(Tin: conHotTemperatureType, q: PositiveFloat, I: PositiveFloat, Tamb: float,
                       Tout_ant: float, q_ant: np.ndarray[float] = None,
                       beta: float = 0.0975, H: float = 2.2, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20, Acs:float= 7.85e-5,
-                      sample_time=1):
+                      sample_time=1) -> float:
 
-    # Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
+    """
 
+    Args:
+        Tin:
+        q:
+        I:
+        Tamb:
+        Tout_ant:
+        q_ant:
+        beta:
+        H:
+        nt:
+        np:
+        ns:
+        Lt:
+        Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
+        sample_time:
+
+    Returns:
+        Tout: (float): Solar field outlet temperature [ºC]
+
+    """
+
+    w_props_avg = w_props(P=0.16, T=Tin + 273.15)  # P=1 bar  -> 0.1MPa, T=Tin C,
+    rho = w_props_avg.rho  # [kg/m³]
+    cp = w_props_avg.cp * 1e3  # [kJ/kg·K] -> [J/kg·K]
+
+    Leq = ns * Lt
+    cf = np * nt * 1  # Convertir m^3/h a kg/s y algo más
+    Tavg = (Tin + Tout_ant) / 2  # ºC
+
+    K1 = beta / (rho * cp * Acs)
+    K2 = H / (Leq * Acs * rho * cp)
+    K3 = 1/(Leq * Acs * 3600)
 
     if q == 0:
         # Just thermal losses
-        Tout = Tin - H * (Tin - Tamb) * sample_time
+        deltaTout = - K2 * (Tavg - Tamb)
 
         """
             A more thorough approach would include radiation and convection losses:
@@ -91,22 +123,11 @@ def solar_field_model(Tin: conHotTemperatureType, q: PositiveFloat, I: PositiveF
         """
 
     else:
-        Leq = ns * Lt
-        cf = np * nt * 1  # Convertir m^3/h a kg/s y algo más
-        Tavg = (Tin + Tout_ant) / 2  # ºC
-
-        w_props_avg = w_props(P=0.16, T=Tin + 273.15)  # P=1 bar  -> 0.1MPa, T=Tin C,
-        rho = w_props_avg.rho  # [kg/m³]
-        cp = w_props_avg.cp * 1e3  # [kJ/kg·K] -> [J/kg·K]
-
-        K1 = beta / (rho * cp * Acs)
-        K2 = H / (Leq * Acs * rho * cp)
-        K3 = 1/(Leq * Acs * 3600)
 
         # TODO: Usar modelo de Lidia incluyendo retardo variable calibrado de Julio Normey
-        Tout = Tin + (beta * I - H * (Tin - Tamb)) / (m * cp / cf * 1 / Leq)  # ºC
+        deltaTout = K1 * I - K2 * (Tavg - Tamb) - K3 * q * (Tout_ant - Tin)
 
-    return Tout
+    return Tout_ant + deltaTout * sample_time
 
 
 def solar_field_model_temp(Tin, Q, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20):  # , Acs=7.85e-5):

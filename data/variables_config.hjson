@@ -551,7 +551,7 @@
         signal_id: "TT-AQU-109", // equivalent to HW1TT21
         units_scada: "C",
         units_model: "C",
-        instrument: "pt100_class_A"
+        instrument: "pt100_class_A",
         label_html: "T<sub>3wv,dis,out</sub> (⁰C)",
         label_latex: "$T_{3wv,dis,out}$",
         description: "Three-way valve discharge outlet, return from MED"
@@ -581,5 +581,124 @@
         label_latex: "$q_{3wv,dis}\\:(m^3/h)",
         description: "Three-way valve discharge flow rate, from/to MED",
         range: [0, 15] // L/s
+    },
+
+    # Additional variables
+    ## Solar field
+    "q_sf_l1": {
+        "var_id": "q_sf_l1",
+        "signal_id": "FT-SF-003",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l1</sub>",
+        "label_latex": r"$q_{sf,l1}$"
+    },
+    "Tsf_l2_in": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-018",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l2,in</sub>",
+        "label_latex": r"$T_{sf,l2,in}$"
+    },
+    "Tsf_l2_out": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-019",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l2,out</sub>",
+        "label_latex": r"$T_{sf,l2,out}$"
+    },
+    "q_sf_l2": {
+        "signal_id": "FT-SF-005",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l2</sub>",
+        "label_latex": r"$q_{sf,l2}$"
+    },
+    "Tsf_l3_in": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-024",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l3,in</sub>",
+        "label_latex": r"$T_{sf,l3,in}$"
+    },
+    "Tsf_l3_out": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-025",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l3,out</sub>",
+        "label_latex": r"$T_{sf,l3,out}$"
+    },
+    "q_sf_l3": {
+        "signal_id": "FT-SF-006",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l3</sub>",
+        "label_latex": r"$q_{sf,l3}$"
+    },
+    "Tsf_l4_in": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-030",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l4,in</sub>",
+        "label_latex": r"$T_{sf,l4,in}$"
+    },
+    "Tsf_l4_out": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-031",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l4,out</sub>",
+        "label_latex": r"$T_{sf,l4,out}$"
+    },
+    "q_sf_l4": {
+        "signal_id": "FT-SF-007",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l4</sub>",
+        "label_latex": r"$q_{sf,l4}$"
+    },
+    "Tsf_l5_in": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-036",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l5,in</sub>",
+        "label_latex": r"$T_{sf,l5,in}$"
+    },
+    "Tsf_l5_out": {
+        "var_id": "Tsf_l"
+        instrument: "pt100_class_A",
+        "description": "Solar field loop X outlet / inlet temperature"
+        "signal_id": "TT-SF-037",
+        "units_scada": 'C',
+        "units_model": 'C',
+        "label_html": "T<sub>sf,l5,out</sub>",
+        "label_latex": r"$T_{sf,l5,out}$"
+    },
+    "q_sf_l5": {
+        "signal_id": "FT-SF-008",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l5</sub>",
+        "label_latex": r"$q_{sf,l5}$"
     },
 }
