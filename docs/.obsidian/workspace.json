@@ -25,6 +25,28 @@
             "state": {
               "type": "markdown",
               "state": {
+                "file": "Historical data processing.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "63e0cbd906a9c089",
+            "type": "leaf",
+            "state": {
+              "type": "diagram",
+              "state": {
+                "file": "attachments/time_operated_timeline_comparison.svg"
+              }
+            }
+          },
+          {
+            "id": "73853b68efbb619f",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
                 "file": "models/complete_system.md",
                 "mode": "source",
                 "source": false
@@ -107,7 +129,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "models/complete_system.md",
+                "file": "Historical data processing.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -167,14 +189,21 @@
   },
   "active": "d97e853eed673590",
   "lastOpenFiles": [
-    "models/heat_exchanger.md",
-    "models/MED.md",
-    "models/restrictions.md",
-    "models/solar_field.md",
-    "models/thermal_storage.md",
-    "models/three_way_valve.md",
-    "Nomenclature.md",
+    "attachments/filtered_pts.png",
+    "attachments/filtered_pts.svg.png",
+    "attachments/time_operated_timeline_comparison.svg",
+    "attachments/time_operated_timeline_comparison.png",
+    "attachments/time_operated_timeline_comparison.svg.png",
     "Historical data processing.md",
+    "models/MED.md",
+    "Nomenclature.md",
+    "Nomenclature.pdf",
+    "models/thermal_storage.md",
+    "models/complete_system.md",
+    "models/heat_exchanger.md",
+    "models/three_way_valve.md",
+    "models/solar_field.md",
+    "models/restrictions.md",
     "Validation signals list.md",
     "Pending tasks.md",
     "Optimization.md",
@@ -182,7 +211,6 @@
     "models/heat_exchanger.md~",
     "models/complete_system.md~",
     "Nomenclature.md~",
-    "models/complete_system.md",
     "models/Modelo MED.md",
     "Ejecución modelo MED v1.md",
     "Análisis de sensibilidad.md",
@@ -195,7 +223,6 @@
     "material auxiliar/JuanMiguel.Serrano SFERAIIIDC_presentation.pdf",
     "material auxiliar/presentacion_arm.pdf",
     "material auxiliar",
-    "listado variables.ods",
     "sensitivity_analysis/ts_out_sensivity_sobol.png",
     "sensitivity_analysis/stec_sensivity_sobol.png",
     "sensitivity_analysis/seec_sensivity_sobol.png",
@@ -204,10 +231,6 @@
     "models_psa/results/newplot.png",
     "models/Modelo campo solar.md",
     "models/Restricciones.md",
-    "attachments/Hierarchical Control.png",
-    "models/attachments/solarMED_optimization-Optimization.drawio.png",
-    "models/attachments/result_model_ts_calibration_2023-07-07.svg",
-    "models/attachments/result_model_ts_calibration_2023-07-07.png",
     "models/tanques.excalidraw.md",
     "Excalidraw/Drawing 2023-06-22 11.26.14.excalidraw.md",
     "EURECAT/attachments/Diagrama general.svg.md",

@@ -11,7 +11,7 @@ The diagram shows the individual loops that make up the field, in stationary con
 
 [2] G. Ampuño, L. Roca, J. D. Gil, M. Berenguel, and J. E. Normey-Rico, “Apparent delay analysis for a flat-plate solar field model designed for control purposes,” Solar Energy, vol. 177, pp. 241–254, Jan. 2019, doi: 10.1016/j.solener.2018.11.014.
 
-### Nomenclature
+## Nomenclature
 
 ![center | solarMED_optimization-solar_field.drawio](attachments/solarMED_optimization-solar_field.drawio.svg)
 

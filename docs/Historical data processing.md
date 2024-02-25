@@ -14,8 +14,8 @@ Variables consideradas:
 - $T_{v,c}$  $[\degree C]$ Vapor temperature in condenser
 - $M_{prod}$  $[m^3/h]$ Distillate production flow rate
 
-![](steady_state_detection.gif)
-![](time_operated_timeline_comparison.svg)
+![](attachments/steady_state_detection.gif)
+![](attachments/time_operated_timeline_comparison.svg)
 
 ## 2. Filtrado
 Tras el procesado de todos los datos históricos disponibles (2009 - 2016) se filtran puntos de operación "similares".
@@ -35,4 +35,4 @@ Al menos una de las siguientes condiciones se debe cumplir para que un punto de 
 
 
 **Resultado**
-![](filtered_pts.svg)
+![](attachments/filtered_pts.svg)

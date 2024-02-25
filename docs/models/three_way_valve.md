@@ -10,7 +10,7 @@ $$ \dot{m}_{src}, R = f(\dot{m}_{dis}, T_{src}, T_{dis,in}, T_{dis,out}) $$
 
 Lidia
 
-### Nomenclature
+## Nomenclature
 
 ![center](attachments/solarMED_optimization-Three-way%20valve%20model.png)
 

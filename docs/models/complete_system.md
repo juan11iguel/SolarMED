@@ -4,7 +4,7 @@
 
 ![center | solarMED_optimization-Complete system model.drawio](attachments/solarMED_optimization-Complete%20system%20model.drawio.svg)
 
-### Nomenclature
+## Nomenclature
 
 ![solarMED_optimization-general_diagram](attachments/solarMED_optimization-general_diagram.svg)
 

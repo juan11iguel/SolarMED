@@ -6,7 +6,7 @@
 [2] J. A. Duffie and W. A. Beckman, Solar engineering of thermal processes. John Wiley & Sons, 2013.
 
 
-### Nomenclature
+## Nomenclature
 
 ![center | solarMED_optimization-Heat_exchanger | 500x500](attachments/solarMED_optimization-Heat_exchanger.svg)
 

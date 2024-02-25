@@ -30,7 +30,7 @@
 ## Fuente
 
 
-### Inputs / outputs
+## Inputs / outputs
 
 $$ \dot{m}_{d}, T_{s,out}, \dot{m}_{c} = f(\dot{m}_{s}, T_{s,in}, \dot{m}_{f}, T_{c,in}, T_{c,out}, [t_{operated, i}]_{i=1..N_{ef}}) $$
 $$ \dot{m}_{d}, T_{s,out}, \dot{m}_{c} = f(\dot{m}_{s}, T_{s,in}, \dot{m}_{f}, T_{c,in}, T_{c,out}) $$
@@ -41,7 +41,8 @@ Reasoning behind chosen outputs:
 - $\dot{m}_{c}$. Necessary to estimate electrical performance and feasibility of operation.
 
 
-#### Análisis sensibilidad
+## Análisis sensibilidad
+
 En esta parte me he atascado un poco, no tengo claro de si se necesita evaluar en qué magnitud variaciones en cada una de las entradas afectan a la salida o el peso/importancia relativa de cada una de las entradas en el modelo. De cualquier manera ambas cosas me parece interesante estudiarlas.
 
 Para lo primero se me ocurren dos aproximaciones, la primera sería evaluar el modelo en todo el espacio de estados, he leído que se puede evaluar con simulaciones de [monte carlo](https://es.mathworks.com/help/sldo/ug/what-is-sensitivity-analysis.html), pero no he llegado a probar. Otra opción sería analizar directamente los datos en bruto, para ello he probado por un lado a realizar un análisis de varianza [ANOVA](https://es.mathworks.com/help/stats/n-way-anova.html) y por otro lado [PCA](https://www.wikiwand.com/en/Principal_component_analysis).

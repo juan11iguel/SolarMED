@@ -6,6 +6,7 @@ When considering complete system, `med` suffix is added to the component  variab
 
 ![Nomenclature](models/MED.md#Nomenclature)
 
+![Inputs / outputs](models/MED.md#Inputs%20/%20outputs)
 ## Solar field
 
 When considering complete system, `sf` suffix is added to the component  variables.
