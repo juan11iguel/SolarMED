@@ -585,16 +585,50 @@
 
     # Additional variables
     ## Solar field
-    "q_sf_l1": {
-        "var_id": "q_sf_l1",
+    "qsf_l1": {
+        "var_id": "qsf_l1",
         "signal_id": "FT-SF-003",
         "units_scada": 'L/min',
         "units_model": 'm³/h',
         "label_html": "q<sub>sf,l1</sub>",
         "label_latex": r"$q_{sf,l1}$"
     },
-    "Tsf_l2_in": {
-        "var_id": "Tsf_l"
+    "qsf_l2": {
+        "var_id": "qsf_l2",
+        "signal_id": "FT-SF-005",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l2</sub>",
+        "label_latex": r"$q_{sf,l2}$"
+    },
+    "qsf_l3": {
+        "var_id": "qsf_l3",
+        "signal_id": "FT-SF-006",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l3</sub>",
+        "label_latex": r"$q_{sf,l3}$"
+    },
+    "qsf_l4": {
+        "var_id": "qsf_l4",
+        "signal_id": "FT-SF-007",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l4</sub>",
+        "label_latex": r"$q_{sf,l4}$"
+    },
+    "qsf_l5": {
+        "var_id": "qsf_l5",
+        "signal_id": "FT-SF-008",
+        "units_scada": 'L/min',
+        "units_model": 'm³/h',
+        "label_html": "q<sub>sf,l5</sub>",
+        "label_latex": r"$q_{sf,l5}$"
+    },
+
+
+    "Tsf_in_l2": {
+        "var_id": "Tsf_in_l2"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-018",
@@ -603,8 +637,8 @@
         "label_html": "T<sub>sf,l2,in</sub>",
         "label_latex": r"$T_{sf,l2,in}$"
     },
-    "Tsf_l2_out": {
-        "var_id": "Tsf_l"
+    "Tsf_out_l2": {
+        "var_id": "Tsf_out_l2"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-019",
@@ -613,15 +647,8 @@
         "label_html": "T<sub>sf,l2,out</sub>",
         "label_latex": r"$T_{sf,l2,out}$"
     },
-    "q_sf_l2": {
-        "signal_id": "FT-SF-005",
-        "units_scada": 'L/min',
-        "units_model": 'm³/h',
-        "label_html": "q<sub>sf,l2</sub>",
-        "label_latex": r"$q_{sf,l2}$"
-    },
-    "Tsf_l3_in": {
-        "var_id": "Tsf_l"
+    "Tsf_in_l3": {
+        "var_id": "Tsf_in_l3"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-024",
@@ -630,8 +657,8 @@
         "label_html": "T<sub>sf,l3,in</sub>",
         "label_latex": r"$T_{sf,l3,in}$"
     },
-    "Tsf_l3_out": {
-        "var_id": "Tsf_l"
+    "Tsf_out_l3": {
+        "var_id": "Tsf_out_l3"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-025",
@@ -640,15 +667,8 @@
         "label_html": "T<sub>sf,l3,out</sub>",
         "label_latex": r"$T_{sf,l3,out}$"
     },
-    "q_sf_l3": {
-        "signal_id": "FT-SF-006",
-        "units_scada": 'L/min',
-        "units_model": 'm³/h',
-        "label_html": "q<sub>sf,l3</sub>",
-        "label_latex": r"$q_{sf,l3}$"
-    },
-    "Tsf_l4_in": {
-        "var_id": "Tsf_l"
+    "Tsf_in_l4": {
+        "var_id": "Tsf_in_l4"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-030",
@@ -657,8 +677,8 @@
         "label_html": "T<sub>sf,l4,in</sub>",
         "label_latex": r"$T_{sf,l4,in}$"
     },
-    "Tsf_l4_out": {
-        "var_id": "Tsf_l"
+    "Tsf_out_l4": {
+        "var_id": "Tsf_out_l4"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-031",
@@ -667,15 +687,8 @@
         "label_html": "T<sub>sf,l4,out</sub>",
         "label_latex": r"$T_{sf,l4,out}$"
     },
-    "q_sf_l4": {
-        "signal_id": "FT-SF-007",
-        "units_scada": 'L/min',
-        "units_model": 'm³/h',
-        "label_html": "q<sub>sf,l4</sub>",
-        "label_latex": r"$q_{sf,l4}$"
-    },
-    "Tsf_l5_in": {
-        "var_id": "Tsf_l"
+    "Tsf_in_l5": {
+        "var_id": "Tsf_in_l5"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-036",
@@ -684,8 +697,8 @@
         "label_html": "T<sub>sf,l5,in</sub>",
         "label_latex": r"$T_{sf,l5,in}$"
     },
-    "Tsf_l5_out": {
-        "var_id": "Tsf_l"
+    "Tsf_out_l5": {
+        "var_id": "Tsf_out_l5"
         instrument: "pt100_class_A",
         "description": "Solar field loop X outlet / inlet temperature"
         "signal_id": "TT-SF-037",
@@ -693,12 +706,5 @@
         "units_model": 'C',
         "label_html": "T<sub>sf,l5,out</sub>",
         "label_latex": r"$T_{sf,l5,out}$"
-    },
-    "q_sf_l5": {
-        "signal_id": "FT-SF-008",
-        "units_scada": 'L/min',
-        "units_model": 'm³/h',
-        "label_html": "q<sub>sf,l5</sub>",
-        "label_latex": r"$q_{sf,l5}$"
     },
 }

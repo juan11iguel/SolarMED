@@ -124,7 +124,89 @@ Tendría que haber despejado $\dot{m}_{sf}$ no $T_{out}$ 🤕
 
 ## Implementation
 
-Implemented in `models_psa.solar_field`.
+Implemented in `models_psa.solar_field` as `solar_field_model` for the model of the outlet temperature given the flow, and as `solar_field_inverse_model` for the prediction of the flow rate given an outlet temperature.
+
+
+### Methodology to fit the model parameters
+
+
+~~#### 1. Fit $\beta$ and $\gamma$ from data with startup and normal solar field operation~~
+
+| $\beta$ (m) | H () | $\gamma$ (-) |
+| ----------- | ---- | ------------ |
+| $1.82e-2$   | 5.19 | 0.07         |
+(H not fitted, just given a constant value)
+
+![solar_field_validation_20230807_beta_1.82e-02_H_5.19_gamma_0.07](../attachments/solar_field_validation_20230807_beta_1.82e-02_H_5.19_gamma_0.07.svg)
+
+~~##### Check current results with a different date and all types of operation (startup, normal operation and idle)~~
+
+![solar_field_validation_20231030_beta_1.82e-02_H_5.19_gamma_0.07](../attachments/solar_field_validation_20231030_beta_1.82e-02_H_5.19_gamma_0.07.svg)
+
+~~The result, as expected, is not that good at the shutdown (final part of the test where the temperatures decay). But there is also some error from flow changes not acting properly on the output. Maybe it's better to fit $\alpha$ and $\gamma$ from this test, and validate with the other, since this one presents more rich information. Also the calibration test used for $\beta_0$ should be when the collectors are clean, but right now the cleanliness factor is not being considered.~~
+
+
+| $\beta$ (m) | H () | $\gamma$ (-) |
+| ----------- | ---- | ------------ |
+| $3.84e-2$   | 5.19 | 0.25         |
+
+
+~~#### 2. Fit $H$ from data with idle solar field, and using previous fitted $\beta$ and $\gamma$~~
+
+In the end, it seems it's always better to calibrate all parameters at the same time, since they are not completely independent, using data with all states (but more operation since it's more important to fit better that part):
+
+beta: 6.08e-02, H: 22.98, P3: 0.09
+
+| $\beta$ (m) | H ()  | $\gamma$ (-) |
+| ----------- | ----- | ------------ |
+| $6.08e-2$   | 22.98 | 0.09         |
+
+![solar_field_validation_20231030_beta_6.08e-02_H_22.98_gamma_0.09](../attachments/solar_field_validation_20231030_beta_6.08e-02_H_22.98_gamma_0.09.svg)
+
+#### Validation with other data
+
+No sale..
+
+![solar_field_validation_20230807_beta_6.08e-02_H_22.98_gamma_0.09](../attachments/solar_field_validation_20230807_beta_6.08e-02_H_22.98_gamma_0.09.svg)
+
+Calibrando primero el segundo y después el primero:
+
+![solar_field_validation_20230807_beta_1.1578e-02_H_3.126_gamma_0.047](../attachments/solar_field_validation_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg)
+
+![solar_field_validation_20231030_beta_1.2416e-02_H_3.408_gamma_0.050](../attachments/solar_field_validation_20231030_beta_1.2416e-02_H_3.408_gamma_0.050.svg)
+
+Así está mejor, parámetros finales:
+
+| $\beta$ (m) | H (W/m2) | $\gamma$ (-) | IAE |
+| ----------- | -------- | ------------ | --- |
+| $1.2416e-2$ | 3.4084   | 0.0498       | 555 |
+| 1.1578e-2   | 3.1260   | 0.0471       | 106 |
+
+### Inverse model
+
+Inverting the model, and using the same parameters, a noisy output is obtained:
+
+![solar_field_inverse_validation_20230807_beta_1.1578e-02_H_3.126_gamma_0.047](../attachments/solar_field_inverse_validation_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg)
+
+Just to test out, filtering the signal already yields quite good results:
+
+![solar_field_inverse_validation2_20230807_beta_1.1578e-02_H_3.126_gamma_0.047](../attachments/solar_field_inverse_validation2_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg)
+
+
+Creo que el problema está, en que como el modelo asume que los cambios de temperatura(s), dado que no haya cambios significativos en la radiación, deben deberse necesariamente  a cambios en el caudal **instantáneos**. En teoría si al modelo se le incorpora la dinámica de cómo los cambios pasados de temperatura y caudales afectan a la salida actual, el caudal actual no debería variar tan bruscamente.
+
+
+## Modelo campo solar con retartdo
+
+Sin volver a ajustar los parámetros, este es el resultado
+
+![solar_field_validation_delay_20230807_beta_1.1578e-02_H_3.126_gamma_0.047](../attachments/solar_field_validation_delay_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg)
+
+La salida ya no se ajusta tan bien, pero cambia su valor en el momento adecuado (ajusta bien el retardo), por lo que si se vuelven a recalibrar los parámetros debería funcionar.
+
+# TODO
+
+- [x] Incorporar retardo qsf, Tsf,in - Tsf,out -> 10.1016/j.solener.2018.11.014 y
 
 ## Otros
 

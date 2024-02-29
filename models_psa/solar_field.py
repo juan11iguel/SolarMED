@@ -73,26 +73,29 @@ def solar_field_model_inverse(Tin:PositiveFloat, Tout:PositiveFloat, I:PositiveF
 
     return Q
 
-def solar_field_model(Tin: conHotTemperatureType, q: PositiveFloat, I: PositiveFloat, Tamb: float,
-                      Tout_ant: float, q_ant: np.ndarray[float] = None,
-                      beta: float = 0.0975, H: float = 2.2, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20, Acs:float= 7.85e-5,
-                      sample_time=1) -> float:
 
+def solar_field_model(
+        Tout_ant: PositiveFloat, Tin: PositiveFloat, q: float, I: float, Tamb: float,
+        beta: float = 0.0975, gamma: float = 1.0, H: float = 2.2,
+        sample_time=1,
+        q_ant: np.ndarray[float] = None,
+        nt=1, np=7 * 5, ns=2, Lt=1.15 * 20, Acs: float = 7.85e-5,
+) -> float:
     """
 
     Args:
-        Tin:
-        q:
-        I:
-        Tamb:
-        Tout_ant:
-        q_ant:
-        beta:
-        H:
-        nt:
-        np:
-        ns:
-        Lt:
+        Tout_ant: Solar field outlet temperature at previous time step [ºC]
+        Tin: Solar field inlet temperature [ºC]
+        q: Solar field volumetric flow rate [m³/h]
+        I: Solar direct irradiance [W/m²]
+        Tamb: Ambient temperature [ºC]
+        q_ant (optional): Solar field volumetric flow rate at previous time step [m³/h], for dynamic estimation of delay between q and Tout. Not yet implemented.
+        beta: Irradiance model parameter [m]
+        H: Thermal losses coefficient [J/sºC]
+        nt: Number of tubes in parallel per collector
+        np: Number of collectors in parallel per loop. Defaults to 7 packages * 5 compartments
+        ns: Number of loops in series
+        Lt: Solar field. Collector tube length [m
         Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
         sample_time:
 
@@ -101,17 +104,25 @@ def solar_field_model(Tin: conHotTemperatureType, q: PositiveFloat, I: PositiveF
 
     """
 
-    w_props_avg = w_props(P=0.16, T=Tin + 273.15)  # P=1 bar  -> 0.1MPa, T=Tin C,
+    Leq = ns * Lt
+    cf = np * nt
+
+    if Tout_ant > 120:
+        # Above 110ºC, the model is not valid
+        logger.warning('Outlet temperature above 120ºC. Model not valid, returning 9999')
+        return 9999
+
+    Tavg = (Tin + Tout_ant) / 2  # ºC
+
+    w_props_avg = w_props(P=0.16, T=Tavg + 273.15)  # P=1 bar  -> 0.1MPa, T=Tin C,
     rho = w_props_avg.rho  # [kg/m³]
     cp = w_props_avg.cp * 1e3  # [kJ/kg·K] -> [J/kg·K]
 
-    Leq = ns * Lt
-    cf = np * nt * 1  # Convertir m^3/h a kg/s y algo más
-    Tavg = (Tin + Tout_ant) / 2  # ºC
-
     K1 = beta / (rho * cp * Acs)
     K2 = H / (Leq * Acs * rho * cp)
-    K3 = 1/(Leq * Acs * 3600)
+    K3 = gamma / (Leq * Acs * rho * cf) * (rho / 3600)  # m³/h -> kg/s
+
+    # deltaTout_m = m [m3/h * kg/m3*1h/3600s] * deltaT [K] * K3 [1/(m * * m2 * kg/m3 * -)]
 
     if q == 0:
         # Just thermal losses
@@ -128,7 +139,6 @@ def solar_field_model(Tin: conHotTemperatureType, q: PositiveFloat, I: PositiveF
         deltaTout = K1 * I - K2 * (Tavg - Tamb) - K3 * q * (Tout_ant - Tin)
 
     return Tout_ant + deltaTout * sample_time
-
 
 def solar_field_model_temp(Tin, Q, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20):  # , Acs=7.85e-5):
     """Steady state model of a flat plate collector solar field

@@ -8,19 +8,29 @@ Created on Tue Jun  6 20:09:28 2023
 
 # import scipy
 import numpy as np
+from loguru import logger
 
 def objective_function(parameters, model_function, *args):
-    # Extract the inputs and outputs from the arguments
-    # params is the fixed parameters
-    # parameters are the parameters that need to be adjusted
-    # params_objective_function is a dict containing optional keyword arguments 
-    # used by this function
-    #
-    # The outputs from the function to optimize needs to be a single output that
-    # can be a vector, so if the model or function has multiple outputs for 
-    # different variables, modify the function so that it returns all outputs
-    # packed in a vector: unified_output=True
-    
+
+    """
+    This function extracts the inputs and outputs from the arguments.
+
+    Inputs:
+    - parameters: array-like. Model parameters to fit.
+    - model_function: callable. Model to fit.
+    - args: tuple. Contains the inputs, reference outputs, "params" and optional keyword arguments for the objective function.
+
+    Some notes:
+    - The 'params' are the model fixed parameters, while 'parameters' are the parameters that need to be adjusted.
+    - The 'params_objective_function' is a dictionary containing optional keyword arguments used by this function.
+    - The outputs from the function to optimize need to be in a single output, it can be a vector. So that if the model
+     has multiple outputs for different variables, ~~modify the function so that it returns
+    all outputs packed in a vector by setting 'unified_output' to True~~ UPDATE. Not needed, if the model returns
+    multiple outputs, they are automatically unified in a single variable (matrix).
+    - If the model is recursive (the current output depends on the previous output), set 'recursive' to True. The
+    previous output(s) should be the first input(s) in the `input` argument.
+    """
+
     inputs, reference_outputs, params, params_objective_function = args
     
     L = len(reference_outputs)
@@ -80,29 +90,44 @@ def objective_function(parameters, model_function, *args):
             previous_output = [inputs[0]] 
     
     predicted_outputs = []
+    i_start = 0 if not recursive else n_outputs
     for idx in range(L):
-        # Thermal storage model
-        # Inputs: Tt_in[idx], Tb_in[idx], Tamb[idx], msrc[idx], mdis[idx], Ti_ant, 
-        # Parameters: UA0, 
-        # Params: N=N
-        
+
         # Extract inputs for the current time step
-        # If recursive, the last input is not a list for each time step but 
+        # If recursive, the last input is not a list for each time step but
         # just the provious output(s)
-        i_start = 0 if not recursive else n_outputs
-        current_inputs = [inputs[i][idx] if len(inputs[i])==L else inputs[i] for i in range(i_start, len(inputs))]
-        
+
+        # For each input, extract its value for the current time step,
+        # if it's an array of values, take the value of the current time step, otherwise,
+        # take the value of the input
+        # current_inputs = [inputs[i][idx] if len(inputs[i])==L else inputs[i] for i in range(i_start, len(inputs))]
+        current_inputs = []
+        for i in range(i_start, len(inputs)):
+            if len(inputs[i])==L:
+                current_inputs.append(inputs[i][idx])
+            else:
+                current_inputs.append(inputs[i])
+                logger.debug(f'Input {i} is not a list of values of the same length as the output, was this intended?')
+
+        # If recursive, prepend the previous output(s) to the inputs
         if recursive: 
             current_inputs = previous_output + current_inputs
-        
-        predicted_outputs.append( model_function(*current_inputs, *parameters_, *params) )
+
+        #
+        current_outputs = model_function(*current_inputs, *parameters_, *params)
+        if n_outputs == 1:
+            # Make sure the output is a number, dont know why sometimes an array is returned
+            current_outputs = float(current_outputs)
+
+        predicted_outputs.append( current_outputs )
         
         # Update previous output
         if recursive: 
             if n_outputs>1:
                 previous_output = [predicted_outputs[idx][i] for i in range(n_outputs)] 
             else:
-                previous_output = predicted_outputs[idx]
+                # Make sure it's a list
+                previous_output = [predicted_outputs[idx]]
     
     # Flatten the predicted_outputs so there will be only a vector for each iteration
     # predicted_outputs = np.concatenate(np.array(predicted_outputs, dtype=object), axis=1)

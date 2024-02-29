@@ -65,6 +65,7 @@
       bg_color: "steelblue",
       ylabels_left: ["ºC"],
       ylabels_right: ["I (W/m<sup>2</sup>)"], # As many as n_yaxis-1
+      ylims_left: 'manual',
 
       traces_left: [
         // {
@@ -129,6 +130,7 @@
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
       ylabels_left: ["B (u.m.)"],
       ylabels_right: ["q<sub>d</sub> (m<sup>3</sup>)", "C<sub>e</sub> (kW<sub>e</sub>)"],
+      ylims_left: 'manual',
 
       traces_left: [
       #[
@@ -220,6 +222,7 @@
       ylabels_left: ["m<sup>3</sup>/h"],
       ylabels_right: ["P<sub>th</sub> (kW<sub>th</sub>)"],
       tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
+      ylims_left: 'manual',
 
       # Plotted between this plot and the next one
       show_active: true,
@@ -260,6 +263,7 @@
       bg_color: "bg_gray", # bg gray
       ylabels_left: ["⁰C"],
       # ylabels_left: ["T<sub>dc</sub> (ºC)"],
+      ylims_left: 'manual',
 
       traces_left: [
         // {
@@ -299,6 +303,7 @@
       bg_color: "bg_gray", # bg gray
       ylabels_left: ["m<sup>3</sup>/h"],
       tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
+      ylims_left: 'manual',
 
       traces_left: [
         {
@@ -318,6 +323,7 @@
       row_height: 0.6,
       bg_color: "bg_gray", # bg gray
       ylabels_left: ["⁰C"],
+      ylims_left: 'manual',
 
       traces_left: [
         {
@@ -352,6 +358,7 @@
       ylabels_left: ["m<sup>3</sup>/h"],
       ylabels_right: ["kW<sub>th</sub>"],
       tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
+      ylims_left: 'manual',
 
       traces_left: [
         {
@@ -396,6 +403,7 @@
       bg_color: "bg_gray", # bg gray
       # ylabels_left: ["T<sub>wct</sub> (ºC)"],
       ylabels_left: ["⁰C"],
+      ylims_left: 'manual',
 
       traces_left: [
         # Hot tank
@@ -471,6 +479,7 @@
       bg_color: "bg_gray",
       ylabels_left: ["m<sup>3</sup>/h"],
       ylabels_right: ["⁰C"],
+      ylims_left: 'manual',
 
       traces_left: [
         {
@@ -521,6 +530,7 @@
       ylabels_left: ["m<sup>3</sup>/h"],
       ylabels_right: ["m<sup>3</sup>/h"],
       tigth_vertical_spacing: true,
+      ylims_left: 'manual',
 
       # Plotted between this plot and the next one
       show_active: true,
@@ -563,6 +573,7 @@
       row_height: 1,
       bg_color: "bg_gray", # bg gray
       ylabels_left: ["⁰C"],
+      ylims_left: 'manual',
 
       traces_left: [
         {
