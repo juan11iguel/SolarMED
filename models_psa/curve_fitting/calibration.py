@@ -3,7 +3,7 @@ from scipy.optimize import curve_fit
 import numpy
 from scipy.interpolate import splrep # Spline fit
 import json
-import curves
+import models_psa.curve_fitting.curves as curves
 
 # Visualization
 import matplotlib.pyplot as plt
@@ -114,25 +114,46 @@ def fit_curve(x_data: np.array, y_data: np.array, fit_name: str, unit='kW', visu
     if visualize_result:
         close('all')
 
-        # Plot the data points
-        plt.scatter(x_data, y_data, label='Data')
+        # Create a figure with two subplots
+        fig, axs = plt.subplots(2, 1, figsize=(8, 6))
 
-        # Plot the best-fit curve for each alternative
+        # Increase the vertical spacing between subplots
+        plt.subplots_adjust(hspace=0.5)
+
+        # Plot the data points on the first subplot
+        axs[0].scatter(x_data, y_data, label='Data')
+
+        # Plot the best-fit curve for each alternative on the first subplot
         x_range = np.linspace(x_data.min(), x_data.max(), 100)
 
         for curve_function in curve_functions:
-            # if curve_function.__name__ == 'linear_fit':
             if params[curve_function.__name__] is not None:
                 y_fit = curve_function(x_range, *params[curve_function.__name__])
-                # else:
-                #     y_fit = curve_function(x_range, *best_params)
                 label = curve_function.__name__
-                plt.plot(x_range, y_fit, label=label)
+                axs[0].plot(x_range, y_fit, label=label)
 
-        # Add labels and legend to the plot
-        plt.xlabel('Independent Variable')
-        plt.ylabel('Dependent Variable')
-        plt.legend()
+        # Add labels and legend to the first subplot
+        axs[0].set_xlabel('Independent Variable')
+        axs[0].set_ylabel('Dependent Variable')
+        axs[0].legend(bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left', ncol=len(curve_functions), mode="expand",
+                      borderaxespad=0.)
+
+        # Plot the comparison of the data with the fitted data on the second subplot
+        x = np.arange(0, len(y_data))
+        for curve_function in curve_functions:
+            if curve_function.__name__ == fit['best_fit']:
+                if params[curve_function.__name__] is not None:
+                    y_fit = curve_function(x_data, *params[curve_function.__name__])
+                    # residuals = y_data - y_fit
+                    label = curve_function.__name__
+                    axs[1].plot(x, y_fit, label=label)
+
+        axs[1].plot(x, y_data, label='Data')
+
+        # Add labels and legend to the second subplot
+        axs[1].set_xlabel('Time')
+        axs[1].set_ylabel('Output')
+        axs[1].legend()
 
         # Display the plot
         plt.show()

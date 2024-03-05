@@ -1,5 +1,4 @@
 # Functions for curve fitting
-
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.interpolate import splev  # Spline fit

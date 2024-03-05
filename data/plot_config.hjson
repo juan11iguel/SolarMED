@@ -16,11 +16,11 @@
   # General plot attributes
   title: "Solar MED",
   subtitle: "Experimental results", // Model validation?
-  height: 1400,
+  height: 1800,
   width: 1000,
   margin: {
     l:20,
-    r:200,
+    r:100,
     t:100,
     b:20,
     pad:5
@@ -323,7 +323,7 @@
       row_height: 0.6,
       bg_color: "bg_gray", # bg gray
       ylabels_left: ["⁰C"],
-      ylims_left: 'manual',
+      ylims_left: [60, 120],
 
       traces_left: [
         {
@@ -403,7 +403,7 @@
       bg_color: "bg_gray", # bg gray
       # ylabels_left: ["T<sub>wct</sub> (ºC)"],
       ylabels_left: ["⁰C"],
-      ylims_left: 'manual',
+      ylims_left: [50, 100],
 
       traces_left: [
         # Hot tank

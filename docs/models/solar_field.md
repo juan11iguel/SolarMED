@@ -193,7 +193,7 @@ Just to test out, filtering the signal already yields quite good results:
 ![solar_field_inverse_validation2_20230807_beta_1.1578e-02_H_3.126_gamma_0.047](../attachments/solar_field_inverse_validation2_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg)
 
 
-Creo que el problema está, en que como el modelo asume que los cambios de temperatura(s), dado que no haya cambios significativos en la radiación, deben deberse necesariamente  a cambios en el caudal **instantáneos**. En teoría si al modelo se le incorpora la dinámica de cómo los cambios pasados de temperatura y caudales afectan a la salida actual, el caudal actual no debería variar tan bruscamente.
+Creo que el problema está, en que como el modelo asume que los cambios de temperatura(s), dado que no haya cambios significativos en la radiación, deben deberse necesariamente a **fuertes** cambios de caudal **instantáneos**. En teoría si al modelo se le incorpora la dinámica de cómo los cambios pasados de temperatura y caudales afectan a la salida actual, el caudal actual no debería variar tan bruscamente.
 
 
 ## Modelo campo solar con retartdo
@@ -203,6 +203,24 @@ Sin volver a ajustar los parámetros, este es el resultado
 ![solar_field_validation_delay_20230807_beta_1.1578e-02_H_3.126_gamma_0.047](../attachments/solar_field_validation_delay_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg)
 
 La salida ya no se ajusta tan bien, pero cambia su valor en el momento adecuado (ajusta bien el retardo), por lo que si se vuelven a recalibrar los parámetros debería funcionar.
+
+20240301: No era tan simple, para poder hacer eso hay que re-ajustar bien cómo se definen los valores de las variables en cada iteración (las que pasan de ser un valor único a un vector de valores). También he mejorado `experimental_plot` para que muestre bien la comparativa de señales.
+
+Comparando la mejor versión de ambas versiones (con su ajuste específico):
+
+![solar_field_validation_delay_20230807_beta_2.9118e-02_H_9.726_gamma_0.100](../attachments/solar_field_validation_delay_20230807_beta_2.9118e-02_H_9.726_gamma_0.100.svg)
+
+![](attachments/Pasted%20image%2020240301111435.png)
+
+La línea naranja es el modelo con retardo y recalibrado, la gris oscura? es el mejor modelo sin retardo. 
+
+
+### Modelo inverso
+
+Parece que sí que mejora respecto al modelo sin retartdo, he filtrado un poco también.
+Aunque los resultados ahora parecen peor que antes tras filtrar, creo que hay algo mal en la inicialización porque empieza saturando mientras que antes partía de un valor bueno y ya de ahí iba evolucionando.
+
+![solar_field_inverse_validation2_20230807_beta_2.9118e-02_H_9.726_gamma_0.100](../attachments/solar_field_inverse_validation2_20230807_beta_2.9118e-02_H_9.726_gamma_0.100.svg)
 
 # TODO
 

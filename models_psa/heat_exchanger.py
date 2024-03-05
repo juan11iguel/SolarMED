@@ -1,6 +1,7 @@
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
 import math
 from loguru import logger
+import numpy as np
 
 def heat_exchanger_model(Tp_in, Ts_in, Qp, Qs, Tamb, UA=28000, H=0):  # eta_p, eta_s):
     """Heat exhanger steady state model.
@@ -102,6 +103,37 @@ def heat_exchanger_model(Tp_in, Ts_in, Qp, Qs, Tamb, UA=28000, H=0):  # eta_p, e
         # Pabs = ms*(cp_Ts_in+cp_Ts_out)/2*(Ts_out-Ts_in)/1000 # kWth
 
     return Tp_out, Ts_out
+
+
+def calculate_heat_transfer_effectiveness(Tp_in: float, Tp_out: float, Ts_in: float, Ts_out: float, qp: float, qs: float) -> float:
+    """
+    Equation (11–33) from [1]
+
+    [1] Y. A. Çengel and A. J. Ghajar, Heat and mass transfer: fundamentals & applications, Fifth edition. New York, NY: McGraw Hill Education, 2015.
+
+    Returns:
+        eta: Heat transfer effectiveness
+
+    """
+
+    w_props_Tp_in = w_props(P=0.16, T=Tp_in + 273.15)
+    w_props_Ts_in = w_props(P=0.16, T=Ts_in + 273.15)
+
+    cp_Tp_in = w_props_Tp_in.cp * 1e3  # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
+    cp_Ts_in = w_props_Ts_in.cp * 1e3  # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
+
+    mp = qp / 3600 * w_props_Tp_in.rho  # rho [kg/m³] # Convertir m^3/s a kg/s
+    ms = qs / 3600 * w_props_Ts_in.rho  # rho [kg/m³] # Convertir m^3/s a kg/s
+
+    Cmin = np.min([mp*cp_Tp_in, ms*cp_Ts_in])
+
+    # It could be calculated with any, just to disregard specific heat capacity
+    if abs(Cmin - mp*cp_Tp_in) < 1e-6:  # Primary circuit is the one with the lowest heat capacity
+        eta = (Tp_in - Tp_out) / (Tp_in - Ts_in)
+    else: # Secondary circuit is the one with the lowest heat capacity
+        eta = (Ts_out - Ts_in) / (Tp_in - Ts_in)
+
+    return eta
 
 # def heat_exchanger_model_simple(Tp_in_C, Ts_in_C, qp_m3h, qs_m3h, eta=0.85):
 

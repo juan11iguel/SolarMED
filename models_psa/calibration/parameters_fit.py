@@ -65,6 +65,10 @@ def objective_function(parameters, model_function, *args):
             segment_length = segment_size + (1 if i < remainder else 0)
             end = start + segment_length
             parameter = parameters[start:end]
+
+            if isinstance(parameter, np.ndarray):
+                if len(parameter) == 1:
+                    parameter = parameter.take(0) # To not input an array to a function that is probably expecting a number
             # if len(parameter) == 1:
             #     parameter = parameter[0] # To not input an array to a function that is probably expecting a number
             parameters_.append(parameter)
@@ -103,7 +107,7 @@ def objective_function(parameters, model_function, *args):
         # current_inputs = [inputs[i][idx] if len(inputs[i])==L else inputs[i] for i in range(i_start, len(inputs))]
         current_inputs = []
         for i in range(i_start, len(inputs)):
-            if len(inputs[i])==L:
+            if inputs[i].shape[0] == L:
                 current_inputs.append(inputs[i][idx])
             else:
                 current_inputs.append(inputs[i])
@@ -132,7 +136,13 @@ def objective_function(parameters, model_function, *args):
     # Flatten the predicted_outputs so there will be only a vector for each iteration
     # predicted_outputs = np.concatenate(np.array(predicted_outputs, dtype=object), axis=1)
     if type(predicted_outputs[0]) in [list, tuple]:
-        predicted_outputs = np.array( [np.concatenate(row) for row in predicted_outputs] )
+        try:
+            predicted_outputs = np.array( [np.concatenate(row) for row in predicted_outputs] )
+        except ValueError as e:
+            # logger.error(f'Error concatenating predicted outputs: {e}. Trying simple way')
+            predicted_outputs = np.array( [np.array(row) for row in predicted_outputs] )
+
+            predicted_outputs = np.array(predicted_outputs)
     else:
         predicted_outputs = np.array( predicted_outputs )
     # print(f'Dim predicted: {predicted_outputs.shape}, dim reference: {reference_outputs.shape}')

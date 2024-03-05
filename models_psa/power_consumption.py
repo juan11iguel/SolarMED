@@ -40,6 +40,7 @@ actuator_coefficients = {
     # Thermal storage
     # TODO: Add coefficients for thermal storage pump
     'ts_src_pump': [0.0, 0.0, 0.0, 0.0, 0.0],
+    'FTSF001_calibration': [-0.0003028263249430021, 0.1237842280794974, -0.9609378680243738], # % -> m³/h
 
     # Solar field
     # TODO: Add coefficients for solar field pumps

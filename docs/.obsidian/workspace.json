@@ -37,7 +37,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "models/solar_field.md",
+                "file": "models/heat_exchanger.md",
                 "mode": "source",
                 "source": false
               }
@@ -119,7 +119,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "models/solar_field.md",
+                "file": "models/heat_exchanger.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -181,21 +181,22 @@
   },
   "active": "fd00b1ae0c1ea549",
   "lastOpenFiles": [
+    "models/attachments/heat_exchanger_validation 2.svg",
+    "models/attachments/heat_exchanger_validation 1.svg",
+    "models/attachments/heat_exchanger_validation.html",
+    "models/attachments/heat_exchanger_validation.svg",
+    "models/solar_field.md",
+    "attachments/solar_field_inverse_validation2_20230807_beta_2.9118e-02_H_9.726_gamma_0.100.svg",
+    "models/attachments/Pasted image 20240301111435.png",
+    "attachments/solar_field_validation_delay_20230807_beta_2.9118e-02_H_9.726_gamma_0.100.svg",
     "attachments/solar_field_validation_delay_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg",
     "attachments/solar_field_inverse_validation2_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg",
     "attachments/solar_field_inverse_validation_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg",
     "attachments/solar_field_validation_20230807_beta_1.1578e-02_H_3.126_gamma_0.047.svg",
     "attachments/solar_field_validation_20231030_beta_1.2416e-02_H_3.408_gamma_0.050.svg",
-    "attachments/solar_field_validation_20230807_beta_1.2416e-02_H_3.408_gamma_0.050.svg",
-    "attachments/solar_field_validation_20230807_beta_1.24e-02_H_3.41_gamma_0.05.svg",
-    "attachments/solar_field_validation_20230807_beta_6.08e-02_H_22.98_gamma_0.09.svg",
-    "attachments/solar_field_validation_20231030_beta_6.08e-02_H_22.98_gamma_0.09.svg",
-    "attachments/solar_field_validation_20231030_beta_3.84e-02_H_5.19_gamma_0.25.svg",
-    "attachments/solar_field_validation_20231030_beta_1.82e-02_H_5.19_gamma_0.07.svg",
     "models/three_way_valve.md",
     "Optimization.md",
     "models/MED.md",
-    "models/solar_field.md",
     "models/restrictions.md",
     "models/heat_exchanger.md",
     "models/complete_system.md",
@@ -222,7 +223,6 @@
     "material auxiliar/JuanMiguel.Serrano SFERAIIIDC_presentation.pdf",
     "material auxiliar/presentacion_arm.pdf",
     "material auxiliar",
-    "listado variables.ods",
     "models/Modelo campo solar.md",
     "models/Restricciones.md",
     "models/tanques.excalidraw.md",
