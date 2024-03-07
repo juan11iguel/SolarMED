@@ -254,13 +254,13 @@
     # Thermal storage
 
     ## Temperatures
-    "Tts_h_t_in": {
-        var_id: "Tts_h_t_in",
+    "Tts_h_in": {
+        var_id: "Tts_h_in",
         signal_id: "TT-SF-008",
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,t,in</sub> (⁰C)",
+        label_html: "T<sub>ts,h,in</sub> (⁰C)",
         label_latex: "$T_{ts,h,t,in}$",
         // range: [],
         description: "Thermal storage hot tank inlet temperature, from solar field heat exchanger",

@@ -19,6 +19,7 @@ def calculate_powers_solar_field(row, max_power: float = 250, min_power=0, calcu
         row["Psf"] = row["qsf"] / 3600 * w_p.rho * w_p.cp * (row["Tsf_out"] - row["Tsf_in"])  # kW
         row["Psf"] = min(row["Psf"], max_power)
         row["Psf"] = max(row["Psf"], min_power)
+        row["Phx_p"] = row["Psf"]
 
         # Solar field loops
         if calculate_per_loop:
@@ -42,6 +43,7 @@ def calculate_powers_thermal_storage(row, max_power: float = 250, min_power=0):
         row["Pts_src"] = row["qts_src"] / 3600 * w_p.rho * w_p.cp * (row["Thx_s_out"] - row["Thx_s_in"])  # kW
         row["Pts_src"] = min(row["Pts_src"], max_power)
         row["Pts_src"] = max(row["Pts_src"], min_power)
+        row["Phx_s"] = row["Pts_src"]
 
         # Thermal storage output power
         w_p = w_props(P=0.16, T=(row["Tts_h_out"] + row["Tts_c_b_in"]) / 2 + 273.15)  # MPa, K

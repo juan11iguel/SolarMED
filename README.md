@@ -1,14 +1,43 @@
 # Optimal operation of a solar MED plant. Case study: Plataforma Solar de Almería
 
+![](docs/models/attachments/solarMED_optimization-general_diagram.svg)
+
 Repository with source code of a variety of models of a solar field - thermal storage and MED plant combined system located at Plataforma Solar de Almería.
+The model of the complete system, called `SolarMED` is contained in the [models_psa package](./models_psa).
+
+- The model calibration for the different components is contained in [model_calibrations](./model_calibrations).
+- For examples on how to use it check the [examples](#examples) section.
+- Documentation and results of the modelling of the different components can be found in the [docs](./docs). For better visualization, the documentation notebook can be imported in [Obsidian](https://obsidian.md)
+
+%% Place here a couple of results %%
+
+Current results 💩
+
+[Interactive version](docs/attachments/SolarMED_validation_20231030.html)
+![](docs/attachments/SolarMED_validation_20231030.svg)
+
 
 ## Pending tasks
 
-![Pending tasks](docs/Pending%20tasks.md)
+- [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility
+- [ ] When `resolution_mode` is `'simple'`, the water physical properties should also be simplified in the models
+- [ ] Move auxiliary calculations (powers, metrics, etc) to the module of the specific component in its own function instead of having them in the `step` method.
+
+
+Maybe more can be found in [Issues](docs/Issues.md) and [Pending tasks](docs/Pending%20tasks.md).
+
+
+## Examples
+
+- Check [evaluate_combined_model](./evaluate_combined_model.ipynb) for an example on how to use the combined model given some test data.
+- In [visualize_test](./visualize_test.ipynb) there is an example on how to visualize the data from the system for a given test.
+
+
 
 ## Installation
 
-To run the combined model **Python 3.9** is required since it's the version that the MATLAB runtime was compiled for.
+~~To run the combined model **Python 3.9** is required since it's the version that the MATLAB runtime was compiled for.~~
+3.11 is supported with the latest compilation of the model.
 
 ### Installing MED model dependency
 
@@ -57,9 +86,4 @@ cd $MR && python setup.py install --prefix$MR/application/venv
 ```bash
 python samples/MED_modelSample1.py
 ```
-
-## Examples
-
-Check [test_combined_model](./test_combined_model.ipynb) for examples of how to use the combined model.
-
 

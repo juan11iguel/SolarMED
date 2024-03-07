@@ -4,7 +4,7 @@ from loguru import logger
 import numpy as np
 
 rangeType = Annotated[tuple[float, float], Field(..., min_items=2, max_items=2)]
-conHotTemperatureType = Annotated[float, Field(..., ge=0, le=110)]
+conHotTemperatureType = Annotated[float, Field(..., ge=0, le=120)]
 
 def within_range_or_make_zero(value: float, range: rangeType, var_name:str= None) -> float:
 

@@ -30,12 +30,14 @@ actuator_coefficients = {
 
     # Note 3: Importante que el ajuste se haga para que la unidad de salida sean kW
 
+    # cuidado, los coeficientes tal como los define electrical_consumption en calibration están al revés de cómo lo toma numpy.polyval
+
     # MED
-    'med_brine_pump': [0.010371467694486103, -0.025160600483389525, 0.03393870518526908],
-    'med_feed_pump': [0.019077706335712326, -0.09466303549610014, 0.7035299527191431],
-    'med_distillate_pump': [0.9484207971761789, -3.6572156762250954, 4.149635559273511],
-    'med_cooling_pump': [0.056680794931454774, -0.9238542100009888, 5.2178993694785625],
-    'med_heatsource_pump': [0.0013320144040346285, -0.01857544733009508, 0.031175213554380448],
+    'med_brine_pump': [0.010371467694486103, -0.025160600483389525, 0.03393870518526908], # m³/h -> kW
+    'med_feed_pump': [0.7035299527191431, -0.09466303549610014, 0.019077706335712326], # m³/h -> kW, TODO: Fit again to check
+    'med_distillate_pump': [4.149635559273511, -3.6572156762250954, 0.9484207971761789],  # m³/h -> kW, TODO: Fit again to check
+    'med_cooling_pump': [5.2178993694785625, -0.9238542100009888, 0.056680794931454774], # m³/h -> kW
+    'med_heatsource_pump': [0.031175213554380448, -0.01857544733009508, 0.0013320144040346285], # m³/h -> kW, TODO: Fit again to check
 
     # Thermal storage
     # TODO: Add coefficients for thermal storage pump
