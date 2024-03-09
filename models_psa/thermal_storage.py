@@ -169,25 +169,56 @@ def thermal_storage_model_single_tank(
         return Ti - 273.15
 
 
-def thermal_storage_model_two_tanks(
-        Ti_ant_h: np.ndarray, Ti_ant_c: np.ndarray,
-        Tt_in: float | list[float],
-        Tb_in: float | list[float],
-        Tamb: float,
-        msrc: float,
-        mdis: float,
-        UA_h: np.array([0.00677724, 0.0039658, 0.02872586]),
-        UA_c: np.array([0.00677724, 0.0039658, 0.02872586]),
-        Vi_h: np.array([2.97217468, 1.71277001, 9.4345576]),
-        Vi_c: np.array([2.97217468, 1.71277001, 9.4345576]),
-        ts=60, Tmin=60, V=30, unified_output=False,
-        calculate_energy=False
+def thermal_storage_two_tanks_model(
+    Ti_ant_h: np.ndarray, Ti_ant_c: np.ndarray,
+    Tt_in: float | list[float],
+    Tb_in: float | list[float],
+    Tamb: float,
+    qsrc: float,
+    qdis: float,
+    UA_h: np.array([0.00677724, 0.0039658, 0.02872586]),
+    UA_c: np.array([0.00677724, 0.0039658, 0.02872586]),
+    Vi_h: np.array([2.97217468, 1.71277001, 9.4345576]),
+    Vi_c: np.array([2.97217468, 1.71277001, 9.4345576]),
+    ts=60, Tmin=60, V=30, unified_output=False,
+    calculate_energy=False
 ):
     """
     Thermal storage steady state model
 
+    Args:
+        Ti_ant_h (List[Float]): List of previous temperatures in hot storage [ºC]
+        Ti_ant_c (List[Float]): List of previous temperatures in cold storage [ºC]
+        Tt_in (float): Inlet temperature to top of the tank after heat source [ºC]
+        Tb_in (float): Inlet temperature to bottom of the tank after load [ºC]
+        qsrc (float): Flow rate from heat source [m³/h]
+        qdis (float): Flow rate to energy sink [m³/h]
+        Tmin (float, optional): Useful temperature limit [ºC]. Defaults to 60.
+        Tamb (float): Ambient temperature [ºC]
+        UA_h (List[Float]): Losses to the environment, it depends on the total outer surface
+            of the tanks and the heat transfer coefficient [W/K].
+        UA_c (List[Float]): Losses to the environment, it depends on the total outer surface
+            of the tanks and the heat transfer coefficient [W/K].
+        Vi_h (List[Float]): Volume of each control volume in hot tank [m³]
+        Vi_c (List[Float]): Volume of each control volume in cold tank [m³]
+        V (float, optional): Total volume of the tank(s) [m³]. Defaults to 30.
+        ts (int, optional): Sample rate [sec]. Defaults to 60.
+        calculate_energy (bool, optional): Whether or not to calculate and return
+            energy stored above Tmin. Defaults to False.
+
+    Returns:
+        Ti_h: List of temperatures at each control volume in hot tank [List of ºC]
+        Ti_c: List of temperatures at each control volume in cold tank [List of ºC]
+        energy_h: Only if calculate_energy == True. Useful energy stored in the
+            hot tank (above reference Tmin) [kWh]
+        energy_c: Only if calculate_energy == True. Useful energy stored in the
+            cold tank (above reference Tmin) [kWh]
 
     """
+
+    # Convert qdis and qsrc from m³/h to kg/s
+    msrc = qsrc * w_props(P=0.16, T=Tt_in+273.15).rho / 3600  # m³/h -> kg/s
+    mdis = qdis * w_props(P=0.16, T=Tb_in+273.15).rho / 3600  # m³/h -> kg/s
 
     if mdis - msrc > 0:
         # print('from cold to hot!')

@@ -27,3 +27,8 @@
 $$ \dot{m}_{med,d},SEEC_{med},STEC_{MED},SEC_{sf} = f(last_state, current_inputs,) $$
 
 $UA$ is a parameter to be calibrated. It depends on the heat exchange surface (if known it can just be substituted) and the heat transfer coefficient, which depends on the temperature difference between the ambient and heat exchanger. GA (genetic algorithms) approaches will be used.
+
+
+# Results
+
+![SolarMED_validation_20231030](../attachments/SolarMED_validation_20231030.png)

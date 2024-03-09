@@ -1,13 +1,15 @@
 import numpy
+import numpy as np
 from loguru import logger
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
 from scipy.optimize import fsolve
 from .validation import conHotTemperatureType
 from pydantic import PositiveFloat, PositiveInt
 from scipy import signal
+from scipy.optimize import fsolve
 
-b, a = signal.butter(3, 0.05)
-
+b, a = signal.butter(3, 0.005)
+zi = signal.lfilter_zi(b, a)
 
 def calculate_total_pipe_length(q, n, sample_time=10, equivalent_pipe_area=7.85e-5):
     """
@@ -67,15 +69,65 @@ def find_delay_samples(q, sample_time=10, total_pipe_length: float = 5e7, equiva
     return n
 
 
+def solar_field_inverse_model2(
+        Tout_ant: float, Tin: float | np.ndarray, Tout: float,
+        I: float, Tamb: float,
+        beta: float = 0.0975, gamma: float = 1.0, H: float = 2.2,
+        sample_time=1,
+        q_ant: np.ndarray[float] = None,
+        nt=1, npar=7 * 5, ns=2, Lt=1.15 * 20, Acs: float = 7.85e-5,
+) -> float:
+    """
+    Solar field inverse model. New approach using fsolve to solve `solar_field_model`.
+
+    Args:
+        Tout_ant: Solar field outlet temperature at previous time step [ºC]
+        Tin: Solar field inlet temperature [ºC]
+        q: Solar field volumetric flow rate [m³/h]
+        I: Solar direct irradiance [W/m²]
+        Tamb: Ambient temperature [ºC]
+        q_ant (optional): Solar field volumetric flow rate at previous time step [m³/h], for dynamic estimation of delay between q and Tout. Not yet implemented.
+        beta: Irradiance model parameter [m]
+        H: Thermal losses coefficient [J/sºC]
+        nt: Number of tubes in parallel per collector
+        npar: Number of collectors in parallel per loop. Defaults to 7 packages * 5 compartments
+        ns: Number of loops in series
+        Lt: Solar field. Collector tube length [m
+        Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
+        sample_time:
+
+    Returns:
+        Tout: (float): Solar field outlet temperature [ºC]
+
+    """
+
+    qmin = 5
+    qmax = 10  # TODO: Check
+
+    # If there is no temperature difference, the flow rate cannot be estimated, it could be any
+    if Tout - Tin.take(-1) < 0.5:
+        return 0
+
+    wrapped_model = lambda q: solar_field_model(Tout_ant=Tout_ant, Tin=Tin, q=q, I=I, Tamb=Tamb, beta=beta, gamma=gamma,
+                                                H=H, sample_time=sample_time, consider_transport_delay=True, nt=nt,
+                                                npar=npar, ns=ns, Lt=Lt, Acs=Acs) - Tout
+
+    # Solve for q
+    initial_guess = q_ant.take(-1)
+    q = fsolve(wrapped_model, initial_guess)
+
+    return q
+
+
 def solar_field_inverse_model(
-        Tout_ant: float, Tin: float | numpy.ndarray, Tout: float,
+        Tout_ant: float, Tin: float | np.ndarray, Tout: float,
         I: float, Tamb: float,
         beta: float = 0.0975, gamma: float = 1.0, H: float = 2.2,
         sample_time=1, consider_transport_delay: bool = False,
         filter_signal: bool = True,
-        q_ant: numpy.ndarray[float] = None,
+        q_ant: np.ndarray[float] = None,
         nt=1, npar=7 * 5, ns=2, Lt=1.15 * 20, Acs: float = 7.85e-5,
-        log: bool = False
+        f=0.8
 ) -> float:
     """
 
@@ -89,7 +141,7 @@ def solar_field_inverse_model(
         beta: Irradiance model parameter [m]
         H: Thermal losses coefficient [J/sºC]
         nt: Number of tubes in parallel per collector
-        np: Number of collectors in parallel per loop. Defaults to 7 packages * 5 compartments
+        npar: Number of collectors in parallel per loop. Defaults to 7 packages * 5 compartments
         ns: Number of loops in series
         Lt: Solar field. Collector tube length [m
         Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
@@ -116,11 +168,12 @@ def solar_field_inverse_model(
     K2 = H / (Leq * Acs * rho * cp)  # J/sK / (m · m² · kg/m3 · J/kg·K) = 1/s
     K3 = gamma / (Leq * Acs * cf) * (1 / 3600)  # 1/(m · m² · -) * (1 / 3600s) = h/(3600·m³·s)
 
-    if Tout - Tin.take(-1) < 2:
-        return qmin
+    # If there is no temperature difference, the flow rate cannot be estimated
+    if Tout - Tin.take(-1) < 0.5:
+        return 0
 
     if consider_transport_delay:
-        n = find_delay_samples(q_ant, sample_time=sample_time, log=log)
+        n = find_delay_samples(q_ant, sample_time=sample_time)
         # n = 500 / sample_time # Temporary value
     else:
         n = 1
@@ -137,9 +190,14 @@ def solar_field_inverse_model(
     #     q = qmin
 
     if q_ant is not None and filter_signal:
-        q = signal.filtfilt(b, a, numpy.append(q_ant, q))[-1]
+        # q = signal.filtfilt(b, a, numpy.append(q_ant, q))[-1]
+        # q, _ = signal.lfilter(b, a, numpy.append(q_ant, q), zi=zi*q_ant[0])
+        # q = q.take(-1)
+        # Weighted average of the last n samples
+        q = f * q + (1 - f) * q_ant[-n:].mean()
 
     return q
+
 
 def solar_field_model(
         Tout_ant: float, Tin: float | numpy.ndarray, q: float | numpy.ndarray, I: float, Tamb: float,

@@ -7,8 +7,11 @@ All notable changes to this project will be documented in this file.
 
 - Re-written the class implementing the model to make use of pydantic for data validation and serialization
 - Improved visualization of model and comparison with experimental data using `phd_visualizations.test_timeseries.experimental_plot` (see [repository](https://github.com/juan11iguel/phd_visualizations))
-- New version of model of solar field: no more steady-state approximation, includes delay
+- New version of model of solar field: no more steady-state approximation, includes variable delay
 - New version of inverse solar field model
+- New version of heat exchanger model using the effectiveness-NTU method
+- Test report with validation visualization for all component models and complete system model in [solarMED_validation_report.ipynb](solarMED_validation_report.ipynb)
+- Updated docs
 - Re-implementation of the step function of the class to make it more robust and easier to use / understand: now includes system operating state
 - Validated with experimental data
 

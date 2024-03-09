@@ -28,7 +28,7 @@ from .validation import rangeType, within_range_or_zero_or_max, within_range_or_
 from .curve_fitting import evaluate_fit
 from .solar_field import solar_field_model, solar_field_inverse_model
 from .heat_exchanger import heat_exchanger_model, calculate_heat_transfer_effectiveness
-from .thermal_storage import thermal_storage_model_two_tanks
+from .thermal_storage import thermal_storage_two_tanks_model
 from .power_consumption import Actuator, SupportedActuators
 from .three_way_valve import three_way_valve_model
 
@@ -117,7 +117,7 @@ class SolarMED(BaseModel):
     ## Solar field, por comprobar!!
     lims_msf: rangeType = Field((4.7, 14), title="msf limits", json_schema_extra={"units": "m3/h"},
                                 description="Solar field flow rate range (m³/h)", repr=False)
-    lims_mmed_s: rangeType = Field((7 * 3.6, 13.9 * 3.6), title="mmed,s limits", json_schema_extra={"units": "m3/h"},
+    lims_mmed_s: rangeType = Field((30, 48), title="mmed,s limits", json_schema_extra={"units": "m3/h"},
                                    description="MED hot water flow rate range (m³/h)", repr=False)
     lims_mmed_f: rangeType = Field((5, 9), title="mmed,f limits", json_schema_extra={"units": "m3/h"},
                                    description="MED feedwater flow rate range (m³/h)", repr=False)
@@ -171,13 +171,16 @@ class SolarMED(BaseModel):
     sf_actuators: list[Actuator] | list[str] = Field(["sf_pump"], title="Solar field actuators", repr=False,
                                                      description="Actuators to estimate electricity consumption for the solar field")
 
-    beta_sf: float = Field(2.9118e-2, title="βsf", json_schema_extra={"units": "m"}, repr=False,
+    beta_sf: float = Field(4.36396e-02, title="βsf", json_schema_extra={"units": "m"}, repr=False,
                            description="Solar field. Gain coefficient", gt=0, le=1)
-    H_sf: float = Field(9.7263, title="Hsf", json_schema_extra={"units": "W/m2"}, repr=False,
+    H_sf: float = Field(13.676448551722462, title="Hsf", json_schema_extra={"units": "W/m2"}, repr=False,
                         description="Solar field. Losses to the environment", ge=0, le=20)
     gamma_sf: float = Field(0.1, title="γsf", json_schema_extra={"units": "-"}, repr=False,
                             description="Solar field. Artificial parameters to account for flow variations within the "
                                         "whole solar field", ge=0, le=1)
+    filter_sf: float = Field(0.1, title="filter_sf", json_schema_extra={"units": "-"}, repr=False,
+                                description="Solar field. Weighted average filter coefficient to smooth the flow rate", ge=0, le=1)
+
     nt_sf: int = Field(1, title="nt,sf", repr=False,
                        description="Solar field. Number of tubes in parallel per collector. Defaults to 1.", ge=0)
     np_sf: int = Field(7 * 5, title="np,sf", repr=False,
@@ -574,14 +577,14 @@ class SolarMED(BaseModel):
 
     def solve_thermal_storage(self, Tts_h_in: float, ) -> tuple[np.ndarray[conHotTemperatureType], np.ndarray[conHotTemperatureType]]:
 
-        Tts_h, Tts_c = thermal_storage_model_two_tanks(
+        Tts_h, Tts_c = thermal_storage_two_tanks_model(
             Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c,  # [ºC], [ºC]
             Tt_in=Tts_h_in,  # ºC
             Tb_in=self.Tmed_s_out,  # ºC
             Tamb=self.Tamb,  # ºC
 
-            msrc=self.mts_src,  # m³/h
-            mdis=self.mts_dis,  # m³/h
+            qsrc=self.mts_src,  # m³/h
+            qdis=self.mts_dis,  # m³/h
 
             UA_h=self.UAts_h,  # W/K
             UA_c=self.UAts_c,  # W/K
@@ -639,6 +642,7 @@ class SolarMED(BaseModel):
             # Model fixed parameters
             Acs=self.Acs_sf, nt=self.nt_sf, npar=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf,
             sample_time=self.sample_time, consider_transport_delay=True,
+            filter_signal=True, f=self.filter_sf
         )
 
         return msf
@@ -712,16 +716,17 @@ class SolarMED(BaseModel):
             # Model fixed parameters
             Acs=self.Acs_sf, nt=self.nt_sf, npar=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf,
             sample_time=self.sample_time, consider_transport_delay=True,
+            filter_signal=True, f=self.filter_sf
         )
 
         # Thermal storage
-        _, Tts_c = thermal_storage_model_two_tanks(
+        _, Tts_c = thermal_storage_two_tanks_model(
             Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c,  # [ºC], [ºC]
             Tt_in=Tts_t_in,  # ºC
             Tb_in=self.Tmed_s_out,  # ºC
             Tamb=self.Tamb,  # ºC
-            msrc=self.mts_src_sp,  # m³/h
-            mdis=self.mts_dis,  # m³/h
+            qsrc=self.mts_src_sp,  # m³/h
+            qdis=self.mts_dis,  # m³/h
             UA_h=self.UAts_h,  # W/K
             UA_c=self.UAts_c,  # W/K
             Vi_h=self.Vts_h,  # m³
@@ -767,6 +772,9 @@ class SolarMED(BaseModel):
             """
             initial_guess = [self.msf if self.msf is not None else self.lims_msf[0]]
             bounds = ((self.lims_msf[0], ), (self.lims_msf[1]), )
+
+            if initial_guess[0] == 0:
+                initial_guess[0] = self.lims_msf[0]
 
             outputs = least_squares(self.energy_generation_and_storage_subproblem, initial_guess, bounds=bounds)
             Tts_c_b = self.Tts_c[-1]

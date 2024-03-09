@@ -1,0 +1,98 @@
+{
+    "title": "MED",
+    "subtitle": "Model validation",
+    "height": 1200,
+    "width": 1000,
+    "margin": {
+        "l": 20,
+        "r": 100,
+        "t": 100,
+        "b": 20,
+        "pad": 5
+    },
+    "vertical_spacing": 0.03,
+    "xdomain": [
+        0,
+        0.85
+    ],
+    "arrow_xrel_pos": 60,
+    "plots": {
+        "med_flows": {
+            "title": "<b>MED</b>",
+            "row_height": 1,
+            "bg_color": "bg_gray",
+            "ylabels_left": [
+                "m<sup>3</sup>/h"
+            ],
+            "ylabels_right": [
+                "m<sup>3</sup>/h"
+            ],
+            "tigth_vertical_spacing": true,
+            "ylims_left": "manual",
+            "show_active": true,
+            "active_var_id": "med_active",
+            "active_color": "dc_green_rgb",
+            "traces_left": [
+                {
+                    "var_id": "qmed_f",
+                    "color": "c_blue",
+                    "mode": "lines",
+                    "dash": "dot"
+                },
+                {
+                    "var_id": "qmed_d",
+                    "color": "plotly_green",
+                    "mode": "lines",
+                    "dash": "dashdot"
+                },
+                {
+                    "var_id": "qmed_c",
+                    "color": "plotly_cyan",
+                    "mode": "lines",
+                    "dash": "dash"
+                }
+            ],
+            "traces_right": [
+                {
+                    "var_id": "qmed_s",
+                    "mode": "lines",
+                    "color": "plotly_red",
+                    "axis_arrow": true,
+                    "arrow_yrel_pos": 0.9
+                }
+            ]
+        },
+        "med_temperatures": {
+            "row_height": 1,
+            "bg_color": "bg_gray",
+            "ylabels_left": [
+                "\u2070C"
+            ],
+            "ylims_left": "manual",
+            "traces_left": [
+                {
+                    "var_id": "Tmed_s_in",
+                    "mode": "lines",
+                    "color": "plotly_red"
+                },
+                {
+                    "var_id": "Tmed_s_out",
+                    "mode": "lines",
+                    "color": "plotly_red",
+                    "dash": "dash"
+                },
+                {
+                    "var_id": "Tmed_c_in",
+                    "mode": "lines",
+                    "color": "c_blue"
+                },
+                {
+                    "var_id": "Tmed_c_out",
+                    "mode": "lines",
+                    "color": "c_blue",
+                    "dash": "dash"
+                }
+            ]
+        }
+    }
+}
