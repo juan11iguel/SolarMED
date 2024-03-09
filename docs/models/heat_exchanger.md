@@ -29,6 +29,36 @@ $$  T_{hx,p,out},T_{hx,s,out} = f(T_{hx,p,in},T_{hx,s,in},\dot{m}_p,\dot{m}_{s},
 $UA$ is a parameter to be calibrated. It depends on the heat exchange surface (if known it can just be substituted) and the heat transfer coefficient, which depends on the temperature difference between the ambient and heat exchanger. GA (genetic algorithms) approaches will be used.
 - Por defecto $(UA)_{hx}=28000 \: [\frac{W}{\degree C}]$
 
+
+## Pendiente actualizar de aquí a arriba con nueva base para las ecuaciones
+
+## Resultados
+
+Se está pendiente de conseguir una medida fiable para el caudal del secundario del intercambiador de calor, por ahora, de manera temporal se puede estimar haciendo uso de las temperaturas de salida con un balance de energía:
+
+$$q_{c}=q_{h}·\frac{c_{p,h}·(T_{h,in} - T_{h,out})}{c_{p,c}·(T_{c,out} - T_{c,in})}$$
+
+[Versión interactiva](attachments/heat_exchanger_validation.html)
+![](attachments/heat_exchanger_validation.svg)
+
+La línea continua azul de caudal es la señal proveniente del sensor, la discontinua es una estimación con una curva de ajuste que se hizo un mes tras el mantenimiento de la sonda, parece que para entonces ya se había ensuciado ligeramente, por lo que ese ajuste tampoco es válido. Finalmente la línea *dashdot* (no se ve porque está superpuesta por la línea naranja que indica que ha sido usada por el modelo)
+
+En cuanto a salidas de modelo, hay dos comparaciones, la línea gris oscuro es el modelo completo dándole como entrada el UA calibrado, mientras que a la naranja directamente se le da la *eficiencia-NTU* estimada a partir de las temperaturas de salida.
+
+Usando caudal bueno:
+![](attachments/heat_exchanger_validation%201.svg)
+Usando caudal malo:
+![](attachments/heat_exchanger_validation%202.svg)
+
+
+## Otros
+
+![Intercambiador campo](../Validation%20signals%20list.md#Intercambiador%20campo)
+
+
+
+# Old
+
 ## Equations
 
 $$
@@ -62,7 +92,3 @@ $$
 $$
 P_{abs} = \dot{m}_s·c_{p,s}·(T_{hx,s,out}-T_{hx,s,in})
 $$
-
-## Otros
-
-![Intercambiador campo](../Validation%20signals%20list.md#Intercambiador%20campo)

@@ -4,57 +4,22 @@
     "type": "split",
     "children": [
       {
-        "id": "3ae8c47afa7e362b",
+        "id": "98c34c86a44be86e",
         "type": "tabs",
         "children": [
           {
-            "id": "8c2e4468cbfe1393",
+            "id": "585d9faed306dbf1",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "models/thermal_storage.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "d97e853eed673590",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Historical data processing.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "63e0cbd906a9c089",
-            "type": "leaf",
-            "state": {
-              "type": "diagram",
-              "state": {
-                "file": "attachments/time_operated_timeline_comparison.svg"
-              }
-            }
-          },
-          {
-            "id": "73853b68efbb619f",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "models/complete_system.md",
+                "file": "validation/20231030/20231030_solarMED_validation_report.md",
                 "mode": "source",
                 "source": false
               }
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -113,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 304.5
+    "width": 293.5100517272949
   },
   "right": {
     "id": "f98bbe65b6ba93ad",
@@ -129,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Historical data processing.md",
+                "file": "validation/20231030/20231030_solarMED_validation_report.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -162,7 +127,9 @@
             "state": {
               "type": "all-properties",
               "state": {
-                "sortOrder": "frequency"
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
               }
             }
           }
@@ -187,53 +154,53 @@
       "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "d97e853eed673590",
+  "active": "585d9faed306dbf1",
   "lastOpenFiles": [
-    "attachments/filtered_pts.png",
-    "attachments/filtered_pts.svg.png",
-    "attachments/time_operated_timeline_comparison.svg",
-    "attachments/time_operated_timeline_comparison.png",
-    "attachments/time_operated_timeline_comparison.svg.png",
-    "Historical data processing.md",
-    "models/MED.md",
-    "Nomenclature.md",
-    "Nomenclature.pdf",
-    "models/thermal_storage.md",
-    "models/complete_system.md",
-    "models/heat_exchanger.md",
-    "models/three_way_valve.md",
+    "validation/20231031/20231031_solarMED_validation_report.md",
+    "validation/20231106/20231106_solarMED_validation_report.md",
+    "validation/20231031/attachments/20231031_MED_validation.html",
+    "validation/20231031/attachments/20231031_MED_validation.svg",
+    "validation/20231031/attachments/20231031_heat_exchanger_validation.html",
+    "validation/20231031/attachments/20231031_heat_exchanger_validation.svg",
+    "validation/20231031/attachments/20231031_solar_field_inverse_validation.html",
+    "validation/20231031/attachments/20231031_solar_field_inverse_validation.svg",
+    "validation/20231031/attachments/20231031_solar_field_validation.html",
+    "validation/20231031/attachments/20231031_solar_field_validation.svg",
+    "validation/20231031/attachments/20231031_thermal_storage_validation.html",
+    "validation/20231031/attachments/20231031_thermal_storage_validation.svg",
+    "validation/20231031/attachments/20231031_SolarMED_validation.html",
+    "validation/20231031/attachments/20231031_SolarMED_validation.svg",
+    "validation/20231031/attachments/20231031_solarMED_visualization.html",
+    "validation/20231031/attachments/20231031_solarMED_visualization.svg",
+    "validation/20231031/attachments",
+    "validation/20231031",
+    "validation/20231106/20231106_at_2024-03-08 11:55_solarMED_validation_report.md",
     "models/solar_field.md",
-    "models/restrictions.md",
+    "validation/20231106/20231106_at_2024-03-08 11:49_solarMED_validation_report.md",
+    "validation/20231106/20231106_at_20240308T1527_solarMED_validation_report.md",
+    "models/thermal_storage.md",
+    "models/three_way_valve.md",
+    "models/MED.md",
+    "models/heat_exchanger.md",
+    "attachments/solar_field_validation_delay_20231106_beta_4.3640e-02_H_13.676_gamma_0.100.svg",
+    "validation/20231106/attachments/20231106_heat_exchanger_validation.svg",
+    "validation/20231030/20231030_solarMED_validation_report.md",
+    "validation/20231106/attachments/20231106_MED_validation.html",
+    "validation/20231106/attachments/20231106_MED_validation.svg",
+    "validation/YYYYMMDD/solarMED_validation_report_YYYYMMDD.md",
     "Validation signals list.md",
-    "Pending tasks.md",
+    "Issues.md",
+    "attachments.md",
+    "validation/YYYYMMDD/Untitled.md",
+    "models/complete_system.md",
+    "models/restrictions.md",
     "Optimization.md",
-    "models/MED.md~",
-    "models/heat_exchanger.md~",
-    "models/complete_system.md~",
-    "Nomenclature.md~",
+    "Pending tasks.md",
+    "Profiling.md",
+    "Nomenclature.md",
+    "Historical data processing.md",
     "models/Modelo MED.md",
     "Ejecución modelo MED v1.md",
-    "Análisis de sensibilidad.md",
-    "models/Modelo válvula tres vías.md",
-    "lu438236bww2.tmp",
-    "lu438236bwug.tmp",
-    "models/Modelo tanques.md",
-    "models/Modelo intercambiador.md",
-    "models/Sistema completo.md",
-    "material auxiliar/JuanMiguel.Serrano SFERAIIIDC_presentation.pdf",
-    "material auxiliar/presentacion_arm.pdf",
-    "material auxiliar",
-    "sensitivity_analysis/ts_out_sensivity_sobol.png",
-    "sensitivity_analysis/stec_sensivity_sobol.png",
-    "sensitivity_analysis/seec_sensivity_sobol.png",
-    "sensitivity_analysis/mcw_out_sensivity_sobol.png",
-    "sensitivity_analysis/m_prod_sensivity_sobol.png",
-    "models_psa/results/newplot.png",
-    "models/Modelo campo solar.md",
-    "models/Restricciones.md",
-    "models/tanques.excalidraw.md",
-    "Excalidraw/Drawing 2023-06-22 11.26.14.excalidraw.md",
-    "EURECAT/attachments/Diagrama general.svg.md",
-    "EURECAT/Optimización.md"
+    "Análisis de sensibilidad.md"
   ]
 }
