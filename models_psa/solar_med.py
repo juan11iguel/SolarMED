@@ -630,7 +630,7 @@ class SolarMED(BaseModel):
                 beta=beta, H=H, gamma=gamma
             )
         """
-        Tsf_in = np.append(self.Tsf_in if Tsf_in is None else Tsf_in, self.Tsf_in_ant)
+        Tsf_in = np.append(self.Tsf_in_ant, self.Tsf_in if Tsf_in is None else Tsf_in)
 
         msf = solar_field_inverse_model(
             Tin=Tsf_in,
@@ -663,8 +663,8 @@ class SolarMED(BaseModel):
         Make sure to set `Tsf_out_ant` to the prior `Tsf_out` value before calling this method
         """
 
-        msf = np.append(msf, self.msf_ant)
-        Tsf_in = np.append(Tsf_in, self.Tsf_in_ant)
+        msf = np.append(self.msf_ant, msf)
+        Tsf_in = np.append(self.Tsf_in_ant, Tsf_in)
 
         Tsf_out = solar_field_model(
             Tin=Tsf_in, # From current value, up to array start
@@ -704,7 +704,7 @@ class SolarMED(BaseModel):
         )
 
         # Solar field
-        Tsf_in = np.append(Tsf_in, self.Tsf_in_ant)
+        Tsf_in = np.append(self.Tsf_in_ant, Tsf_in)
 
         msf = solar_field_inverse_model(
             Tin=Tsf_in,
