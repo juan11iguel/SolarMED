@@ -11,6 +11,8 @@ Es un sistema de 2 tanques que garantiza que haya estratificación, uno de los t
 
 Lidia y genialidad propia
 
+TODO: Update these docs
+
 ## Nomenclature
 
 ![center | solarMED_optimization-Storage model.drawio](attachments/solarMED_optimization-Storage%20model.drawio.svg)
