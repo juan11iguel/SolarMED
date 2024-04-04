@@ -1,14 +1,39 @@
 from iapws.iapws97 import IAPWS97 as w_props
 from loguru import logger
 
-def calculate_aux_variables(df, cost_w, cost_e, sample_rate_numeric):
 
+def calculate_benefits(df, cost_w, cost_e, sample_rate_numeric):
+
+    df = calculate_costs(df)
+
+    df["B"] = (cost_w * df["qmed_d"] - cost_e * df["Ce"]) * sample_rate_numeric / 3600  # u.m.
+
+    return df
+
+def calculate_costs(df):
     # TODO: Add additional consumptions (solar field and thermal storage)
-    df["Ce"] = df['Jmed_b'] + df['Jmed_c'] + df['Jmed_d'] + df['Jmed_s_f'] * 1e-3  # kW
-    df["B"] = (cost_w * df["qmed_d"] - cost_e * df["Ce"] ) * sample_rate_numeric/3600 # u.m.
+
+    if "Jmed" in df.columns:
+        # Already provided the MED total consumption
+        df["Ce"] = df['Jmed'] * 1e-3
+    else:
+        # Calculate the MED total consumption from the individual components
+        df["Ce"] = df['Jmed_b'] + df['Jmed_c'] + df['Jmed_d'] + df['Jmed_s_f'] * 1e-3  # kW
+
+    return df
+
+def estimate_states(df):
 
     df["sf_active"] = df["qsf"] > 0.1
     df["med_active"] = df["qmed_f"] > 0.5
+
+    return df
+
+def calculate_aux_variables(df, cost_w, cost_e, sample_rate_numeric):
+
+    # df = calculate_costs(df, cost_w, cost_e, sample_rate_numeric)
+    df = calculate_benefits(df, cost_w, cost_e, sample_rate_numeric)
+    df = estimate_states(df)
 
     return df
 

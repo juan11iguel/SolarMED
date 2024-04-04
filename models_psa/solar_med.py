@@ -230,7 +230,7 @@ class SolarMED(BaseModel):
                                                                                    description="Output. Temperature profile in the cold tank (ºC)")
     Pts_src: float = Field(None, title="Pth,ts,in", json_schema_extra={"units": "kWth"},
                            description="Output. Thermal storage inlet power (kWth)")
-    Pts_out: float = Field(None, title="Pth,ts,out", json_schema_extra={"units": "kWth"},
+    Pts_dis: float = Field(None, title="Pth,ts,dis", json_schema_extra={"units": "kWth"},
                            description="Output. Thermal storage outlet power (kWth)")
     Jts: float = Field(None, title="Jts,e", json_schema_extra={"units": "kWe"},
                        description="Output. Thermal storage electrical power consumption (kWe)")
@@ -976,11 +976,11 @@ class SolarMED(BaseModel):
 
         if self.med_active:
             w_props_ts_out = w_props(P=0.16, T=(self.Tmed_s_out + self.Tts_h[1]) / 2 + 273.15)
-            self.Pts_out = self.mts_dis * w_props_ts_out.rho * (
+            self.Pts_dis = self.mts_dis * w_props_ts_out.rho * (
                         self.Tts_h[1] - self.Tmed_s_out) * w_props_ts_out.cp / 3600  # kWth
             # self.Jts_e = self.electrical_consumption(self.mts_src, self.consumption_fits[""]) # kWhe # TODO: Add the right fit
         else:
-            self.Pts_out = 0
+            self.Pts_dis = 0
 
         # Copied variables for the heat exchanger
         self.Thx_p_in = self.Tsf_out
@@ -1033,6 +1033,18 @@ class SolarMED(BaseModel):
         # Add the thermal storage temperatures
         data["Tts_h_t"], data["Tts_h_m"], data["Tts_h_b"] = self.Tts_h
         data["Tts_c_t"], data["Tts_c_m"], data["Tts_c_b"] = self.Tts_c
+
+        # Duplicate flow rates to include both m and q options
+        if not rename_flows:
+            for col in df.columns:
+                # logger.debug(f"Processing column {col}")
+                if (re.match(r'mmed*', col) or
+                        re.match(r'msf*', col) or
+                        re.match(r'mhx*', col) or
+                        re.match(r'm3wv*', col) or
+                        re.match(r'mts*', col)):
+
+                    df[f'q{col[1:]}'] = df[col]
 
         # Rename flows from m* to q*
         if rename_flows:

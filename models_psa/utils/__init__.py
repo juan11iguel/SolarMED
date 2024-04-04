@@ -109,10 +109,11 @@ def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, s
             df = pd.read_csv(paths[0], parse_dates=True, index_col=index_col)
             break
         except Exception as e:
-            logger.error(f'Error while reading data from {paths[0]} with index_col={index_col}: {e}')
+            pass
+            # logger.error(f'Error while reading data from {paths[0]} with index_col={index_col}: {e}')
 
     if df is None:
-        logger.error(f'Failed to read data from CSV file with any of the provided index columns: {index_cols}')
+        raise RuntimeError(f'Failed to read data from CSV file with any of the provided index columns: {index_cols}')
 
     df = process_dataframe(df)
 
