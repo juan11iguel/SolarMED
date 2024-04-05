@@ -1,36 +1,77 @@
 # Heat exchanger model
-## Fuente
 
-[1] G. Ampuño, L. Roca, M. Berenguel, J. D. Gil, M. Pérez, and J. E. Normey-Rico, “Modeling and simulation of a solar field based on flat-plate collectors,” Solar Energy, vol. 170, pp. 369–378, Aug. 2018, doi: 10.1016/j.solener.2018.05.076.
+> [!info] 
+> Puede ser que a veces aparezcan nombres de variables sin o con el prefijo del sistema ($hx$), pero son iguales.
 
-[2] J. A. Duffie and W. A. Beckman, Solar engineering of thermal processes. John Wiley & Sons, 2013.
+Counter-flow heat exchanger steady state model.
+Based on the effectiveness-NTU method [2] - Chapter Heat exchangers 11-5.
+
+
+Limitations (from [2]): 
+- It has been assumed that the rate of change for the temperature of both fluids is proportional to the temperature difference; this assumption is valid for fluids with a constant specific heat, which is a good description of fluids changing temperature over a relatively small range. However, if the specific heat changes, the LMTD approach will no longer be accurate. 
+- A particular case for the LMTD are condensers and reboilers, where the latent heat associated to phase change is a special case of the hypothesis. For a condenser, the hot fluid inlet temperature is then equivalent to the hot fluid exit temperature. 
+- It has also been assumed that the heat transfer coefficient (U) is constant, and not a function of temperature. If this is not the case, the LMTD approach will again be less valid 
+- The LMTD is a steady-state concept, and cannot be used in dynamic analyses. In particular, if the LMTD were to be applied on a transient in which, for a brief time, the temperature difference had different signs on the two sides of the exchanger, the argument to the logarithm function would be negative, which is not allowable. 
+- No phase change during heat transfer 
+- Changes in kinetic energy and potential energy are neglected  
+
+## Fuentes
+
+[1] W. M. Kays and A. L. London, Compact heat exchangers: A summary of basic heat transfer and flow friction design data. McGraw-Hill, 1958. [Online]. Available: https://books.google.com.br/books?id=-tpSAAAAMAAJ  
+
+ [2] Y. A. Çengel and A. J. Ghajar, Heat and mass transfer: fundamentals & applications, Fifth edition. New York, NY: McGraw Hill Education, 2015.  
 
 
 ## Nomenclature
 
-![center | solarMED_optimization-Heat_exchanger | 500x500](attachments/solarMED_optimization-Heat_exchanger.svg)
+![center | solarMED_optimization-Heat_exchanger | 500x500](attachments/solarMED_optimization-Heat_exchanger.svg)  
 
-Loops (L):
 - $p:$ Primary (hot sink / side) loop
 - $s:$ Secondary (cold sink / side) loop 
 
-- $T_{hx,L,in} \: (\degree C):$ Inlet temperature
-- $T_{hx,L,out} \: (\degree C):$ Outlet temperature
-- $\dot{m}_L\: (m^3/h?):$  Flow rate
-- $P_{gen} \: (kW_{th}):$ Power supplied by the hot side
-- $P_{abs} \: (kW_{th}):$ Power transferred to the cold side
-- $\eta_{hx}:$ Exchange efficiency  
-- $T_{amb} \: (\degree C):$ Ambient temperature
+ `p` references the primary circuit, usually the hot side, unless the heat exchanger is inverted. `s` references the secondary circuit, usually the cold side, unless the heat exchanger is inverted. 
+ `Qdot` is the heat transfer rate `C` is the capacity ratio, defined as the ratio of the heat capacities of the two fluids, C = Cmin/Cmax  
+ 
+ > [!info] 
+ > To avoid confussion, whichever the heat exchange direction is, the hotter side will be referenced as `h` and the colder side as `c`. 
+
+- $T_{hx,p,in}$ ($\degree$C): Primary circuit inlet temperature     
+- $T_{hx,s,in}$ ($\degree$C): Secondary circuit inlet temperature
+- $q_{p}$ (m$^3$/h): Primary circuit volumetric flow rate     
+- $q_s$ (m$^3$/h): Secondary circuit volumetric flow rate     
+- UA (W·$\degree$C$^{-1}$): Heat transfer coefficient multiplied by the exchange surface area.  
+
+- $T_{p,out}$ ($\degree$C): Primary circuit outlet temperature
+- $T_{s,out}$ ($\degree$C): Secondary circuit outlet temperature
 
 ### Inputs / outputs
 
-$$ T_{hx,p,out},T_{hx,s,out},P_{gen},P_{abs} = f(T_{hx,p,in},T_{hx,s,in},\dot{m}_p,\dot{m}_{s},(UA)_{hx}) $$
-$$  T_{hx,p,out},T_{hx,s,out} = f(T_{hx,p,in},T_{hx,s,in},\dot{m}_p,\dot{m}_{s},(UA)_{hx})  $$
-$UA$ is a parameter to be calibrated. It depends on the heat exchange surface (if known it can just be substituted) and the heat transfer coefficient, which depends on the temperature difference between the ambient and heat exchanger. GA (genetic algorithms) approaches will be used.
-- Por defecto $(UA)_{hx}=28000 \: [\frac{W}{\degree C}]$
+$$  T_{hx,p,out},T_{hx,s,out} = f(T_{hx,p,in},T_{hx,s,in},\dot{m}_p,\dot{m}_{s}, T_{amb}, (UA)_{hx}, H)  $$
+$UA$ and H are parameters to be calibrated. It depends on the heat exchange surface (if known it can just be substituted) and the heat transfer coefficient, which depends on the temperature difference between the ambient and heat exchanger.
 
 
-## Pendiente actualizar de aquí a arriba con nueva base para las ecuaciones
+### Equations
+
+Calculate heat capacities:
+
+$C_p = \dot{m}_p \cdot c_{p,Tp,in}$
+$C_s = \dot{m}_s \cdot c_{p,Ts,in}$
+$C_{min} = min(C_p, C_s)$
+$C_{max} = max(C_p, C_s)$
+
+Calculate the effectiveness:
+
+$C=\frac{C_{min}}{C_{max}}$
+$\epsilon = \frac{1 - e^{ (-NTU \cdot (1 - C))}}{1 - C \cdot e^{-NTU \cdot (1 - C)}}$
+
+Calculate the heat transfer rate:
+
+$\dot{Q}_{max} = C_{min} \cdot (T_{h,in} - T_{c,in})$
+
+Finally calculate the outlet temperatures:
+
+$T_{h,out} = T_{h,in} - (\dot{Q}_{max} * \epsilon) / (C_h)$
+$T_{c,out} = T_{c,in} + (\dot{Q}_{max} * \epsilon) / (C_c)$
 
 ## Resultados
 

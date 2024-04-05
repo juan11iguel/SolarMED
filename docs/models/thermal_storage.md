@@ -1,7 +1,8 @@
 
 # Thermal storage model
 
-**NOTA:** Puede ser que a veces aparezcan nombres de variables sin el prefijo del sistema ($ts$), pero son iguales.
+> [!info]
+> Puede ser que a veces aparezcan nombres de variables sin el prefijo del sistema ($ts$), pero son iguales.
 
 Es un sistema de 2 tanques que garantiza que haya estratificación, uno de los tanques se encuentra a mayor temperatura (tanque rojo en diagrama), recibe el calor de la fuente de energía y cede calor al consumo. La descarga del consumo retorna a la parte inferior del tanque frío (azul en diagrama) antes de circular hacia el tanque caliente absorbiendo calor de la fuente. 
 
@@ -10,8 +11,6 @@ Es un sistema de 2 tanques que garantiza que haya estratificación, uno de los t
 ## Fuente
 
 Lidia y genialidad propia
-
-TODO: Update these docs
 
 ## Nomenclature
 
@@ -33,6 +32,8 @@ TODO: Update these docs
 
 $$ T_{i},E_{avail} = f(T_{T,in},T_{B,in},\dot{m}_{src},\dot{m}_{dis},T_{i,k-1},t_{s},T_{min},T_{amb},(UA)_{i}, V_i) $$
 $$  T_{h}, T_{c} = f(T_{T,in},T_{B,in},\dot{m}_{src},\dot{m}_{dis},T_{h,k-1}, T_{c,k-1},t_{s},T_{amb},(UA)_{i}, V_i)  $$
+
+## Estimación de la energía almacenada
 
 La estratificación significa que en el tanque coexisten i volúmenes de fluido a distintas temperaturas (en realidad es un gradiente de temperaturas), definiendo dos volúmenes ($V_T$, $V_B$), la energía útil almacenada será  $E_{net}=E_T+E_B$ (si $T_{min}>T_{B} \rightarrow E_B=0$): 
 $$ E_{avail}=E_T+E_B=\rho_T·V_T·c_{p,Tavg}·\Delta T_{T,net}+\rho_B·V_B·c_{p,Bavg}·\Delta T_{B,net}=\rho_T·V_T·c_{p,Tavg}·(T_T-T_{min})+\rho_B·V_B·c_{p,Bavg}·(T_B-T_{min}) $$
@@ -171,11 +172,16 @@ También, es que no es normal esos cambios tan bruscos de temperatura en el alma
 [Interactive version](../attachments/thermal_storage_validation_20231030_generated_20240307T1421.html)
 ![thermal_storage_validation_20231030_generated_20240307T1421](../attachments/thermal_storage_validation_20231030_generated_20240307T1421.svg)
 
-Re-calibrando para estos datos:
+Re-calibrando para estos datos: 
+
+PENDIENTE a hacer ahora que Mario me ha enviado los datos
 
 
 
 Y probando para otros datos de otros días aplicando la misma corrección al caudal:
+
+PENDIENTE
+
 
 %%Probar 20231029, 20231031, 20231106%%
 

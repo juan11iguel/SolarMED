@@ -3,7 +3,7 @@ import numpy as np
 from loguru import logger
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
 from scipy.optimize import fsolve
-from .validation import conHotTemperatureType
+from .data_validation import conHotTemperatureType
 from pydantic import PositiveFloat, PositiveInt
 from scipy import signal
 from scipy.optimize import fsolve
@@ -214,7 +214,7 @@ def solar_field_model(
         q: Solar field volumetric flow rate [m³/h]
         I: Solar direct irradiance [W/m²]
         Tamb: Ambient temperature [ºC]
-        q_ant (optional): Solar field volumetric flow rate at previous time step [m³/h], for dynamic estimation of delay between q and Tout. Not yet implemented.
+        q_ant (optional): Solar field volumetric flow rate at previous time step [m³/h], for dynamic estimation of delay between q and Tout.
         beta: Irradiance model parameter [m]
         H: Thermal losses coefficient [J/sºC]
         nt: Number of tubes in parallel per collector

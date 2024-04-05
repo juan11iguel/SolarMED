@@ -1,9 +1,13 @@
 # Solar field model
 
+> [!info] 
+> Puede ser que a veces aparezcan nombres de variables sin o con el prefijo del sistema ($sf$), pero son iguales.
+
 The solar field is basically a converter of electrical to thermal energy, the conversion factor is the SEC ($kW_{e}/kW_{th}$), if it is less than one it means that we have to give the system more electrical energy than the thermal energy we get, values above one means that there is a gain. But it is not only the exchange factor that matters but also at what temperature the heat is obtained (exergy).
 
-The diagram shows the individual loops that make up the field, in stationary conditions and for the model it is considered that the flow rates and temperatures are equal in each of the loops, and therefore can be simplified to a single loop with collector area the sum of the individual loops.
+The diagram shows the individual loops that make up the field, in stationary conditions and for the model it is considered that the flow rates and temperatures are equal in each of the loops (balanced flow distribution), and therefore can be simplified to a single loop with collector area the sum of the individual loops.
 
+Two models concerning the solar field are developed, the first one predicts the outlet temperature given the other variables, while a second *inverted* model provides the flow needed to obtain a certain outlet temperature, given also the rest of inputs.
 
 ## Bibliography
 
@@ -55,6 +59,80 @@ Por defecto:
 - $A_{cs}=7.85·10^{-5}:[m^2]$
 
 ## Equations
+
+TODO: Update, in the mean time, this is the source code:
+
+```python
+def solar_field_model(  
+        Tout_ant: float, Tin: float | numpy.ndarray, q: float | numpy.ndarray, I: float, Tamb: float,  
+        beta: float = 0.0975, gamma: float = 1.0, H: float = 2.2,  
+        sample_time=1, consider_transport_delay: bool = False,  
+        nt=1, npar=7 * 5, ns=2, Lt=1.15 * 20, Acs: float = 7.85e-5,  
+        log: bool = False  
+) -> float:  
+    """  
+  
+    Args:        
+    Tout_ant: Solar field outlet temperature at previous time step [ºC]
+    Tin: Solar field inlet temperature [ºC]        
+    q: Solar field volumetric flow rate [m³/h]        
+    I: Solar direct irradiance [W/m²]        
+    Tamb: Ambient temperature [ºC]        
+    q_ant (optional): Solar field volumetric flow rate at previous time step [m³/h], for dynamic estimation of delay between q and Tout.
+    beta: Irradiance model parameter [m]        
+    H: Thermal losses coefficient [J/sºC]        
+    nt: Number of tubes in parallel per collector        
+    np: Number of collectors in parallel per loop. Defaults to 7 packages * 5 compartments        
+    ns: Number of loops in series        
+Lt: Solar field. Collector tube length [m]        
+Acs (float, optional): Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5        
+sample_time:  
+    
+    Returns:        
+    Tout: (float): Solar field outlet temperature [ºC]  
+    
+    """  
+    
+    Tin = numpy.array(Tin)  
+    q = numpy.array(q)  
+  
+    Leq = ns * Lt  
+    cf = npar * nt  
+  
+    if Tout_ant > 120:  
+        # Above 110ºC, the model is not valid  
+        return 9999  
+  
+    Tavg = (Tin.take(-1) + Tout_ant) / 2  # ºC  
+  
+    w_props_avg = w_props(P=0.16, T=Tavg + 273.15)  # P=1 bar  -> 0.1MPa, T=Tin C,  
+    rho = w_props_avg.rho  # [kg/m³]  
+    cp = w_props_avg.cp * 1e3  # [kJ/kg·K] -> [J/kg·K]  
+  
+    K1 = beta / (rho * cp * Acs)  # m / (kg/m3 * J/kg·K) = K·m²/J  
+    K2 = H / (Leq * Acs * rho * cp)  # J/sK / (m · m² · kg/m3 · J/kg·K) = 1/s  
+    K3 = gamma / (Leq * Acs * cf) * (1 / 3600)  # 1/(m · m² · -) * (1 / 3600s) = h/(3600·m³·s)  
+  
+    # deltaTout_m = m [m3/h * kg/m3*1h/3600s] * deltaT [K] * K3 [1/(m * * m2 * kg/m3 * -)]  
+    if q.take(-1) == 0:  
+        # Just thermal losses  
+        deltaTout = - K2 * (Tavg - Tamb)  
+  
+        """  
+            A more thorough approach would include radiation and convection losses:            T = T - (H * (T - Tamb) + eta * (T⁴-T⁴)) * sample_time        """  
+    else:  
+  
+        if consider_transport_delay:  
+            n = find_delay_samples(q, sample_time=sample_time, log=log)  
+            # n = 500 / sample_time # Temporary value  
+        else:  
+            n = 1  
+  
+        deltaTout = K1 * I - K2 * (Tavg - Tamb) - K3 * q.take(-1) * (Tout_ant - Tin.take(-n))  
+  
+    return Tout_ant + deltaTout * sample_time
+
+```
 
 $$
 \begin{equation} \tag{1}

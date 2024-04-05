@@ -69,6 +69,11 @@ def process_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if not object_columns.empty:
         logger.warning(f"Columns with object data type: {object_columns.columns}")
 
+    # Drop duplicate index values from df
+    duplicates_df = df.index.duplicated(keep='first').sum()
+    logger.info(f"Number of duplicate index values in df: {duplicates_df}")
+    df = df[~df.index.duplicated(keep='first')]
+
     return df
 
 def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, sample_rate_key: str) -> pd.DataFrame:
@@ -224,8 +229,7 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
     try:
         # Tmed,c,in should not be greater than 28ºC
         logger.info(f'Corrected {np.sum(df["Tmed_c_in"] > 28)} values of Tmed_c_in above maximum allowed temperature (28ºC) to 28ºC.')
-        df.loc[df['Tmed_c_in'] > 28, 'Tmed_c_in'] = 28
-
+        df.loc[df['Tmed_c_in'] >= 28, 'Tmed_c_in'] = 27.9
 
         # qmed_f sometimes is about five but just lower, which fails the validation of the MED model, when the difference qmed_f - 5 > -0.2, it is set to 5
         qmed_f_condition = (np.abs(df['qmed_f'] - 5) < 0.2) & (df['qmed_f'] < 5)
@@ -235,6 +239,7 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         # Tmed,c,out should bot be smaller than 18ºC
         logger.info(f'Corrected {np.sum(df["Tmed_c_out"] < 18)} values of Tmed_c_out below minimum allowed temperature (18ºC) to 18ºC.')
         df.loc[df['Tmed_c_out'] < 18, 'Tmed_c_out'] = 18
+
     except Exception as e:
         logger.error(f'Error while conditioning MED variables: {e}')
 
@@ -243,6 +248,18 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         df.loc[df['I'] < 0, 'I'] = 0
     except Exception as e:
         logger.error(f'Error while conditioning solar field variables: {e}')
+
+    # Check that none of the model inputs is nan
+    model_inputs = ['qmed_s','qmed_f','Tmed_s_in','Tmed_c_out', 'qhx_s', 'Tsf_out','qsf', 'Tmed_c_in','Tamb','I']
+    nan_values = df[model_inputs].isna().sum()
+
+    if nan_values.sum() > 0:
+        # Remove rows with NaN values
+        logger.warning(f"Removing {nan_values.sum()} rows with NaN values in model inputs.")
+        df = df.dropna(subset=model_inputs)
+
+        # Interpolate the data to fill the gaps
+        df = df.interpolate(method='time')
 
     return df
 

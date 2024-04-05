@@ -24,7 +24,7 @@ from pathlib import Path
 # from utils.validation import validate_input_types
 # import py_validate as pv # https://github.com/gfyoung/py-validate
 
-from .validation import rangeType, within_range_or_zero_or_max, within_range_or_min_or_max, conHotTemperatureType
+from .data_validation import rangeType, within_range_or_zero_or_max, within_range_or_min_or_max, conHotTemperatureType
 from .curve_fitting import evaluate_fit
 from .solar_field import solar_field_model, solar_field_inverse_model
 from .heat_exchanger import heat_exchanger_model, calculate_heat_transfer_effectiveness
