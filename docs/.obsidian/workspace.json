@@ -13,31 +13,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "models/solar_field.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "0eb2e99eb02f3e42",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "validation/README.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "3dfe119f1c399dc3",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "README.md",
+                "file": "Validation signals list.md",
                 "mode": "source",
                 "source": false
               }
@@ -118,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "models/solar_field.md",
+                "file": "Validation signals list.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -180,13 +156,13 @@
   },
   "active": "6ea9380ac54801f8",
   "lastOpenFiles": [
+    "README.md",
+    "models/solar_field.md",
     "models/MED.md",
     "models/heat_exchanger.md",
     "models/complete_system.md",
-    "models/solar_field.md",
     "models/thermal_storage.md",
     "models/three_way_valve.md",
-    "README.md",
     "validation/README.md",
     "old/Optimization.md",
     "validation/20230703/20230703_solarMED_validation_report.md",

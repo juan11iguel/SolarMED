@@ -119,18 +119,18 @@ python samples/MED_modelSample1.py
 ## Pending tasks
 
 High priority:
-- [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility
 - [ ] Recalibrate thermal storage model, once the experimental data is exported including the necessary variables to estimate qhx_s.
-- [ ] Find a more robust alternative to obtain the flow from the solar field than inverting the model (implement an internal control loop for the outlet temperature?)
+- [x] Find a more robust alternative to obtain the flow from the solar field than inverting the model (implement an internal control loop for the outlet temperature?)
 - [ ] Calibrate input signal - flow of qhx_s once the experimental data is exported including the necessary variables to estimate qhx_s.
 - [ ] Extend MED model to accept the new operating modes (generating vacuum, starting up, shutting down, idle)
 - [ ] Integrate new `SolarMED` states.
+- [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility
 
 UFSC collaboration towards alternative SolarMED configurations:
 - [ ] [JD] Make thermal storage model more flexible by allowing external inputs and extractions to be performed in arbitrary control volumes.
 - [ ] [JD] Make solar field model more flexible by allowing an alternative configuration (parallel -> series)
 - [ ] [D] Integrate exergy calculations in the component models.
-- [ ] [D] Use MED first-principles model and modify it to make it more flexible by accepting external heat sources in any effect.
+- [ ] [D?JD?] Use MED first-principles model and modify it to make it more flexible by accepting external heat sources in any effect.
 - [ ] [JM] Update `SolarMED` so it can make use of the flexible models and stores the exergy evaluation results.
 
 Low priority:

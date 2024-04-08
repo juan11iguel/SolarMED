@@ -8,6 +8,7 @@ from loguru import logger
 from scipy.optimize import least_squares
 from enum import Enum
 from typing import Any, Literal
+import copy
 from pydantic import (
     BaseModel,
     Field,
@@ -19,6 +20,7 @@ from pydantic import (
     PositiveFloat,
 )
 from pathlib import Path
+from simple_pid import PID
 
 # from utils.curve_fitting import polynomial_interpolation
 # from utils.validation import validate_input_types
@@ -192,6 +194,8 @@ class SolarMED(BaseModel):
                          json_schema_extra={"units": "m"}, description="Solar field. Collector tube length", gt=0)
     Acs_sf: float = Field(7.85e-5, title="Acs,sf", repr=False, json_schema_extra={"units": "m2"},
                           description="Solar field. Flat plate collector tube cross-section area", gt=0)
+    Kp_sf: float = Field(-0.1, title="Kp,sf", repr=False, description="Solar field. Proportional gain for the local PID controller", le=0)
+    Ki_sf: float = Field(-0.01, title="Ki,sf", repr=False, description="Solar field. Integral gain for the local PID controller", le=0)
 
     ## Heat exchanger
     UA_hx: float = Field(13536.596, title="UA,hx", json_schema_extra={"units": "W/K"}, repr=False,
@@ -222,6 +226,8 @@ class SolarMED(BaseModel):
                                             description="Output. Thermal storage heat source inlet temperature, to top of hot tank == Thx_s_out (ºC)")
     Tts_c_in: conHotTemperatureType = Field(None, title="Tts,c,in", json_schema_extra={"units": "C"},
                                             description="Output. Thermal storage load discharge inlet temperature, to bottom of cold tank == Tmed_s_out (ºC)")
+    Tts_h_out: conHotTemperatureType = Field(None, title="Tts,h,out", json_schema_extra={"units": "C"},
+                                                description="Output. Thermal storage heat source outlet temperature, from top of hot tank == Tts_h_t (ºC)")
     Tts_h: list[conHotTemperatureType] | np.ndarray[conHotTemperatureType] = Field(..., title="Tts,h",
                                                                                    json_schema_extra={"units": "C"},
                                                                                    description="Output. Temperature profile in the hot tank (ºC)")
@@ -356,6 +362,7 @@ class SolarMED(BaseModel):
                                                                       "or a more precise but slower (`precise`)")
     Jtotal: float = Field(None, title="Jtotal", json_schema_extra={"units": "kWe"},
                             description="Total electrical power consumption (kWe)")
+    pid_sf: PID | None = Field(None, repr=False, exclude=True, description="PID controller for the solar field")
 
     model_config = ConfigDict(
         validate_assignment=True,  # So that fields are validated, not only when created, but every time they are set
@@ -617,35 +624,35 @@ class SolarMED(BaseModel):
         else:
             return Thx_p_out, Thx_s_out
 
-    def solve_solar_field_inverse(self, Tsf_out, Tsf_in: float = None):
+    # def solve_solar_field_inverse(self, Tsf_out): #, Tsf_in: float = None):
 
-        """
-            qsf_mod_delay[j] =solar_field_inverse_model(
-                Tin=df_on.iloc[i-span:i]['Tsf_in'].values,
-                Tout=ds['Tsf_out'], I=ds['I'], Tamb=ds['Tamb'],
-                Tout_ant=df_on.iloc[i-1]['Tsf_out'],
-                q_ant=qsf_mod_delay[i:i-span:-1],
-                sample_time=sample_rate_numeric, consider_transport_delay=True,
-                # Model parameters
-                beta=beta, H=H, gamma=gamma
-            )
-        """
-        Tsf_in = np.append(self.Tsf_in_ant, self.Tsf_in if Tsf_in is None else Tsf_in)
+        # """
+        #     qsf_mod_delay[j] =solar_field_inverse_model(
+        #         Tin=df_on.iloc[i-span:i]['Tsf_in'].values,
+        #         Tout=ds['Tsf_out'], I=ds['I'], Tamb=ds['Tamb'],
+        #         Tout_ant=df_on.iloc[i-1]['Tsf_out'],
+        #         q_ant=qsf_mod_delay[i:i-span:-1],
+        #         sample_time=sample_rate_numeric, consider_transport_delay=True,
+        #         # Model parameters
+        #         beta=beta, H=H, gamma=gamma
+        #     )
+        # """
+        # Tsf_in = np.append(self.Tsf_in_ant, self.Tsf_in if Tsf_in is None else Tsf_in)
 
-        msf = solar_field_inverse_model(
-            Tin=Tsf_in,
-            q_ant=self.msf_ant,
-            I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant, Tout=Tsf_out,
+        # msf = solar_field_inverse_model(
+        #     Tin=Tsf_in,
+        #     q_ant=self.msf_ant,
+        #     I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant, Tout=Tsf_out,
+        #
+        #     # Model tuned parameters
+        #     H=self.H_sf, beta=self.beta_sf, gamma=self.gamma_sf,
+        #     # Model fixed parameters
+        #     Acs=self.Acs_sf, nt=self.nt_sf, npar=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf,
+        #     sample_time=self.sample_time, consider_transport_delay=True,
+        #     filter_signal=True, f=self.filter_sf
+        # )
 
-            # Model tuned parameters
-            H=self.H_sf, beta=self.beta_sf, gamma=self.gamma_sf,
-            # Model fixed parameters
-            Acs=self.Acs_sf, nt=self.nt_sf, npar=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf,
-            sample_time=self.sample_time, consider_transport_delay=True,
-            filter_signal=True, f=self.filter_sf
-        )
-
-        return msf
+        # return msf
 
     def solve_solar_field(self, Tsf_in: float, msf: float):
 
@@ -668,7 +675,7 @@ class SolarMED(BaseModel):
 
         Tsf_out = solar_field_model(
             Tin=Tsf_in, # From current value, up to array start
-            q=msf[::-1], # From current value, up to array start, in reverse order
+            q=msf, # From current value, up to array start
             I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant,
 
             # Model tuned parameters
@@ -719,6 +726,10 @@ class SolarMED(BaseModel):
             filter_signal=True, f=self.filter_sf
         )
 
+        # Si ahora msf realmente no depende de Tsf_in, dejamos de tener un problema acoplado no?
+        # pid = copy.deepcopy(self.pid_sf)
+        # msf = pid(self.Tsf_out_ant, dt=self.sample_time)
+
         # Thermal storage
         _, Tts_c = thermal_storage_two_tanks_model(
             Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c,  # [ºC], [ºC]
@@ -766,19 +777,23 @@ class SolarMED(BaseModel):
             cnt_max = 10
 
         elif self.resolution_mode == 'simple':
-            """
-            In the simplified version, we assume Tts_c_b does not change and just solve for msf, also less iterations
-            for convergence
-            """
-            initial_guess = [self.msf if self.msf is not None else self.lims_msf[0]]
-            bounds = ((self.lims_msf[0], ), (self.lims_msf[1]), )
+            # """
+            # In the simplified version, we assume Tts_c_b does not change and just solve for msf, also less iterations
+            # for convergence
+            # """
+            # initial_guess = [self.msf if self.msf is not None else self.lims_msf[0]]
+            # bounds = ((self.lims_msf[0], ), (self.lims_msf[1]), )
+            #
+            # if initial_guess[0] == 0:
+            #     initial_guess[0] = self.lims_msf[0]
+            #
+            # outputs = least_squares(self.energy_generation_and_storage_subproblem, initial_guess, bounds=bounds)
+            # Tts_c_b = self.Tts_c[-1]
+            # msf = outputs.x[0]
 
-            if initial_guess[0] == 0:
-                initial_guess[0] = self.lims_msf[0]
-
-            outputs = least_squares(self.energy_generation_and_storage_subproblem, initial_guess, bounds=bounds)
             Tts_c_b = self.Tts_c[-1]
-            msf = outputs.x[0]
+            pid = copy.deepcopy(self.pid_sf) # Setpoint already established when initializaing the PID
+            msf = pid(self.Tsf_out_ant, dt=self.sample_time)
 
             cnt_max = 2
 
@@ -794,11 +809,13 @@ class SolarMED(BaseModel):
         cnt = 0
         while abs(deltaTsf_out) > 0.1 and cnt < cnt_max:
             Tsf_in, Tts_h_in, epsilon = self.solve_heat_exchanger(Tsf_out0, Tts_c_b0, msf, self.mts_src, return_epsilon=True)
-            Tsf_out = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf)
+
+            Tsf_out = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf, )
+
             Tts_h, Tts_c = self.solve_thermal_storage(Tts_h_in)
             Tts_c_b = Tts_c[-1]
 
-            deltaTsf_out = abs(Tsf_out - Tsf_out0)
+            deltaTsf_out = Tsf_out - Tsf_out0
             Tsf_out0 = Tsf_out
             Tts_c_b0 = Tts_c_b
             cnt += 1
@@ -809,7 +826,7 @@ class SolarMED(BaseModel):
             else:
                 logger.debug(f"Converged in {cnt} iterations")
         else:
-            logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}")
+            logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, Tsf,out = {Tsf_out:.2f}, qsf = {self.lims_msf[0]}<{msf:.1f}<{self.lims_msf[1]} (m³/h)")
 
         return msf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in
 
@@ -890,6 +907,10 @@ class SolarMED(BaseModel):
         # Check solar field state
         if self.Tsf_out_sp > 0 or self.msf > 0:
             self.sf_active = True
+            # Initialize solar field local controller
+            self.pid_sf = PID(Kp=self.Kp_sf, Ki=self.Ki_sf, sample_time=self.sample_time, output_limits=(self.lims_msf[0], self.lims_msf[-1]), setpoint=self.Tsf_out_sp)
+        else:
+            self.pid_sf = None
 
         # Check heat exchanger state / thermal storage state
         if self.mts_src_sp > 0:
@@ -897,6 +918,8 @@ class SolarMED(BaseModel):
 
         # Update operating mode
         self.set_operating_state()
+
+
 
         # Solve model for current step
 
@@ -933,7 +956,9 @@ class SolarMED(BaseModel):
             # Solve solar field, calculate msf and validate it's within limits, then recalculate Tsf
             # if self.sf_active:
             if self.Tsf_out_sp > 0:
-                self.msf = self.solve_solar_field_inverse(Tsf_out=self.Tsf_out_sp)
+                # self.msf = self.solve_solar_field_inverse(Tsf_out=self.Tsf_out_sp)
+                self.msf = self.pid_sf(self.Tsf_out_ant, dt=self.sample_time)
+
             # Use either the provided flow rate or the calculated one from Tsf,out,sp
             self.Tsf_out = self.solve_solar_field(Tsf_in=self.Tsf_in, msf=self.msf)
             # else:
@@ -941,7 +966,7 @@ class SolarMED(BaseModel):
             #     self.Tsf_out = self.solve_solar_field(Tsf_in=self.Tsf_in, msf=self.msf)
 
             # Since they are decoupled, necessarily the outlet of the solar field becomes its inlet
-            self.Tsf_in = self.Tsf_out + 3 # TODO: Tener en cuenta de que esto no tiene sentido físico, pero se observa en los datos experimentales
+            self.Tsf_in = self.Tsf_out + 3 # Tener en cuenta de que esto no tiene sentido físico, pero se observa en los datos experimentales
 
         # Update solar field prior values
         self.Tsf_out_ant = self.Tsf_out
@@ -974,13 +999,20 @@ class SolarMED(BaseModel):
             self.Pts_src = 0
             self.Jts = 0
 
+
         if self.med_active:
             w_props_ts_out = w_props(P=0.16, T=(self.Tmed_s_out + self.Tts_h[1]) / 2 + 273.15)
             self.Pts_dis = self.mts_dis * w_props_ts_out.rho * (
                         self.Tts_h[1] - self.Tmed_s_out) * w_props_ts_out.cp / 3600  # kWth
             # self.Jts_e = self.electrical_consumption(self.mts_src, self.consumption_fits[""]) # kWhe # TODO: Add the right fit
+
+            # TODO: If there is an alternative thermal storage configuration, the index needs to be the one where the extraction is done
+            self.Tts_h_out = self.Tts_h[0]
+            self.Tts_c_in = self.Tmed_s_out
         else:
             self.Pts_dis = 0
+            self.Tts_h_out = 0
+            self.Tts_c_in = 0
 
         # Copied variables for the heat exchanger
         self.Thx_p_in = self.Tsf_out

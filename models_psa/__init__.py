@@ -71,8 +71,8 @@ def calculate_powers_thermal_storage(row, max_power: float = 250, min_power=0):
         row["Phx_s"] = row["Pts_src"]
 
         # Thermal storage output power
-        w_p = w_props(P=0.16, T=(row["Tts_h_out"] + row["Tts_c_b_in"]) / 2 + 273.15)  # MPa, K
-        row["Pts_dis"] = row["qts_dis"] / 3600 * w_p.rho * w_p.cp * (row["Tts_h_out"] - row["Tts_c_b_in"])  # kW
+        w_p = w_props(P=0.16, T=(row["Tts_h_out"] + row["Tts_c_in"]) / 2 + 273.15)  # MPa, K
+        row["Pts_dis"] = row["qts_dis"] / 3600 * w_p.rho * w_p.cp * (row["Tts_h_out"] - row["Tts_c_in"])  # kW
         row["Pts_dis"] = min(row["Pts_dis"], max_power)
         row["Pts_dis"] = max(row["Pts_dis"], min_power)
 

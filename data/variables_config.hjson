@@ -302,8 +302,8 @@
         description: "(Duplicate of Tts,h,out) Thermal storage hot tank outlet temperature, to MED three-way valve",
     },
 
-    "Tts_c_b_in": {
-        var_id: "Tts_c_b_in",
+    "Tts_c_in": {
+        var_id: "Tts_c_in",
         signal_id: "TT-AQU-109",
         units_scada: "C",
         units_model: "C",
