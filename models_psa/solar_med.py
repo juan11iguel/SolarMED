@@ -832,11 +832,11 @@ class SolarMED(BaseModel):
 
     def step(
             self,
-            mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float,  # MED decision variables
             mts_src: float,  # Thermal storage decision variables
             Tsf_out: float,  # Solar field decision variables
             Tmed_c_in: float, Tamb: float, I: float, wmed_f: float = None,  # Environment variables
             msf: float = None, # Optional, to provide the solar field flow rate when starting up (Tsf_out takes priority)
+            mmed_s: float = None, mmed_f: float = None, Tmed_s_in: float = None, Tmed_c_out: float = None,  # MED decision variables
     ) -> None:
 
         """
@@ -876,8 +876,9 @@ class SolarMED(BaseModel):
         self.Tamb = Tamb
         self.I = I
         self.Tmed_c_in = Tmed_c_in
+
         # MED
-        self.mmed_s_sp = mmed_s
+        self.mmed_s_sp = mmed_s if mmed_s is not None else self.mmed_s # Use the previous value # TODO: Finish
         self.mmed_f_sp = mmed_f
         self.Tmed_s_in_sp = Tmed_s_in
         self.Tmed_c_out_sp = Tmed_c_out
