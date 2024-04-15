@@ -1,0 +1,197 @@
+{
+  "main": {
+    "id": "e9696e1b5036e2ab",
+    "type": "split",
+    "children": [
+      {
+        "id": "8edd56fc1ab3da97",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0c1f0a97b61bc4ca",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "results/episode_reports/test/report.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "65ebb91ee5ca8ad4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "16cff14dd9a1aa3a",
+            "type": "leaf",
+            "state": {
+              "type": "reveal-preview-view",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "6d464bc5f4563af6",
+    "type": "split",
+    "children": [
+      {
+        "id": "6f6a3b8881427dc9",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1ed7acd2fd133118",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "1a1f8a50ca23e5a9",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c8a46985579d6787",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "right": {
+    "id": "a7ec718c3f1a54e0",
+    "type": "split",
+    "children": [
+      {
+        "id": "db5c9096c64330d4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "439a5b4bc5230bc8",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "results/episode_reports/test/report.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "5c4fe7c6da512553",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "results/episode_reports/test/report.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "d6d21f620b835521",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "4ebc1f38df8a7440",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "results/episode_reports/test/report.md"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "obsidian-advanced-slides:Show Slide Preview": false
+    }
+  },
+  "active": "0c1f0a97b61bc4ca",
+  "lastOpenFiles": [
+    "results/episode_reports/test/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_1.svg",
+    "results/episode_reports/test/attachments/test2_MED_FSM_iteration_1.svg",
+    "results/episode_reports/test/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_0.svg",
+    "results/episode_reports/test/attachments/test2_MED_FSM_iteration_0.svg",
+    "export/report/plugin/chalkboard/README.md",
+    "export/report/plugin/chalkboard/_style.css",
+    "export/report/plugin/chalkboard/img/blackboard.png",
+    "export/report/plugin/chalkboard/img/boardmarker-black.png",
+    "export/report/plugin/chalkboard/img/boardmarker-blue.png",
+    "export/report/plugin/chalkboard/img/boardmarker-green.png",
+    "export/report/plugin/chalkboard/img/boardmarker-orange.png",
+    "export/report/plugin/chalkboard/img/boardmarker-purple.png",
+    "export/report/plugin/chalkboard/img/whiteboard.png",
+    "export/report/plugin/chalkboard/style.css",
+    "export/report/plugin/chalkboard/plugin.js",
+    "export/report/plugin/chalkboard/plugin (copy).js",
+    "export/report/plugin/chalkboard/img",
+    "export/report/plugin/chalkboard",
+    "export/report/plugin/chart/README.md",
+    "export/report/plugin/chart/plugin.js",
+    "export/report/plugin/chart/chart.min.js",
+    "export/report/plugin/chart",
+    "export/report/plugin/customcontrols/README.md",
+    "export/report/plugin/customcontrols/plugin.js",
+    "export/report/plugin/menu/CONTRIBUTING.md",
+    "export/report/plugin/menu/README.md",
+    "results/episode_reports/test/report.md",
+    "examples/result_presentation_template.md",
+    "Welcome.md"
+  ]
+}
