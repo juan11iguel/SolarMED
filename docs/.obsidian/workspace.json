@@ -13,20 +13,33 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "results/episode_reports/test/report.md",
+                "file": "results/episode_reports/test2/report.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "ceaed57fedbd37a2",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "results/episode_reports/test2/report.md",
                 "mode": "source",
                 "source": false
               }
             }
           }
-        ]
+        ],
+        "currentTab": 1
       },
       {
-        "id": "65ebb91ee5ca8ad4",
+        "id": "87379a830128aadb",
         "type": "tabs",
         "children": [
           {
-            "id": "16cff14dd9a1aa3a",
+            "id": "271f1d498f8af097",
             "type": "leaf",
             "state": {
               "type": "reveal-preview-view",
@@ -83,8 +96,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 288.5
   },
   "right": {
     "id": "a7ec718c3f1a54e0",
@@ -100,7 +112,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "results/episode_reports/test/report.md",
+                "file": "results/episode_reports/test2/report.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -117,7 +129,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "results/episode_reports/test/report.md",
+                "file": "results/episode_reports/test2/report.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -140,7 +152,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "results/episode_reports/test/report.md"
+                "file": "results/episode_reports/test2/report.md"
               }
             }
           }
@@ -162,36 +174,48 @@
       "obsidian-advanced-slides:Show Slide Preview": false
     }
   },
-  "active": "0c1f0a97b61bc4ca",
+  "active": "1ed7acd2fd133118",
   "lastOpenFiles": [
-    "results/episode_reports/test/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_1.svg",
-    "results/episode_reports/test/attachments/test2_MED_FSM_iteration_1.svg",
-    "results/episode_reports/test/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_0.svg",
-    "results/episode_reports/test/attachments/test2_MED_FSM_iteration_0.svg",
+    "results/episode_reports/test2/index.html",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Zero.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Vector-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Vector-Bold.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Typewriter-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size4-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size3-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size2-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size1-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Script-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_SansSerif-Regular.woff",
+    "results/episode_reports/test2/plugin/chalkboard/img/whiteboard.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/sponge.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/chalk-yellow.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/chalk-white.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/chalk-red.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/chalk-purple.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/chalk-orange.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/chalk-green.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/chalk-blue.png",
+    "results/episode_reports/test2/plugin/chalkboard/img/boardmarker-yellow.png",
+    "results/episode_reports/test2/plugin/menu/README.md",
+    "results/episode_reports/test2/plugin/menu/CONTRIBUTING.md",
+    "results/episode_reports/test2/plugin/customcontrols/README.md",
+    "results/episode_reports/test2/plugin/chart/README.md",
+    "results/episode_reports/test2/plugin/chalkboard/README.md",
+    "results/episode_reports/test2/report/plugin/menu/README.md",
+    "results/episode_reports/test2/report/plugin/menu/CONTRIBUTING.md",
+    "results/episode_reports/test2/report/plugin/chart/README.md",
+    "results/episode_reports/test2/report/plugin/customcontrols/README.md",
+    "results/episode_reports/test2/report/plugin/chalkboard/README.md",
+    "results/episode_reports/test2/report.md",
+    "Welcome.md",
+    "results/diagrams/operating_modes/Untitled.md",
+    "results/episode_reports/test/report.md",
     "export/report/plugin/chalkboard/README.md",
-    "export/report/plugin/chalkboard/_style.css",
-    "export/report/plugin/chalkboard/img/blackboard.png",
-    "export/report/plugin/chalkboard/img/boardmarker-black.png",
-    "export/report/plugin/chalkboard/img/boardmarker-blue.png",
-    "export/report/plugin/chalkboard/img/boardmarker-green.png",
-    "export/report/plugin/chalkboard/img/boardmarker-orange.png",
-    "export/report/plugin/chalkboard/img/boardmarker-purple.png",
-    "export/report/plugin/chalkboard/img/whiteboard.png",
-    "export/report/plugin/chalkboard/style.css",
-    "export/report/plugin/chalkboard/plugin.js",
-    "export/report/plugin/chalkboard/plugin (copy).js",
-    "export/report/plugin/chalkboard/img",
-    "export/report/plugin/chalkboard",
     "export/report/plugin/chart/README.md",
-    "export/report/plugin/chart/plugin.js",
-    "export/report/plugin/chart/chart.min.js",
-    "export/report/plugin/chart",
     "export/report/plugin/customcontrols/README.md",
-    "export/report/plugin/customcontrols/plugin.js",
     "export/report/plugin/menu/CONTRIBUTING.md",
     "export/report/plugin/menu/README.md",
-    "results/episode_reports/test/report.md",
-    "examples/result_presentation_template.md",
-    "Welcome.md"
+    "examples/result_presentation_template.md"
   ]
 }

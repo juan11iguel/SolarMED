@@ -4,162 +4,169 @@ import time
 from loguru import logger
 from pathlib import Path
 import pandas as pd
+from phd_visualizations import save_figure
+from solarMED_optimization.visualization import state_evolution_plot
 
 valid_input: float = 1.0
 invalid_input: float = 0.0
 
-def test_state(test_state: str, base_cls, model: SolarFieldWithThermalStorage_FSM | MedFSM) -> None:
-    expected_st = getattr(base_cls, test_state)
+
+def test_state(test_state: str | MedState | SF_TS_State, base_cls, model: SolarFieldWithThermalStorage_FSM | MedFSM) -> None:
+    expected_st = getattr(base_cls, test_state) if isinstance(test_state, str) else test_state
 
     assert model.state == expected_st, f"Expected state {expected_st}, got {model.state}"
 
 
-def generate_results(model: SolarMED, df: pd.DataFrame, iteration_idx: int, output_path: Path) -> pd.DataFrame:
-    # Generate FSM graph(s)
-    model.med_fsm.generate_graph(output_path=Path(f"{output_path}_{model.med_fsm.name}_iteration_{iteration_idx}.svg"))
-    model.sf_ts_fsm.generate_graph(output_path=Path(f"{output_path}_{model.sf_ts_fsm.name}_iteration_{iteration_idx}.svg"))
-
+def generate_results(model: SolarMED, df: pd.DataFrame, iteration_idx: int, output_path: Path = None) -> pd.DataFrame:
     # Add iteration to results dataframe
     df = model.to_dataframe(df)
 
+    # Generate FSM graph(s)
+    if output_path is not None:
+        model.med_fsm.generate_graph(output_path=Path(f"{output_path}_{model.med_fsm.name}_iteration_{iteration_idx}.svg"))
+        model.sf_ts_fsm.generate_graph(output_path=Path(f"{output_path}_{model.sf_ts_fsm.name}_iteration_{iteration_idx}.svg"))
+
+        logger.info(f"FSM graphs saved in {output_path}_....svg")
+
+        fig = state_evolution_plot(df, iteration=iteration_idx)
+        # Remove last parent from output_path
+        output_path = output_path.parent
+        save_figure(fig, f'state_evolution_iteration_{iteration_idx}', output_path, formats=['svg'], height=400, width=400)
+
     return df
 
-def test_profile(model: SolarMED, attachments_path: Path, n_of_steps: int = 3, episode_id: str = "test"):
+
+def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int = 3, episode_id: str = "test", loops: int = 1) -> pd.DataFrame:
     """
     Test the SolarMED class by going through all the possible states of the individual FSMs.
 
     Notes:
-        - For every step in the MED FSM, three steps are given in the SF-TS FSM
+        - For every step in the MED FSM, some steps are given in the SF-TS FSM
 
-    :param model_med:
-    :param model_sf_ts:
-    :return:
+    :param model: SolarMED instance
+    :param attachments_path: Path to save the FSM graphs, if None, the graphs are not saved
+    :param n_of_steps: Number of steps to take in the SF-TS FSM
+    :param episode_id: Identifier for the test
+    :return DataFrame: with the results of the test
     """
 
-    def advance_st_ts(step_idx: int):
-        # Define each step as a function
-        steps = [
-            # Step 1.
-            lambda: model_sf_ts.step(Tsf_out=0, qts_src=0) and test_state('IDLE', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 2.
-            lambda: model_sf_ts.step(Tsf_out=1, qts_src=0) and test_state('HEATING_UP_SF', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 3.
-            lambda: model_sf_ts.step(Tsf_out=1, qts_src=1) and test_state('SF_HEATING_TS', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 4.
-            lambda: model_sf_ts.step(Tsf_out=1, qts_src=1) and test_state('SF_HEATING_TS', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 5.
-            lambda: model_sf_ts.step(Tsf_out=1, qts_src=1) and test_state('SF_HEATING_TS', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 6.
-            lambda: model_sf_ts.step(Tsf_out=1, qts_src=1) and test_state('SF_HEATING_TS', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 7.
-            lambda: model_sf_ts.step(Tsf_out=0, qts_src=0) and test_state('IDLE', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 8.
-            lambda: model_sf_ts.step(Tsf_out=1, qts_src=1) and test_state('HEATING_UP_SF', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts),
-
-            # Step 9.
-            lambda: model_sf_ts.step(Tsf_out=0, qts_src=0) and test_state('IDLE', base_cls=SF_TS_State,
-                                                                          model=model_sf_ts)
-        ]
-
-        # Every time step_idx is greater than len(steps), the steps are repeated
-        step_idx = step_idx % len(steps)
-
-        logger.debug(f"Step {step_idx} in SF-TS FSM")
-
-        # Execute the steps starting from step_idx for n_of_steps
-        for step in steps[step_idx:step_idx + n_of_steps]:
-            step()
-
-        return step_idx + n_of_steps
-
-    model_med = model.med_fsm
-    model_sf_ts = model.sf_ts_fsm
-
-    step_idx = 0
-    iteration_idx = 0
-    df = pd.DataFrame()
-    output_path = attachments_path / episode_id
-
-    # Define each step as a function
-    steps = [
-        # Step 1.
-        lambda: (
-            model_med.step(mmed_s=valid_input, mmed_f=valid_input, Tmed_s_in=valid_input, Tmed_c_out=valid_input,
-                           med_vacuum_state=MedVacuumState.HIGH),
-            test_state(test_state='GENERATING_VACUUM', base_cls=MedState, model=model_med),
-        ),
-
-        # Step 2.
-        lambda: (
-            model_med.step(mmed_s=valid_input, mmed_f=valid_input, Tmed_s_in=valid_input, Tmed_c_out=valid_input,
-                           med_vacuum_state=MedVacuumState.OFF),
-            test_state(test_state='OFF', base_cls=MedState, model=model_med),
-        ),
-
-        # Step 3.
-        lambda: (
-            model_med.step(mmed_s=valid_input, mmed_f=valid_input, Tmed_s_in=valid_input, Tmed_c_out=valid_input,
-                           med_vacuum_state=MedVacuumState.LOW),
-            test_state(test_state='IDLE', base_cls=MedState, model=model_med),
-        ),
-
-        # Step 4.
-        lambda: (
-            model_med.step(mmed_s=valid_input, mmed_f=valid_input, Tmed_s_in=valid_input, Tmed_c_out=1,
-                           med_vacuum_state=MedVacuumState.HIGH),
-            test_state(test_state='ACTIVE', base_cls=MedState, model=model_med),
-        ),
-
-        # Step 5.
-        lambda: (
-            model_med.step(mmed_s=invalid_input, mmed_f=valid_input, Tmed_s_in=valid_input, Tmed_c_out=valid_input,
-                           med_vacuum_state=MedVacuumState.LOW),
-            test_state(test_state='IDLE', base_cls=MedState, model=model_med),
-        ),
-
-        # Step 6.
-        lambda: (
-            model_med.step(mmed_s=valid_input, mmed_f=valid_input, Tmed_s_in=valid_input, Tmed_c_out=valid_input,
-                           med_vacuum_state=MedVacuumState.LOW),
-            test_state(test_state='ACTIVE', base_cls=MedState, model=model_med),
-        ),
-
-        # Step 7.
-        lambda: (
-            model_med.step(mmed_s=valid_input, mmed_f=valid_input, Tmed_s_in=valid_input, Tmed_c_out=valid_input,
-                           med_vacuum_state=MedVacuumState.OFF),
-            test_state(test_state='OFF', base_cls=MedState, model=model_med),
-        )
+    sf_ts_inputs = [
+        # The order is important
+        # (Tsf_out: float, mts_src: float)
+        (invalid_input, invalid_input),
+        (valid_input, invalid_input),
+        (valid_input, valid_input),
+        (valid_input, valid_input),
+        (valid_input, valid_input),
+        (valid_input, valid_input),
+        (invalid_input, invalid_input),
+        (valid_input, valid_input),
+        (invalid_input, invalid_input)
     ]
 
-    # Execute the steps
-    exit_flag = False
-    while not exit_flag:
-        step = steps[iteration_idx]
-        try:
-            step()
-        except AssertionError:
-            # Some of the steps take various iterations to complete
-            pass
-        else:
-            step_idx = advance_st_ts(step_idx=step_idx)
-            df = generate_results(model=model, df=df, iteration_idx=iteration_idx, output_path=output_path)
-            iteration_idx += 1
+    expected_sf_ts_states = [
+        # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
 
-        if iteration_idx >= len(steps):
-            exit_flag = True
+        SF_TS_State.IDLE,
+        SF_TS_State.HEATING_UP_SF,
+        SF_TS_State.SF_HEATING_TS,
+        SF_TS_State.SF_HEATING_TS,
+        SF_TS_State.SF_HEATING_TS,
+        SF_TS_State.SF_HEATING_TS,
+        SF_TS_State.IDLE,
+        SF_TS_State.HEATING_UP_SF,
+        SF_TS_State.IDLE
+    ]
+
+    med_inputs = [
+        # The order is important
+        # (mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float, med_vacuum_state: MedVacuumState | int)
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.HIGH),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.OFF),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.HIGH),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+        (invalid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.OFF),
+    ]
+
+    expected_med_states = [
+        # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
+        MedState.GENERATING_VACUUM,
+        MedState.OFF,
+        MedState.GENERATING_VACUUM,
+        MedState.IDLE,
+        MedState.ACTIVE,
+        MedState.ACTIVE,
+        MedState.ACTIVE,
+        MedState.IDLE,
+        MedState.ACTIVE,
+        MedState.OFF
+    ]
+
+    if len(sf_ts_inputs) != len(expected_sf_ts_states):
+        raise ValueError("The number of inputs and expected states for the SF-TS FSM must be the same")
+    if len(med_inputs) != len(expected_med_states):
+        raise ValueError("The number of inputs and expected states for the MED FSM must be the same")
+
+    # Intialize some variables
+    df = pd.DataFrame()
+    output_path = attachments_path / episode_id if attachments_path else None
+    iteration_idx = 0
+
+    # Repeat the test for the number of loops
+    for _ in range(loops):
+        # Execute the steps
+        exit_flag = False
+        step_cnt = 0
+        while not exit_flag:
+            try:
+                sf_ts_idx = iteration_idx % len(sf_ts_inputs)
+
+                logger.info(f"Evaluating step {step_cnt+1}/{len(expected_med_states)} in the MED cycle, {sf_ts_idx} in the SF-TS cycle, iteration {iteration_idx}")
+
+                # The order is important, keep it synchronized with the inputs
+                model.step(
+                    Tsf_out=sf_ts_inputs[sf_ts_idx][0],
+                    mts_src=sf_ts_inputs[sf_ts_idx][1],
+                    mmed_s=med_inputs[step_cnt][0],
+                    mmed_f=med_inputs[step_cnt][1],
+                    Tmed_s_in=med_inputs[step_cnt][2],
+                    Tmed_c_out=med_inputs[step_cnt][3],
+                    med_vacuum_state=med_inputs[step_cnt][4],
+
+                    Tmed_c_in=valid_input,
+                    I=valid_input,
+                    Tamb=valid_input,
+                )
+
+                # Save iteration results
+                df = generate_results(model=model, df=df, iteration_idx=iteration_idx, output_path=output_path)
+
+                # Validate states
+                test_state(test_state=expected_sf_ts_states[sf_ts_idx], base_cls=SF_TS_State, model=model.sf_ts_fsm)
+                test_state(test_state=expected_med_states[step_cnt], base_cls=MedState, model=model.med_fsm)
+
+            except AssertionError:
+                # Some of the steps take various iterations to complete
+                logger.debug(f"Step {iteration_idx} needs to be repeated with the same inputs for the MED FSM, expected state: {expected_med_states[step_cnt]}, got {model.med_fsm.state}")
+                iteration_idx += 1
+            else:
+
+                logger.debug(f"Step {step_cnt+1} completed successfully")
+
+                iteration_idx += 1 # Index for SF-TS cycle increases every iteration
+                step_cnt += 1 # Index for MED cycle increases only when the state change is completed
+
+            if iteration_idx > 100:
+                raise RuntimeError("Ow Jeez, those are too many iterations, check the inputs and expected states, they are provoking an infinite loop.")
+
+
+            # Exit condition
+            if step_cnt >= len(expected_med_states):
+                exit_flag = True
+
+    return df

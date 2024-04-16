@@ -34,7 +34,7 @@ class Base_FSM:
     def customize_fsm_style(self):
         # Custom styling of state machine graph
         self.machine.machine_attributes['ratio'] = '0.2'
-        self.machine.machine_attributes['rankdir'] = 'TB'
+        # self.machine.machine_attributes['rankdir'] = 'TB'
         self.machine.style_attributes['node']['transient'] = {'fillcolor': '#FBD385'}
         self.machine.style_attributes['node']['steady'] = {'fillcolor': '#E0E8F1'}
 
@@ -80,7 +80,10 @@ class Base_FSM:
         if transition_trigger_id is None:
             if not np.array_equal(prior_inputs, current_inputs):
                 # Inputs changed, yet no valid transition, raise error
-                raise tr.MachineError(f"No valid transition for given inputs {current_inputs} from state {self.state}")
+                # raise tr.MachineError(f"No valid transition for given inputs {current_inputs} from state {self.state}")
+
+                # Does it really need to raise an error? Maybe just log it
+                logger.warning(f"No valid transition for given inputs {current_inputs} from state {self.state}")
             else:
                 logger.info("Inputs are the same from prior iteration, no transition needed")
 
@@ -552,11 +555,28 @@ class SolarMED():
         logger.info(f"SolarMED current state: {self.current_state}")
 
     def generate_state_code(self, sf_ts_state: SF_TS_State, med_state: MedState):
+        # Make sure our states are of the correct type
+        if not isinstance(sf_ts_state, SF_TS_State):
+            sf_ts_state = getattr(SF_TS_State, str(sf_ts_state))
+        if not isinstance(med_state, MedState):
+            med_state = getattr(MedState, str(med_state))
+
         return f"{sf_ts_state.value}{med_state.value}"
 
-    def get_current_state(self) -> SolarMED_State:
+    def get_current_state(self, mode: Literal['default', 'human_readable'] = 'defualt') -> SolarMED_State:
         state_code = self.generate_state_code(self.sf_ts_fsm.state, self.med_fsm.state)
-        return SolarMED_State(state_code)
+
+        if mode == 'human_readable':
+            state_str = SolarMED_State(state_code).name
+            # Replace _ by space and make everything minusculas
+            state_str =  state_str.replace('_', ' ').lower()
+            # Replace ts to TS, sf to SF and med to MED
+            state_str = state_str.replace('ts', 'TS').replace('sf', 'SF').replace('med', 'MED')
+
+            return state_str
+
+        else:
+            return SolarMED_State(state_code)
 
     def update_current_state(self) -> None:
         self.current_state = self.get_current_state()
@@ -569,15 +589,18 @@ class SolarMED():
             df = pd.DataFrame()
 
         data = pd.DataFrame({
-            'state_med': self.med_fsm.state.name,
+            'state': self.current_state.name,
+            'state_title': self.get_current_state(mode='human_readable'),
+
+            'state_med': self.med_fsm.state if isinstance(self.med_fsm.state, MedState) else getattr(MedState, self.med_fsm.state),
             'mmed_s': self.mmed_s,
             'mmed_f': self.mmed_f,
             'Tmed_s_in': self.Tmed_s_in,
             'Tmed_c_out': self.Tmed_c_out,
 
-            'state_sf_ts': self.sf_ts_fsm.state.name,
+            'state_sf_ts': self.sf_ts_fsm.state if isinstance(self.sf_ts_fsm.state, SF_TS_State) else getattr(SF_TS_State, self.sf_ts_fsm.state),
             'Tsf_out': self.Tsf_out,
-            'qts_src': self.qts_src,
+            'qts_src': self.mts_src,
         }, index=[0])
 
         df = pd.concat([df, data], ignore_index=True)
