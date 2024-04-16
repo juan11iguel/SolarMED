@@ -33,6 +33,7 @@ from .heat_exchanger import heat_exchanger_model, calculate_heat_transfer_effect
 from .thermal_storage import thermal_storage_two_tanks_model
 from .power_consumption import Actuator, SupportedActuators
 from .three_way_valve import three_way_valve_model
+from . import MedState, SF_TS_State
 
 # # MATLAB MED model
 import MED_model
@@ -42,80 +43,6 @@ dot = np.multiply
 Nsf_max = 100  # Maximum number of steps to keep track of the solar field flow rate, should be higher than the maximum expected delay
 
 
-class ts_states(Enum):
-    """
-    Enumerates the possible states of the thermal storage system
-
-    Examples:
-        ts_state = Ts_state.JUST_RECHARGING or Ts_state(1) or Ts_state['JUST_RECHARGING'] # <Ts_state.JUST_RECHARGING: 1>
-        ts_state.value # 1
-        ts_state.name # 'JUST_RECHARGING'
-    """
-    # name  = value
-    IDLE = 1
-    JUST_RECHARGING = 2
-    RECHARGING = 3  # More recharge than discharge
-    DISCHARGING = 4  # More discharge than recharge
-    JUST_DISCHARGING = 5
-
-
-class SolarMED_states(Enum):
-    """
-    Enumerates the possible states of the Multi-effect distillation pilot plant
-
-    Examples:
-        med_state = MED_state.JUST_RECHARGING or MED_state(1) or MED_state['JUST_RECHARGING'] # <MED_state.JUST_RECHARGING: 1>
-        med_state.value # 1
-        med_state.name # 'JUST_RECHARGING'
-    """
-    # name  = value
-
-    IDLE = 1  # No operation, just losses to the environment in thermal storage and solar field
-    SOLAR_FIELD_WARMUP = 2  # Solar field heating up, no heat transfer to thermal storage, no MED operation
-    SOLAR_FIELD_HEATING_THERMAL_STORAGE = 3  # Solar field providing heat to thermal storage, no MED operation
-    THERMAL_STORAGE_RECIRCULATING = 4  # Solar field idle, thermal storage recirculating, no MED operation
-    SOLAR_FIELD_WARMUP_MED = 5  # Solar field heating up, no heat transfer to thermal storage, thermal storage discharging, MED operation
-    SOLAR_FIELD_HEATING_THERMAL_STORAGE_MED = 6  # Solar field providing heat to thermal storage, MED operation
-    THERMAL_STORAGE_DISCHARGE_MED = 7  # Solar field idle, thermal storage discharging, MED operation
-
-
-class SolarFieldState(Enum):
-    IDLE = 0
-    ACTIVE = 1
-
-
-class ThermalStorageState(Enum):
-    IDLE = 0
-    ACTIVE = 1
-
-
-class MedVacuumState(Enum):
-    OFF = 0
-    LOW = 1
-    HIGH = 2
-
-
-class MedState(Enum):
-    OFF = 0
-    GENERATING_VACUUM = 1
-    IDLE = 2
-    STARTING_UP = 3
-    SHUTTING_DOWN = 4
-    ACTIVE = 5
-
-class SF_TS_State(Enum):
-    IDLE = '00'
-    RECIRCULATING_TS = '01'
-    HEATING_UP_SF = '10'
-    SF_HEATING_TS = '11'
-
-
-SolarMED_State = Enum('SolarMED_State', {
-    f'sf_{sf_state.name}-ts_{ts_state.name}-med_{med_state.name}': f'{sf_state.value}{ts_state.value}{med_state.value}'
-    for sf_state in SolarFieldState
-    for ts_state in ThermalStorageState
-    for med_state in MedState
-})
 
 states_sf_ts = [state for state in SF_TS_State]
 states_med = [state for state in MedState]
