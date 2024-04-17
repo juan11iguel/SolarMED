@@ -968,7 +968,7 @@ class SolarMED(BaseModel):
         # Solve each system independently
         else:
             # Solve thermal storage
-            self.Tts_h_in = 0
+            self.Tts_h_in = self.Tts_c[-1] # Hot tank inlet temperature is the bottom temperature of the cold tank
             self.Tts_h, self.Tts_c = self.solve_thermal_storage(Tts_h_in=self.Tts_h_in)
 
             # Solve solar field, calculate msf and validate it's within limits, then recalculate Tsf
