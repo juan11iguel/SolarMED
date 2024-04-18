@@ -521,27 +521,35 @@ class SolarMED(BaseModel):
 
     def solve_MED(self, mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float, Tmed_c_in: float):
 
+        def default_values():
+            # Process outputs
+            mmed_d = 0
+            mmed_c = 0
+            mmed_b = 0
+            Tmed_s_out = 0
+
+            # Consumptions / metrics
+            Jmed = 0
+            Pmed = 0
+            SEEC_med = np.nan
+            STEC_med = np.nan
+
+            # Overiden decision variables
+            mmed_s = 0
+            mmed_f = 0
+            Tmed_s_in = 0
+            Tmed_c_out = Tmed_c_in # Or 0?
+
+            return mmed_s, mmed_f, Tmed_s_in, Tmed_c_out, mmed_d, mmed_c, mmed_b, Tmed_s_out, Jmed, Pmed, SEEC_med, STEC_med
+
+
+
         Tmed_c_out0 = Tmed_c_out
         med_model_solved = False
 
-        # Default values
-        mmed_s = 0
-        mmed_f = 0
-        Tmed_s_in = 0
-        Tmed_c_out = Tmed_c_in
-
-        mmed_d = 0
-        mmed_c = 0
-        mmed_b = 0
-        Tmed_s_out = 0
-
-        Jmed = 0
-        Pmed = 0
-        SEEC_med = np.nan
-        STEC_med = np.nan
 
         if self.med_active == False:
-            return mmed_s, mmed_f, Tmed_s_in, Tmed_c_out, mmed_d, mmed_c, mmed_b, Tmed_s_out, Jmed, Pmed, SEEC_med, STEC_med
+            return default_values()
 
 
         MsIn = matlab.double([mmed_s / 3.6], size=(1, 1))  # m³/h -> L/s
@@ -573,40 +581,45 @@ class SolarMED(BaseModel):
             else:
                 med_model_solved = True
 
-        if med_model_solved:
-
-            if abs(Tmed_c_out0 - Tmed_c_out) > 0.1:
-                logger.debug(
-                    f"MED condenser flow was out of range, changed outlet temperature from {Tmed_c_out0:.2f} to {Tmed_c_out:.2f}"
-                )
-
-            ## Brine flow rate
-            mmed_b = mmed_f - mmed_d  # m³/h
-
-            ## MED electrical consumption
-            Jmed = np.sum(
-                [actuator.calculate_power_consumption(flow)
-                 for actuator, flow in zip(self.med_actuators, [mmed_b, mmed_f, mmed_d, mmed_c, mmed_s])
-                 ]
-            )
-
-            SEEC_med = Jmed / mmed_d  # kWhe/m³
-
-            ## MED STEC
-            w_props_s = w_props(P=0.1, T=(Tmed_s_in + Tmed_s_out) / 2 + 273.15)
-            cp_s = w_props_s.cp  # kJ/kg·K
-            rho_s = w_props_s.rho  # kg/m³
-            # rho_d = w_props(P=0.1, T=Tmed_c_out+273.15) # kg/m³
-            mmed_s_kgs = mmed_s * rho_s / 3600  # kg/s
-
-            Pmed = mmed_s_kgs * (Tmed_s_in - Tmed_s_out) * cp_s  # kWth
-            STEC_med = Pmed / mmed_d  # kWhth/m³
-
         if not med_model_solved:
             self.med_active = False
-            logger.warning(f'MED is not active due to unfeasible operation in the condenser, setting all MED outputs to 0')
+            logger.warning(
+                f'MED is not active due to unfeasible operation in the condenser, setting all MED outputs to 0')
+
+            return default_values()
+
+        # Else
+        if abs(Tmed_c_out0 - Tmed_c_out) > 0.1:
+            logger.debug(
+                f"MED condenser flow was out of range, changed outlet temperature from {Tmed_c_out0:.2f} to {Tmed_c_out:.2f}"
+            )
+
+        ## Brine flow rate
+        mmed_b = mmed_f - mmed_d  # m³/h
+
+        ## MED electrical consumption
+        Jmed = np.sum(
+            [actuator.calculate_power_consumption(flow)
+             for actuator, flow in zip(self.med_actuators, [mmed_b, mmed_f, mmed_d, mmed_c, mmed_s])
+             ]
+        )
+
+        SEEC_med = Jmed / mmed_d  # kWhe/m³
+
+        ## MED STEC
+        w_props_s = w_props(P=0.1, T=(Tmed_s_in + Tmed_s_out) / 2 + 273.15)
+        cp_s = w_props_s.cp  # kJ/kg·K
+        rho_s = w_props_s.rho  # kg/m³
+        # rho_d = w_props(P=0.1, T=Tmed_c_out+273.15) # kg/m³
+        mmed_s_kgs = mmed_s * rho_s / 3600  # kg/s
+
+        Pmed = mmed_s_kgs * (Tmed_s_in - Tmed_s_out) * cp_s  # kWth
+        STEC_med = Pmed / mmed_d  # kWhth/m³
 
         return mmed_s, mmed_f, Tmed_s_in, Tmed_c_out, mmed_d, mmed_c, mmed_b, Tmed_s_out, Jmed, Pmed, SEEC_med, STEC_med
+
+
+
 
     def solve_thermal_storage(self, Tts_h_in: float, ) -> tuple[np.ndarray[conHotTemperatureType], np.ndarray[conHotTemperatureType]]:
 
