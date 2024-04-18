@@ -7,7 +7,8 @@ from models_psa.fsms import MedFSM, SolarFieldWithThermalStorage_FSM
 from models_psa import MedState, SF_TS_State, MedVacuumState
 from phd_visualizations import save_figure
 from models_psa.visualization import state_evolution_plot
-from models_psa.solar_med import SolarMED
+# from models_psa.solar_med import SolarMED
+from models_psa.fsms import SolarMED
 
 valid_input: float = 1.0
 invalid_input: float = 0.0
@@ -25,8 +26,8 @@ def generate_results(model: SolarMED, df: pd.DataFrame, iteration_idx: int, outp
 
     # Generate FSM graph(s)
     if output_path is not None:
-        model.med_fsm.generate_graph(output_path=Path(f"{output_path}_{model.med_fsm.name}_iteration_{iteration_idx}.svg"))
-        model.sf_ts_fsm.generate_graph(output_path=Path(f"{output_path}_{model.sf_ts_fsm.name}_iteration_{iteration_idx}.svg"))
+        model._med_fsm.generate_graph(output_path=Path(f"{output_path}_{model._med_fsm.name}_iteration_{iteration_idx}.svg"))
+        model._sf_ts_fsm.generate_graph(output_path=Path(f"{output_path}_{model._sf_ts_fsm.name}_iteration_{iteration_idx}.svg"))
 
         logger.info(f"FSM graphs saved in {output_path}_....svg")
 

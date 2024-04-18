@@ -12,6 +12,12 @@ class ThermalStorageState(Enum):
     IDLE = 0
     ACTIVE = 1
 
+class SF_TS_State(Enum):
+    """First digit: Solar Field, Second digit: Thermal Storage"""
+    IDLE = '00'
+    RECIRCULATING_TS = '01'
+    HEATING_UP_SF = '10'
+    SF_HEATING_TS = '11'
 
 class MedVacuumState(Enum):
     OFF = 0
@@ -29,11 +35,6 @@ class MedState(Enum):
 
 
 # More descriptive manually typed names
-class SF_TS_State(Enum):
-    IDLE = '00'
-    RECIRCULATING_TS = '01'
-    HEATING_UP_SF = '10'
-    SF_HEATING_TS = '11'
 
 
 SolarMED_State = Enum('SolarMED_State', {

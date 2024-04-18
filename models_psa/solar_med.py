@@ -22,10 +22,6 @@ from pydantic import (
 from pathlib import Path
 from simple_pid import PID
 
-# from utils.curve_fitting import polynomial_interpolation
-# from utils.validation import validate_input_types
-# import py_validate as pv # https://github.com/gfyoung/py-validate
-
 from .data_validation import rangeType, within_range_or_zero_or_max, within_range_or_min_or_max, conHotTemperatureType
 from .curve_fitting import evaluate_fit
 from .solar_field import solar_field_model, solar_field_inverse_model
@@ -33,7 +29,7 @@ from .heat_exchanger import heat_exchanger_model, calculate_heat_transfer_effect
 from .thermal_storage import thermal_storage_two_tanks_model
 from .power_consumption import Actuator, SupportedActuators
 from .three_way_valve import three_way_valve_model
-from . import MedState, SF_TS_State
+from . import MedState, SF_TS_State, ThermalStorageState
 
 # # MATLAB MED model
 import MED_model
@@ -72,11 +68,12 @@ class SolarMED(BaseModel):
         Tsf_out = Tsf_out(k-1) - losses to the environment
         - Systems can be activated or deactivated depending on the decision variables and conditions. The different
         operating modes are defined in the SolarMED_states.
-        - To export (serialize) the model, use pydantic's built in method `solar_med.model_dump()` (being solar an
+        - To export the model state to a dataframe, use the `to_dataframe` method.
+        - To export (serialize) the model as a dictionary, use pydantic's built in method `solar_med.model_dump()` (being solar an
         instance of the class `solar_med = SolarMED(...)`)  to produce a dictionary representation of the model.
         By default, fields are configured to be exported or not, but this can be overided with arguments to the
         method, check its [docs](https://docs.pydantic.dev/latest/concepts/serialization/).
-        - Alternatively, the model can be serialized to a JSON using the `solar_med.model_dump_json()` method.
+        - Alternatively, the model can be serialized as JSON using the `solar_med.model_dump_json()` method.
     """
 
     # Limits
@@ -310,13 +307,8 @@ class SolarMED(BaseModel):
     operating_state: SolarMED_states = Field(SolarMED_states.IDLE, title="operating_state",
                                              json_schema_extra={"units": "-"},
                                              description="Current operating state of the solar MED system")
-    ts_state: ts_states = Field(ts_states.IDLE, title="ts_state", json_schema_extra={"units": "-"},
+    ts_state: ts_states = Field(ThermalStorageState.IDLE, title="ts_state", json_schema_extra={"units": "-"},
                                 description="Current operating state of the thermal storage system")
-    default_penalty: float = Field(1e6, title="penalty", json_schema_extra={"units": "u.m."}, ge=0,
-                                   description="Default penalty for undesired states or conditions", repr=False,
-                                   exclude=True)
-    penalty: float = Field(0, title="penalty", json_schema_extra={"units": "u.m."}, ge=0,
-                           description="Penalty for undesired states or conditions", repr=False)
     med_active: bool = Field(False, title="med_active", json_schema_extra={"units": "-"},
                              description="Flag indicating if the MED is active", repr=True)
     sf_active: bool = Field(False, title="sf_active", json_schema_extra={"units": "-"},
@@ -324,6 +316,11 @@ class SolarMED(BaseModel):
     ts_recharging: bool = Field(False, title="hx_active", json_schema_extra={"units": "-"},
                                 description="Flag indicating if the heat exchanger is transfering heat from solar field to thermal storage",
                                 repr=True)
+    default_penalty: float = Field(1e6, title="penalty", json_schema_extra={"units": "u.m."}, ge=0,
+                                   description="Default penalty for undesired states or conditions", repr=False,
+                                   exclude=True)
+    penalty: float = Field(0, title="penalty", json_schema_extra={"units": "u.m."}, ge=0,
+                           description="Penalty for undesired states or conditions", repr=False)
     export_fields: list[str] = Field(None, repr=False, exclude=True, description="Fields to export into a dataframe")
     resolution_mode: Literal['simple', 'precise'] = Field(..., repr=False, exclude=True,
                                                           description="Mode of solving the model, can either be a simplified but faster version (`simple`)"
@@ -424,7 +421,15 @@ class SolarMED(BaseModel):
         # Make a list of field names that are of type numeric (int, float, etc)
         # self.export_fields = [field for field in self.__fields__.keys() if isinstance(getattr(self, field), (int, float))]
 
-        logger.info(f'SolarMED model initialized with resolution mode: {self.resolution_mode}')
+        logger.info(f'''
+        SolarMED model initialized with: 
+            - resolution mode: {self.resolution_mode}
+            - sample time: {self.sample_time} s
+            - MED actuators: {[actuator.id for actuator in self.med_actuators]}
+            - Solar field actuators: {[actuator.id for actuator in self.sf_actuators]}
+            - Thermal storage actuators: {[actuator.id for actuator in self.ts_actuators]}
+            - Finite state machine: False
+        ''')
 
 
     def set_operating_state(self) -> None:

@@ -90,7 +90,7 @@ installed. The runtime can be downloaded from [here](https://www.mathworks.com/p
 After that is done, at least in linux, the `LD_LIBRARY_PATH` environment variable needs to be created before being able to use the runtime. To simplfiy the command, an auxiliary `MR` environment variable is created to store the path to the runtime.
 This is embedded in the notebooks that make use of the MED model, but it can also be added to the `venv/bin/activate` script to make it available every time the virtual environment is activated.
 
-4. Add the following lines to the `venv/bin/activate` script:
+4. Add the following lines to the end of `venv/bin/activate` script:
 ```
 export MR=$HOME/MATLAB_Runtime
 export LD_LIBRARY_PATH=$MR/v911/runtime/glnxa64:$MR/v911/bin/glnxa64:$MR/v911/sys/os/glnxa64:$MR/v911/sys/opengl/lib/glnxa64
