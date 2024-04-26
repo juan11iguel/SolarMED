@@ -539,7 +539,7 @@
           "traces_left": [
             {"var_id": "Tts_c_b", "mode": "lines", "color": "plotly_blue", "width": 3,},
             # From MED
-            {"var_id": "Tts_c_b_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
+            {"var_id": "Tts_c_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
               "conditional":{ "var_id": "qts_dis", "operator": ">", "threshold_value": 1,}
             },
           ]

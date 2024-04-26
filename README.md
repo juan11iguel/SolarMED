@@ -5,10 +5,27 @@
 Repository with source code of a variety of models of a solar field - thermal storage and MED plant combined system located at Plataforma Solar de Almería.
 The model of the complete system, called `SolarMED` is contained in the [models_psa package](./models_psa).
 
-- To get started, first check the [installation](#installation) section to set up the environment.
+- Documentation and results of the modelling of the different components can be found in the [docs](./docs). For better visualization, using [Obsidian](https://obsidian.md) is recommended.
 - The model calibration for the different components is contained in [model_calibrations](./model_calibrations).
+- To get started, first check the [installation](#installation) section to set up the environment.
 - For examples on how to use it check the [examples](#examples) section.
-- Documentation and results of the modelling of the different components can be found in the [docs](./docs). For better visualization, the documentation notebook can be imported in [Obsidian](https://obsidian.md)
+
+
+## Package structure
+
+- [models_psa](./models_psa) is the package folder.
+- [models_psa.solar_med](models_psa/solar_med.py) is the main module containing the complete model class `SolarMED`.
+- [models_psa.solar_field](models_psa/solar_field.py) contains the solar field model code.
+- [models_psa.thermal_storage](models_psa/thermal_storage.py) contains the thermal storage model code.
+- [models_psa.med](models_psa/med.py) contains the MED model code (will do once updated, right now it's an external package from MATLAB)
+- [models_psa.heat_exchanger](models_psa/heat_exchanger.py) contains the heat exchanger model code.
+- [models_psa.three_way_valve](models_psa/three_way_valve.py) contains the three-way valve model code.
+- [models_psa.validation](models_psa/data_validation.py) contains validation utility functions (within_range_or_min_or_max, etc) and new types definitions (conHotTemperatureType, rangeType, etc)
+- [models_psa.power_consumption](models_psa/power_consumption.py) implements models to evaluate different actuators, mainly electricity consumption though maybe these will be refactored to extend the use of the `Actuator` class.
+- [models_psa.utils](models_psa/utils) contains different utility functions to process the experimental data.
+- [models_psa.metrics](models_psa/metrics) contains different metrics to evaluate the performance of the system (not yet implemented).
+- [models_psa.curve_fitting](models_psa/curve_fitting) contains curve fitting functions to calibrate simple fits e.g. fit electricity consumptions and so on.
+- [models_psa.calibration](models_psa/calibration) contains the code to perform model parameter calibrations.
 
 
 ## Examples
@@ -116,12 +133,27 @@ Remember to replace the port with the one defined in the compose file as well as
 
 ## Pending tasks
 
-- [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility
-- [ ] When `resolution_mode` is `'simple'`, the water physical properties should also be simplified in the models
-- [ ] Move auxiliary calculations (powers, metrics, etc) to the module of the specific component in its own function instead of having them in the `step` method.
+High priority:
 - [ ] Recalibrate thermal storage model, once the experimental data is exported including the necessary variables to estimate qhx_s.
-- [ ] Find a more robust alternative to obtain the flow from the solar field than inverting the model (implement an internal control loop for the outlet temperature?)
+- [x] Find a more robust alternative to obtain the flow from the solar field than inverting the model (implement an internal control loop for the outlet temperature?)
 - [ ] Calibrate input signal - flow of qhx_s once the experimental data is exported including the necessary variables to estimate qhx_s.
-- [ ] Implement alternative way of exporting experimental data from the plant
+- [ ] Extend MED model to accept the new operating modes (generating vacuum, starting up, shutting down, idle)
+- [ ] Integrate new `SolarMED` states.
+- [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility
+
+UFSC collaboration towards alternative SolarMED configurations:
+- [ ] [JD] Make thermal storage model more flexible by allowing external inputs and extractions to be performed in arbitrary control volumes.
+- [ ] [JD] Make solar field model more flexible by allowing an alternative configuration (parallel -> series)
+- [ ] [D] Integrate exergy calculations in the component models.
+- [ ] [D?JD?] Use MED first-principles model and modify it to make it more flexible by accepting external heat sources in any effect.
+- [ ] [JM] Update `SolarMED` so it can make use of the flexible models and stores the exergy evaluation results.
+
+Low priority:
+- [ ] Move auxiliary calculations in `SolarMED` (powers, metrics, etc) to the module of the specific component in its own function instead of having them in the `step` method.
+- [ ] When `resolution_mode` is `'simple'`, the water physical properties should also be simplified in the models
+- [ ] Replace MED model with Python implementation from KWR.
+
+Longer term: 
+- [ ] Implement alternative way of exporting experimental data from the plant instead of relying on manually exported txts from LABview.
 
 Maybe more can be found in [Issues](docs/Issues.md) and [Pending tasks](docs/Pending%20tasks.md).

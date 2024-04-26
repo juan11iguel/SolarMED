@@ -1,7 +1,8 @@
 
 # Three-way valve model
 
-**NOTA:** Puede ser que a veces aparezcan nombres de variables sin o con el prefijo del sistema ($3wv$), pero son iguales.
+> [!info] 
+> Puede ser que a veces aparezcan nombres de variables sin o con el prefijo del sistema ($3wv$), pero son iguales.
 
 ## Inputs / outputs
 

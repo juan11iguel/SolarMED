@@ -3,6 +3,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.dates as mdates
 
+import warnings
+
+warnings.warn("This module is deprecated and will be removed in future versions.", FutureWarning)
+
+
 sns.set_theme()
 myFmt = mdates.DateFormatter('%H:%M')
 plot_colors = sns.color_palette()

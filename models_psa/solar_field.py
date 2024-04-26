@@ -3,7 +3,7 @@ import numpy as np
 from loguru import logger
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
 from scipy.optimize import fsolve
-from .validation import conHotTemperatureType
+from .data_validation import conHotTemperatureType
 from pydantic import PositiveFloat, PositiveInt
 from scipy import signal
 from scipy.optimize import fsolve
@@ -28,11 +28,12 @@ def calculate_total_pipe_length(q, n, sample_time=10, equivalent_pipe_area=7.85e
     return l
 
 
-def find_delay_samples(q, sample_time=10, total_pipe_length: float = 5e7, equivalent_pipe_area: float = 7.85e-5, log: bool = True) -> int:
+def find_delay_samples(q, sample_time=1, total_pipe_length: float = 5e7, equivalent_pipe_area: float = 7.85e-5, log=True) -> int:
     """
     Find the number of samples that a flow takes to travel a certain distance in a pipe.
     Args:
-        q: Array of flow rates from current samples up to a minimum of n past samples. If less are provided, then the delay will be under-estimated. The order should be from newer to older [m³/h]
+        q: Array of flow rates. If less samples than the delay are provided, then the delay will be under-estimated.
+        IMPORTANT!The order should be from oldest (first element) to newest (last element) [m³/h]
         sample_time: Time between samples [s]
         total_pipe_length: Total representative length of the pipe (simplification to not consider each different pipe section) [m]
         equivalent_pipe_area: Cross-sectional area representative of the pipe (simplification to not consider each different pipe section) [m²] #NOTE: Probably the current value is way to small for the actual equivalent pipe area since it's just the cross section of the collector tubes, while the connecting pipes are quite large and with a much larger cross-section.
@@ -44,7 +45,7 @@ def find_delay_samples(q, sample_time=10, total_pipe_length: float = 5e7, equiva
             - 3. Taking the average of the `l` values
 
     Returns:
-        n: Number of samples that the flow takes to travel the distance
+        n_samples: Number of samples that the flow takes to travel the distance
 
         References:
             [1] J. E. Normey-Rico, C. Bordons, M. Berenguel, and E. F. Camacho, “A Robust Adaptive Dead-Time Compensator with Application to A Solar Collector Field1,” IFAC Proceedings Volumes, vol. 31, no. 19, pp. 93–98, Jul. 1998, doi: 10.1016/S1474-6670(17)41134-7.
@@ -57,16 +58,18 @@ def find_delay_samples(q, sample_time=10, total_pipe_length: float = 5e7, equiva
 
     """
     sum_q = 0
-    n = 0
-    while sum_q < total_pipe_length and n < len(q):
+    n_samples = 0
+    n = len(q) - 1
+    while sum_q < total_pipe_length and n >= 0:
         sum_q += q[n] * sample_time / equivalent_pipe_area
-        n += 1
+        n -= 1
+        n_samples += 1
 
-    if n == len(q) and log:
+    if n < 0 and log:
         logger.warning(
-            f'Flow rate array is not long enough to estimate delay, or the total pipe length is too big. Returning {n} samples == len(q) == {n * sample_time} s')
+            f'Flow rate array is not long enough to estimate delay, or the total pipe length is too big. Returning {n_samples} samples == len(q) == {n_samples * sample_time} s')
 
-    return n
+    return n_samples
 
 
 def solar_field_inverse_model2(
@@ -214,7 +217,7 @@ def solar_field_model(
         q: Solar field volumetric flow rate [m³/h]
         I: Solar direct irradiance [W/m²]
         Tamb: Ambient temperature [ºC]
-        q_ant (optional): Solar field volumetric flow rate at previous time step [m³/h], for dynamic estimation of delay between q and Tout. Not yet implemented.
+        q_ant (optional): Solar field volumetric flow rate at previous time step [m³/h], for dynamic estimation of delay between q and Tout.
         beta: Irradiance model parameter [m]
         H: Thermal losses coefficient [J/sºC]
         nt: Number of tubes in parallel per collector

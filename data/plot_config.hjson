@@ -511,7 +511,7 @@
 
         # From MED
         {
-          "var_id": "Tts_c_b_in",
+          "var_id": "Tts_c_in",
           "mode": "markers",
           "color": "c_blue",
           "width": 3,

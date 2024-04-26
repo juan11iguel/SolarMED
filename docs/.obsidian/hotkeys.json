@@ -1,5 +1,5 @@
 {
-  "editor:toggle-code": [
+  "editor:insert-codeblock": [
     {
       "modifiers": [
         "Mod"
