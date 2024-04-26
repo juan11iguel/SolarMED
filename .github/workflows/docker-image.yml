@@ -15,7 +15,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ env.REGISTRY }}/solarmed-modeling
+  IMAGE_NAME: ghcr.io/solarmed-modeling
 
 jobs:
 
