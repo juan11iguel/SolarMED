@@ -22,11 +22,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag ${{ vars.IMAGE_NAME }}:$(date +%s)
+      run: docker build . --file Dockerfile --tag ${{ vars.IMAGE_NAME }}:${{ github.repository }}-${{ github.sha }}
 
     - name: Create tags
       run: |
-        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.repository }}
+        docker tag ${{ vars.IMAGE_NAME }}:${{ github.repository }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.repository }}-latest
+        docker tag ${{ vars.IMAGE_NAME }}:${{ github.repository }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.repository }}-$(date +%s)
         
       # docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}
       # docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}-latest
