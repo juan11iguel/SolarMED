@@ -13,8 +13,9 @@ on:
   # Run manually
   workflow_dispatch:
 
-# env:
-#   IMAGE_NAME: ghcr.io/solarmed-modeling
+env:
+  IMAGE_NAME: ghcr.io/${{ github.actor }}/solarmed-modeling
+  DATE: $(date +%s)
 
 jobs:
 
@@ -58,8 +59,8 @@ jobs:
         push: true
         tags: |
           ${{ steps.meta.outputs.tags }}
-          ${{ github.ref_name }}-latest
-          ${{ github.ref_name }}-$(date +%s)
+          ${{ env.IMAGE_NAME }}/${{ github.ref_name }}-latest
+          ${{ env.IMAGE_NAME }}/${{ github.ref_name }}-${{ env.DATE }}
         labels: ${{ steps.meta.outputs.labels }}
 
 
