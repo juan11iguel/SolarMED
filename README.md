@@ -107,9 +107,11 @@ A Dockerfile is provided to run the models in a container. The container is base
 docker-compose up
 ```
 
-Copy the URL provided in the terminal to access the Jupyter notebook server. Remeber to replace the port with the one defined in the compose file:
+Copy the URL provided in the terminal to access the Jupyter notebook server:
 
 ![alt text](docs/attachments/jupyter.png)
+
+Remember to replace the port with the one defined in the compose file as well as the IP address to the one where the notebook is being run from.
 
 
 ## Pending tasks
