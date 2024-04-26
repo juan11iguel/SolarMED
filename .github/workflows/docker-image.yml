@@ -26,7 +26,7 @@ jobs:
 
     - name: Create tags
       run: |
-        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}
+        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.repository }}
         
       # docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}
       # docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}-latest
