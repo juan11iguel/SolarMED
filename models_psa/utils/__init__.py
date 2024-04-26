@@ -192,6 +192,8 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         df['qts_src'] = df['qhx_s_estimated']
         df.rename(columns={'qhx_s_estimated': 'qhx_s'}, inplace=True)
 
+        logger.info('Heat exchanger secondary flow rate estimated successfully.')
+
     try:
         df = calculate_aux_variables(df, cost_w=cost_w, cost_e=cost_e, sample_rate_numeric=sample_rate_numeric)
     except Exception as e:
@@ -250,16 +252,19 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         logger.error(f'Error while conditioning solar field variables: {e}')
 
     # Check that none of the model inputs is nan
-    model_inputs = ['qmed_s','qmed_f','Tmed_s_in','Tmed_c_out', 'qhx_s', 'Tsf_out','qsf', 'Tmed_c_in','Tamb','I']
-    nan_values = df[model_inputs].isna().sum()
+    try:
+        model_inputs = ['qmed_s','qmed_f','Tmed_s_in','Tmed_c_out', 'qhx_s', 'Tsf_out','qsf', 'Tmed_c_in','Tamb','I']
+        nan_values = df[model_inputs].isna().sum()
 
-    if nan_values.sum() > 0:
-        # Remove rows with NaN values
-        logger.warning(f"Removing {nan_values.sum()} rows with NaN values in model inputs.")
-        df = df.dropna(subset=model_inputs)
+        if nan_values.sum() > 0:
+            # Remove rows with NaN values
+            logger.warning(f"Removing {nan_values.sum()} rows with NaN values in model inputs.")
+            df = df.dropna(subset=model_inputs)
 
-        # Interpolate the data to fill the gaps
-        df = df.interpolate(method='time')
+            # Interpolate the data to fill the gaps
+            df = df.interpolate(method='time')
+    except Exception as e:
+        logger.error(f'Error while checking model inputs for NaN values: {e}')
 
     return df
 

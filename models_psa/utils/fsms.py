@@ -7,17 +7,45 @@ from models_psa.fsms import MedFSM, SolarFieldWithThermalStorage_FSM
 from models_psa import MedState, SF_TS_State, MedVacuumState
 from phd_visualizations import save_figure
 from models_psa.visualization import state_evolution_plot
+
 # from models_psa.solar_med import SolarMED
 from models_psa.fsms import SolarMED
 
 valid_input: float = 1.0
 invalid_input: float = 0.0
 
+SupportedStateTypes = MedState | SF_TS_State
+SupportedFMSs = MedFSM | SolarFieldWithThermalStorage_FSM | SolarMED
 
-def test_state(test_state: str | MedState | SF_TS_State, base_cls, model: SolarFieldWithThermalStorage_FSM | MedFSM) -> None:
-    expected_st = getattr(base_cls, test_state) if isinstance(test_state, str) else test_state
+def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMSs = None, model: SupportedFMSs = None, current_state:SupportedStateTypes | str = None) -> None:
 
-    assert model.state == expected_st, f"Expected state {expected_st}, got {model.state}"
+    """
+    Function to test the current state of the FSMs. Need to provide the expected state and either the current state,
+    or a model to extract the current state from, to compare.
+
+    Args:
+        expected_state:
+        base_cls:
+        model:
+        current_state:
+
+    Returns:
+
+    """
+
+    if isinstance(expected_state, str) or isinstance(current_state, str):
+        if not base_cls:
+            raise ValueError("base_cls must be provided when using strings as arguments for the states")
+
+    expected_st = getattr(base_cls, expected_state) if isinstance(expected_state, str) else expected_state
+
+    if model:
+        current_state = model.state
+
+    current_state = getattr(base_cls, current_state) if isinstance(current_state, str) else current_state
+
+
+    assert current_state == expected_st, f"Expected state {expected_st}, got {current_state}"
 
 
 def generate_results(model: SolarMED, df: pd.DataFrame, iteration_idx: int, output_path: Path = None) -> pd.DataFrame:
@@ -67,7 +95,7 @@ def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int
         (invalid_input, invalid_input)
     ]
 
-    expected_sf_ts_states = [
+    expected_sf_ts_states: list[SF_TS_State] = [
         # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
 
         SF_TS_State.IDLE,
@@ -96,7 +124,7 @@ def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int
         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.OFF),
     ]
 
-    expected_med_states = [
+    expected_med_states: list[MedState] = [
         # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
         MedState.GENERATING_VACUUM,
         MedState.OFF,
@@ -115,7 +143,7 @@ def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int
     if len(med_inputs) != len(expected_med_states):
         raise ValueError("The number of inputs and expected states for the MED FSM must be the same")
 
-    # Intialize some variables
+    # Initialize some variables
     df = pd.DataFrame()
     output_path = attachments_path / episode_id if attachments_path else None
     iteration_idx = 0
@@ -150,12 +178,12 @@ def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int
                 df = generate_results(model=model, df=df, iteration_idx=iteration_idx, output_path=output_path)
 
                 # Validate states
-                test_state(test_state=expected_sf_ts_states[sf_ts_idx], base_cls=SF_TS_State, model=model.sf_ts_fsm)
-                test_state(test_state=expected_med_states[step_cnt], base_cls=MedState, model=model.med_fsm)
+                test_state(expected_state=expected_sf_ts_states[sf_ts_idx], current_state=model.sf_ts_state)
+                test_state(expected_state=expected_med_states[step_cnt], current_state=model.med_state)
 
             except AssertionError:
                 # Some of the steps take various iterations to complete
-                logger.debug(f"Step {iteration_idx} needs to be repeated with the same inputs for the MED FSM, expected state: {expected_med_states[step_cnt]}, got {model.med_fsm.state}")
+                logger.debug(f"Step {iteration_idx} needs to be repeated with the same inputs for the MED FSM, expected state: {expected_med_states[step_cnt]}, got {model.med_state}")
                 iteration_idx += 1
             else:
 

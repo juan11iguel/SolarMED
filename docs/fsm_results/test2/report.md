@@ -55,12 +55,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 1: SF active-TS idle-MED generating vacuum**
+**ITERATION 1: SF active-TS idle-MED off**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_IDLE-med_GENERATING_VACUUM](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_GENERATING_VACUUM.svg)
+![sf_ACTIVE-ts_IDLE-med_OFF](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_OFF.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -79,12 +79,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 2: SF active-TS active-MED off**
+**ITERATION 2: SF active-TS active-MED generating vacuum**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_OFF](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_OFF.svg)
+![sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -199,12 +199,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 7: SF active-TS idle-MED generating vacuum**
+**ITERATION 7: SF active-TS idle-MED idle**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_IDLE-med_GENERATING_VACUUM](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_GENERATING_VACUUM.svg)
+![sf_ACTIVE-ts_IDLE-med_IDLE](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_IDLE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -223,12 +223,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 8: SF idle-TS idle-MED idle**
+**ITERATION 8: SF idle-TS idle-MED starting up**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_IDLE](../../operating_modes/state_sf_IDLE-ts_IDLE-med_IDLE.svg)
+![sf_IDLE-ts_IDLE-med_STARTING_UP](../../operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -271,12 +271,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 10: SF active-TS idle-MED starting up**
+**ITERATION 10: SF active-TS idle-MED active**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_IDLE-med_STARTING_UP](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_STARTING_UP.svg)
+![sf_ACTIVE-ts_IDLE-med_ACTIVE](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_ACTIVE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -343,12 +343,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 13: SF active-TS active-MED active**
+**ITERATION 13: SF active-TS active-MED shutting down**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_ACTIVE](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_ACTIVE.svg)
+![sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -367,12 +367,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 14: SF active-TS active-MED shutting down**
+**ITERATION 14: SF active-TS active-MED idle**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN.svg)
+![sf_ACTIVE-ts_ACTIVE-med_IDLE](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_IDLE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -391,12 +391,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 15: SF idle-TS idle-MED idle**
+**ITERATION 15: SF idle-TS idle-MED starting up**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_IDLE](../../operating_modes/state_sf_IDLE-ts_IDLE-med_IDLE.svg)
+![sf_IDLE-ts_IDLE-med_STARTING_UP](../../operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -439,12 +439,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 17: SF idle-TS idle-MED starting up**
+**ITERATION 17: SF idle-TS idle-MED active**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_STARTING_UP](../../operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg)
+![sf_IDLE-ts_IDLE-med_ACTIVE](../../operating_modes/state_sf_IDLE-ts_IDLE-med_ACTIVE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -463,12 +463,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 18: SF idle-TS idle-MED active**
+**ITERATION 18: SF idle-TS idle-MED shutting down**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_ACTIVE](../../operating_modes/state_sf_IDLE-ts_IDLE-med_ACTIVE.svg)
+![sf_IDLE-ts_IDLE-med_SHUTTING_DOWN](../../operating_modes/state_sf_IDLE-ts_IDLE-med_SHUTTING_DOWN.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -487,12 +487,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 19: SF active-TS idle-MED shutting down**
+**ITERATION 19: SF active-TS idle-MED off**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_IDLE-med_SHUTTING_DOWN](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_SHUTTING_DOWN.svg)
+![sf_ACTIVE-ts_IDLE-med_OFF](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_OFF.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -511,12 +511,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 20: SF active-TS active-MED off**
+**ITERATION 20: SF active-TS active-MED generating vacuum**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_OFF](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_OFF.svg)
+![sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -535,12 +535,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 21: SF active-TS active-MED generating vacuum**
+**ITERATION 21: SF active-TS active-MED off**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM.svg)
+![sf_ACTIVE-ts_ACTIVE-med_OFF](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_OFF.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -559,12 +559,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 22: SF active-TS active-MED off**
+**ITERATION 22: SF active-TS active-MED generating vacuum**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_OFF](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_OFF.svg)
+![sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -583,12 +583,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 23: SF active-TS active-MED generating vacuum**
+**ITERATION 23: SF active-TS active-MED idle**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_GENERATING_VACUUM.svg)
+![sf_ACTIVE-ts_ACTIVE-med_IDLE](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_IDLE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -607,12 +607,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 24: SF idle-TS idle-MED idle**
+**ITERATION 24: SF idle-TS idle-MED starting up**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_IDLE](../../operating_modes/state_sf_IDLE-ts_IDLE-med_IDLE.svg)
+![sf_IDLE-ts_IDLE-med_STARTING_UP](../../operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -655,12 +655,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 26: SF idle-TS idle-MED starting up**
+**ITERATION 26: SF idle-TS idle-MED active**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_STARTING_UP](../../operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg)
+![sf_IDLE-ts_IDLE-med_ACTIVE](../../operating_modes/state_sf_IDLE-ts_IDLE-med_ACTIVE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -727,12 +727,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 29: SF active-TS active-MED active**
+**ITERATION 29: SF active-TS active-MED shutting down**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_ACTIVE](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_ACTIVE.svg)
+![sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -751,12 +751,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 30: SF active-TS active-MED shutting down**
+**ITERATION 30: SF active-TS active-MED idle**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_SHUTTING_DOWN.svg)
+![sf_ACTIVE-ts_ACTIVE-med_IDLE](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_IDLE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -775,12 +775,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 31: SF active-TS active-MED idle**
+**ITERATION 31: SF active-TS active-MED starting up**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_ACTIVE-med_IDLE](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_IDLE.svg)
+![sf_ACTIVE-ts_ACTIVE-med_STARTING_UP](../../operating_modes/state_sf_ACTIVE-ts_ACTIVE-med_STARTING_UP.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -823,12 +823,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 33: SF idle-TS idle-MED starting up**
+**ITERATION 33: SF idle-TS idle-MED active**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_STARTING_UP](../../operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg)
+![sf_IDLE-ts_IDLE-med_ACTIVE](../../operating_modes/state_sf_IDLE-ts_IDLE-med_ACTIVE.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -847,12 +847,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 34: SF active-TS idle-MED active**
+**ITERATION 34: SF active-TS idle-MED shutting down**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_ACTIVE-ts_IDLE-med_ACTIVE](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_ACTIVE.svg)
+![sf_ACTIVE-ts_IDLE-med_SHUTTING_DOWN](../../operating_modes/state_sf_ACTIVE-ts_IDLE-med_SHUTTING_DOWN.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -871,12 +871,12 @@ Decision variables
 
 
 <grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 35: SF idle-TS idle-MED shutting down**
+**ITERATION 35: SF idle-TS idle-MED off**
 <!-- element style="font-size: 24px"-->
 </grid>
 
 <grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_SHUTTING_DOWN](../../operating_modes/state_sf_IDLE-ts_IDLE-med_SHUTTING_DOWN.svg)
+![sf_IDLE-ts_IDLE-med_OFF](../../operating_modes/state_sf_IDLE-ts_IDLE-med_OFF.svg)
 </grid>
 
 <grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
@@ -889,30 +889,6 @@ Decision variables
 
 <grid drop="bottom" drag="100 30" bg="whitesmoke" >
 ![Finite state machine MED](./attachments/test2_MED_FSM_iteration_35.svg)
-</grid>
-
----
-
-
-<grid drag="100 5" drop="top" bg="whitesmoke"  >
-**ITERATION 36: SF idle-TS idle-MED off**
-<!-- element style="font-size: 24px"-->
-</grid>
-
-<grid drag="70 30" drop="0 7"  bg="whitesmoke"  >
-![sf_IDLE-ts_IDLE-med_OFF](../../operating_modes/state_sf_IDLE-ts_IDLE-med_OFF.svg)
-</grid>
-
-<grid drag="30 30" drop="70 7"  bg="whitesmoke"  >
-![state_evolution_iteration_36](./attachments/state_evolution_iteration_36.svg)
-</grid>
-
-<grid drop="center" drag="100 30" bg="whitesmoke" >
-![Finite state machine SF-TS](./attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_36.svg)
-</grid>
-
-<grid drop="bottom" drag="100 30" bg="whitesmoke" >
-![Finite state machine MED](./attachments/test2_MED_FSM_iteration_36.svg)
 </grid>
 
 ---

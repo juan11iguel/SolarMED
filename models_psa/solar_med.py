@@ -431,7 +431,6 @@ class SolarMED(BaseModel):
             - Finite state machine: False
         ''')
 
-
     def set_operating_state(self) -> None:
 
         if self.med_active and self.sf_active and self.ts_recharging:
@@ -581,36 +580,6 @@ class SolarMED(BaseModel):
             return Thx_p_out, Thx_s_out, epsilon
         else:
             return Thx_p_out, Thx_s_out
-
-    # def solve_solar_field_inverse(self, Tsf_out): #, Tsf_in: float = None):
-
-        # """
-        #     qsf_mod_delay[j] =solar_field_inverse_model(
-        #         Tin=df_on.iloc[i-span:i]['Tsf_in'].values,
-        #         Tout=ds['Tsf_out'], I=ds['I'], Tamb=ds['Tamb'],
-        #         Tout_ant=df_on.iloc[i-1]['Tsf_out'],
-        #         q_ant=qsf_mod_delay[i:i-span:-1],
-        #         sample_time=sample_rate_numeric, consider_transport_delay=True,
-        #         # Model parameters
-        #         beta=beta, H=H, gamma=gamma
-        #     )
-        # """
-        # Tsf_in = np.append(self.Tsf_in_ant, self.Tsf_in if Tsf_in is None else Tsf_in)
-
-        # msf = solar_field_inverse_model(
-        #     Tin=Tsf_in,
-        #     q_ant=self.msf_ant,
-        #     I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant, Tout=Tsf_out,
-        #
-        #     # Model tuned parameters
-        #     H=self.H_sf, beta=self.beta_sf, gamma=self.gamma_sf,
-        #     # Model fixed parameters
-        #     Acs=self.Acs_sf, nt=self.nt_sf, npar=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf,
-        #     sample_time=self.sample_time, consider_transport_delay=True,
-        #     filter_signal=True, f=self.filter_sf
-        # )
-
-        # return msf
 
     def solve_solar_field(self, Tsf_in: float, msf: float):
 
@@ -1038,8 +1007,6 @@ class SolarMED(BaseModel):
             df = data
 
         return df
-
-
 
     def terminate(self):
         """

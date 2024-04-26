@@ -4,32 +4,14 @@
     "type": "split",
     "children": [
       {
-        "id": "98c34c86a44be86e",
+        "id": "fcaa27f9d8fc5317",
         "type": "tabs",
         "children": [
           {
-            "id": "6ea9380ac54801f8",
+            "id": "4e4b077760c000c1",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "fsm_results/test2/report.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          }
-        ]
-      },
-      {
-        "id": "48da50b0b3c1bc49",
-        "type": "tabs",
-        "children": [
-          {
-            "id": "5c56ced330d5c2e3",
-            "type": "leaf",
-            "state": {
-              "type": "reveal-preview-view",
+              "type": "empty",
               "state": {}
             }
           }
@@ -108,7 +90,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "fsm_results/test2/report.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -157,6 +138,7 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "obsidian-advanced-slides:Show Slide Preview": false,
       "switcher:Open quick switcher": false,
       "graph:Open graph view": false,
       "command-palette:Open command palette": false,
@@ -165,31 +147,29 @@
       "canvas:Create new canvas": false,
       "workspaces:Manage workspace layouts": false,
       "table-editor-obsidian:Advanced Tables Toolbar": false,
-      "obsidian-excalidraw-plugin:Create new drawing": false,
-      "obsidian-advanced-slides:Show Slide Preview": false
+      "obsidian-excalidraw-plugin:Create new drawing": false
     }
   },
-  "active": "9bed96b88033046a",
+  "active": "4e4b077760c000c1",
   "lastOpenFiles": [
-    "operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg",
-    "operating_modes/state_sf_IDLE-ts_IDLE-med_SHUTTING_DOWN.svg",
-    "operating_modes/state_sf_IDLE-ts_IDLE-med_OFF.svg",
-    "operating_modes/state_sf_IDLE-ts_IDLE-med_IDLE.svg",
-    "operating_modes/state_sf_IDLE-ts_IDLE-med_GENERATING_VACUUM.svg",
-    "operating_modes/state_sf_IDLE-ts_IDLE-med_ACTIVE.svg",
-    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_STARTING_UP.svg",
-    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_SHUTTING_DOWN.svg",
-    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_OFF.svg",
-    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_IDLE.svg",
-    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_GENERATING_VACUUM.svg",
-    "operating_modes",
+    "fsm_results/test2/report.md",
+    "fsm_results/test2/attachments/state_evolution_iteration_100.svg",
+    "fsm_results/test2/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_100.svg",
+    "fsm_results/test2/attachments/test2_MED_FSM_iteration_100.svg",
+    "fsm_results/test2/attachments/state_evolution_iteration_99.svg",
+    "fsm_results/test2/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_99.svg",
+    "fsm_results/test2/attachments/test2_MED_FSM_iteration_99.svg",
+    "fsm_results/test2/attachments/state_evolution_iteration_98.svg",
+    "fsm_results/test2/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_98.svg",
+    "fsm_results/test2/attachments/test2_MED_FSM_iteration_98.svg",
+    "fsm_results/test2/attachments/state_evolution_iteration_97.svg",
+    "models/thermal_storage.md",
     "Validation signals list.md",
     "README.md",
     "models/solar_field.md",
     "models/MED.md",
     "models/heat_exchanger.md",
     "models/complete_system.md",
-    "models/thermal_storage.md",
     "models/three_way_valve.md",
     "validation/README.md",
     "old/Optimization.md",
@@ -215,6 +195,7 @@
     "validation/20230628/attachments/20230628_SolarMED_validation.html",
     "validation/20230628/attachments/20230628_solarMED_visualization.html",
     "validation/20230628/attachments",
+    "validation/20230628",
     "validation/20230511/20230511_solarMED_validation_report.md",
     "validation/20230630/20230630_solarMED_validation_report.md"
   ]

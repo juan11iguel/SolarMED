@@ -44,7 +44,7 @@ SolarMED_State = Enum('SolarMED_State', {
     for med_state in MedState
 })
 
-
+SupportedStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMED_State | SF_TS_State
 
 
 # TODO: Everything below this line should be moved to utils

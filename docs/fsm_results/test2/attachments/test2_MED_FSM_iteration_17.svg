@@ -39,7 +39,7 @@
 <!-- IDLE -->
 <g id="node3" class="node">
 <title>IDLE</title>
-<path fill="#e0eeee" stroke="blue" d="M1336.5,-291C1336.5,-291 1306.5,-291 1306.5,-291 1300.5,-291 1294.5,-285 1294.5,-279 1294.5,-279 1294.5,-267 1294.5,-267 1294.5,-261 1300.5,-255 1306.5,-255 1306.5,-255 1336.5,-255 1336.5,-255 1342.5,-255 1348.5,-261 1348.5,-267 1348.5,-267 1348.5,-279 1348.5,-279 1348.5,-285 1342.5,-291 1336.5,-291"/>
+<path fill="white" stroke="black" d="M1336.5,-291C1336.5,-291 1306.5,-291 1306.5,-291 1300.5,-291 1294.5,-285 1294.5,-279 1294.5,-279 1294.5,-267 1294.5,-267 1294.5,-261 1300.5,-255 1306.5,-255 1306.5,-255 1336.5,-255 1336.5,-255 1342.5,-255 1348.5,-261 1348.5,-267 1348.5,-267 1348.5,-279 1348.5,-279 1348.5,-285 1342.5,-291 1336.5,-291"/>
 <text text-anchor="start" x="1302.5" y="-268.32" font-family="Times,serif" font-size="14.00">IDLE</text>
 </g>
 <!-- GENERATING_VACUUM&#45;&gt;IDLE -->
@@ -59,33 +59,33 @@
 <!-- STARTING_UP -->
 <g id="node4" class="node">
 <title>STARTING_UP</title>
-<path fill="darksalmon" stroke="red" d="M1928.62,-500.88C1928.62,-500.88 1760.38,-500.88 1760.38,-500.88 1754.38,-500.88 1748.38,-494.88 1748.38,-488.88 1748.38,-488.88 1748.38,-453.12 1748.38,-453.12 1748.38,-447.12 1754.38,-441.12 1760.38,-441.12 1760.38,-441.12 1928.62,-441.12 1928.62,-441.12 1934.62,-441.12 1940.62,-447.12 1940.62,-453.12 1940.62,-453.12 1940.62,-488.88 1940.62,-488.88 1940.62,-494.88 1934.62,-500.88 1928.62,-500.88"/>
-<path fill="none" stroke="red" d="M1932.62,-504.88C1932.62,-504.88 1756.38,-504.88 1756.38,-504.88 1750.38,-504.88 1744.38,-498.88 1744.38,-492.88 1744.38,-492.88 1744.38,-449.12 1744.38,-449.12 1744.38,-443.12 1750.38,-437.12 1756.38,-437.12 1756.38,-437.12 1932.62,-437.12 1932.62,-437.12 1938.62,-437.12 1944.62,-443.12 1944.62,-449.12 1944.62,-449.12 1944.62,-492.88 1944.62,-492.88 1944.62,-498.88 1938.62,-504.88 1932.62,-504.88"/>
-<text text-anchor="start" x="1756.38" y="-483.57" font-family="Times,serif" font-size="14.00">STARTING_UP</text>
-<text text-anchor="start" x="1756.38" y="-466.32" font-family="Times,serif" font-size="14.00">&#45; enter:</text>
-<text text-anchor="start" x="1756.38" y="-449.07" font-family="Times,serif" font-size="14.00"> &#160;+ set_brine_non_empty</text>
+<path fill="#e0eeee" stroke="blue" d="M1924.62,-490.88C1924.62,-490.88 1756.38,-490.88 1756.38,-490.88 1750.38,-490.88 1744.38,-484.88 1744.38,-478.88 1744.38,-478.88 1744.38,-443.12 1744.38,-443.12 1744.38,-437.12 1750.38,-431.12 1756.38,-431.12 1756.38,-431.12 1924.62,-431.12 1924.62,-431.12 1930.62,-431.12 1936.62,-437.12 1936.62,-443.12 1936.62,-443.12 1936.62,-478.88 1936.62,-478.88 1936.62,-484.88 1930.62,-490.88 1924.62,-490.88"/>
+<text text-anchor="start" x="1752.38" y="-473.57" font-family="Times,serif" font-size="14.00">STARTING_UP</text>
+<text text-anchor="start" x="1752.38" y="-456.32" font-family="Times,serif" font-size="14.00">&#45; enter:</text>
+<text text-anchor="start" x="1752.38" y="-439.07" font-family="Times,serif" font-size="14.00"> &#160;+ set_brine_non_empty</text>
 </g>
 <!-- IDLE&#45;&gt;STARTING_UP -->
 <g id="edge5" class="edge">
 <title>IDLE&#45;&gt;STARTING_UP</title>
-<path fill="none" stroke="blue" d="M1348.69,-282.95C1419.94,-310.03 1620.14,-386.11 1742.95,-432.79"/>
-<polygon fill="blue" stroke="blue" points="1741.53,-436.37 1752.12,-436.65 1744.02,-429.83 1741.53,-436.37"/>
-<text text-anchor="middle" x="1546.5" y="-426.95" font-family="Times,serif" font-size="14.00">start_startup [are_inputs_active]</text>
+<path fill="none" stroke="black" d="M1348.85,-282.58C1421.1,-308.85 1625.02,-383.01 1746.02,-427.01"/>
+<polygon fill="black" stroke="black" points="1744.43,-430.52 1755.03,-430.65 1746.82,-423.94 1744.43,-430.52"/>
+<text text-anchor="middle" x="1546.5" y="-418.95" font-family="Times,serif" font-size="14.00">start_startup [are_inputs_active]</text>
 </g>
 <!-- ACTIVE -->
 <g id="node5" class="node">
 <title>ACTIVE</title>
-<path fill="white" stroke="black" d="M2477.25,-490.88C2477.25,-490.88 2363.75,-490.88 2363.75,-490.88 2357.75,-490.88 2351.75,-484.88 2351.75,-478.88 2351.75,-478.88 2351.75,-443.12 2351.75,-443.12 2351.75,-437.12 2357.75,-431.12 2363.75,-431.12 2363.75,-431.12 2477.25,-431.12 2477.25,-431.12 2483.25,-431.12 2489.25,-437.12 2489.25,-443.12 2489.25,-443.12 2489.25,-478.88 2489.25,-478.88 2489.25,-484.88 2483.25,-490.88 2477.25,-490.88"/>
-<text text-anchor="start" x="2359.75" y="-473.57" font-family="Times,serif" font-size="14.00">ACTIVE</text>
-<text text-anchor="start" x="2359.75" y="-456.32" font-family="Times,serif" font-size="14.00">&#45; exit:</text>
-<text text-anchor="start" x="2359.75" y="-439.07" font-family="Times,serif" font-size="14.00"> &#160;+ reset_startup</text>
+<path fill="darksalmon" stroke="red" d="M2473.25,-500.88C2473.25,-500.88 2359.75,-500.88 2359.75,-500.88 2353.75,-500.88 2347.75,-494.88 2347.75,-488.88 2347.75,-488.88 2347.75,-453.12 2347.75,-453.12 2347.75,-447.12 2353.75,-441.12 2359.75,-441.12 2359.75,-441.12 2473.25,-441.12 2473.25,-441.12 2479.25,-441.12 2485.25,-447.12 2485.25,-453.12 2485.25,-453.12 2485.25,-488.88 2485.25,-488.88 2485.25,-494.88 2479.25,-500.88 2473.25,-500.88"/>
+<path fill="none" stroke="red" d="M2477.25,-504.88C2477.25,-504.88 2355.75,-504.88 2355.75,-504.88 2349.75,-504.88 2343.75,-498.88 2343.75,-492.88 2343.75,-492.88 2343.75,-449.12 2343.75,-449.12 2343.75,-443.12 2349.75,-437.12 2355.75,-437.12 2355.75,-437.12 2477.25,-437.12 2477.25,-437.12 2483.25,-437.12 2489.25,-443.12 2489.25,-449.12 2489.25,-449.12 2489.25,-492.88 2489.25,-492.88 2489.25,-498.88 2483.25,-504.88 2477.25,-504.88"/>
+<text text-anchor="start" x="2355.75" y="-483.57" font-family="Times,serif" font-size="14.00">ACTIVE</text>
+<text text-anchor="start" x="2355.75" y="-466.32" font-family="Times,serif" font-size="14.00">&#45; exit:</text>
+<text text-anchor="start" x="2355.75" y="-449.07" font-family="Times,serif" font-size="14.00"> &#160;+ reset_startup</text>
 </g>
 <!-- STARTING_UP&#45;&gt;ACTIVE -->
 <g id="edge6" class="edge">
 <title>STARTING_UP&#45;&gt;ACTIVE</title>
-<path fill="none" stroke="black" d="M1944.83,-469.27C2057.05,-467.31 2237.46,-464.17 2340.52,-462.38"/>
-<polygon fill="black" stroke="black" points="2340.54,-465.86 2350.47,-462.19 2340.41,-458.86 2340.54,-465.86"/>
-<text text-anchor="middle" x="2148.5" y="-471.95" font-family="Times,serif" font-size="14.00">finish_startup [are_inputs_active &amp; is_startup_done]</text>
+<path fill="none" stroke="blue" d="M1936.93,-462.66C2047.46,-464.59 2227.76,-467.73 2332.65,-469.56"/>
+<polygon fill="blue" stroke="blue" points="2332.43,-473.07 2342.49,-469.75 2332.56,-466.07 2332.43,-473.07"/>
+<text text-anchor="middle" x="2140.5" y="-472.95" font-family="Times,serif" font-size="14.00">finish_startup [are_inputs_active &amp; is_startup_done]</text>
 </g>
 <!-- SHUTTING_DOWN -->
 <g id="node6" class="node">
@@ -98,14 +98,14 @@
 <!-- ACTIVE&#45;&gt;SHUTTING_DOWN -->
 <g id="edge7" class="edge">
 <title>ACTIVE&#45;&gt;SHUTTING_DOWN</title>
-<path fill="none" stroke="black" d="M2468.48,-430.82C2549.9,-378.52 2716.86,-271.27 2804.29,-215.11"/>
-<polygon fill="black" stroke="black" points="2806,-217.52 2812.53,-209.17 2802.22,-211.63 2806,-217.52"/>
-<text text-anchor="middle" x="2635.5" y="-403.95" font-family="Times,serif" font-size="14.00">start_shutdown [!are_inputs_active]</text>
+<path fill="none" stroke="black" d="M2469.62,-436.65C2553.92,-381.08 2719.41,-272 2805.51,-215.25"/>
+<polygon fill="black" stroke="black" points="2807.17,-217.68 2813.6,-209.26 2803.32,-211.84 2807.17,-217.68"/>
+<text text-anchor="middle" x="2635.5" y="-410.95" font-family="Times,serif" font-size="14.00">start_shutdown [!are_inputs_active]</text>
 </g>
 <!-- SHUTTING_DOWN&#45;&gt;OFF -->
 <g id="edge8" class="edge">
 <title>SHUTTING_DOWN&#45;&gt;OFF</title>
-<path fill="none" stroke="black" d="M2818,-148.64C2742.21,-97.57 2577.06,0 2421.5,0 634.5,0 634.5,0 634.5,0 411,0 186.07,-176.08 96.71,-254.77"/>
+<path fill="none" stroke="black" d="M2817.57,-148.64C2741.02,-97.57 2574.28,0 2417.5,0 634.5,0 634.5,0 634.5,0 411,0 186.07,-176.08 96.71,-254.77"/>
 <polygon fill="black" stroke="black" points="94.89,-251.59 89.74,-260.85 99.54,-256.83 94.89,-251.59"/>
 <text text-anchor="middle" x="1546.5" y="-3.95" font-family="Times,serif" font-size="14.00">finish_shutdown [is_off_vacuum &amp; is_brine_empty]</text>
 </g>
@@ -114,7 +114,7 @@
 <title>SHUTTING_DOWN&#45;&gt;IDLE</title>
 <path fill="none" stroke="black" d="M2781.41,-183.83C2500.74,-200.99 1558.61,-258.57 1359.61,-270.73"/>
 <polygon fill="black" stroke="black" points="1359.64,-267.28 1349.87,-271.39 1360.07,-274.27 1359.64,-267.28"/>
-<text text-anchor="middle" x="2148.5" y="-236.95" font-family="Times,serif" font-size="14.00">finish_suspend [is_low_vacuum &amp; is_brine_empty]</text>
+<text text-anchor="middle" x="2140.5" y="-236.95" font-family="Times,serif" font-size="14.00">finish_suspend [is_low_vacuum &amp; is_brine_empty]</text>
 </g>
 </g>
 </svg>
