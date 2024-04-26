@@ -1,10 +1,17 @@
 name: Docker Image CI
 
 on:
+  # When pushing a new tag to specific branches
   push:
-    branches: [ "main", "fsms", "dev" ]
     tags:
       - v**
+    branches:
+      - main
+      - fsms
+      - dev
+
+  # Run manually
+  workflow_dispatch:
 
 jobs:
 
@@ -18,4 +25,6 @@ jobs:
       run: docker build . --file Dockerfile --tag ${{ vars.IMAGE_NAME }}:$(date +%s)
 
     - name: Create tags
-      run: ${{ github.repository }}:${{ github.ref }}
+      run: |
+        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}-$(date +%s)
+        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }}

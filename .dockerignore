@@ -1,0 +1,10 @@
+venv*
+old*
+.github*
+.idea*
+auxiliar*
+data*
+docs*
+issues*
+MED_model_installers*
+models_psa.egg-info*

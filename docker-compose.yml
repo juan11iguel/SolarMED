@@ -1,0 +1,11 @@
+# Compose to deploy a container that includes the code and environment to evaluate the different models and model calibrations
+# of the solarMED-modeling repository
+
+version: '3.8'
+
+services:
+  solarmed-modeling:
+    image: git
+    container_name: solarmed-modeling
+    volumes:
+      - ./solarMED-modeling:/solarMED-modeling
