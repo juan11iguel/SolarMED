@@ -26,5 +26,10 @@ jobs:
 
     - name: Create tags
       run: |
-        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}-$(date +%s)
-        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }}
+        docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}
+        
+      # docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}
+      # docker tag ${{ vars.IMAGE_NAME }}:${{ github.ref }}-${{ github.sha }} ${{ vars.IMAGE_NAME }}:${{ github.ref }}-latest
+
+      # To add the date to the tag: -$(date +%s)
+      

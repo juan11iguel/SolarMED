@@ -99,6 +99,19 @@ pip install /path/to/matlab/package/directory
 python samples/MED_modelSample1.py
 ```
 
+## Docker
+
+A Dockerfile is provided to run the models in a container. The container is based on the `python:3.11` image and installs the necessary dependencies to run the models. A prebuilt image is available in this repository with a different tag for the different branches. To run the container, use the provided `docker-compose.yml` file with the command:
+
+```bash
+docker-compose up
+```
+
+Copy the URL provided in the terminal to access the Jupyter notebook server. Remeber to replace the port with the one defined in the compose file:
+
+![alt text](docs/attachments/jupyter.png)
+
+
 ## Pending tasks
 
 - [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility

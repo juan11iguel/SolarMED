@@ -6,11 +6,12 @@ FROM python:3.11
 LABEL authors="jmserrano"
 
 # Install project dependencies
-COPY requirements.txt /app 
+
 WORKDIR /app 
+COPY requirements.txt /app 
 RUN pip install -r requirements.txt
 
 # Copy the project code into the container
 COPY . /app
 
-ENTRYPOINT ["tail", "-f", "/dev/null"]
+# ENTRYPOINT ["tail", "-f", "/dev/null"]
