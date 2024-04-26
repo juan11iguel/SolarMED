@@ -5,7 +5,9 @@ version: '3.8'
 
 services:
   solarmed-modeling:
-    image: test_solarmed_modeling:1714150251
+    image: ghcr.io/juan11iguel/solarmed-modeling/main-latest:latest
+    # image: ghcr.io/juan11iguel/solarmed-modeling/dev-latest:latest
+
     container_name: solarmed-modeling
     # command: ["tail", "-f", "/dev/null"] # If you want to keep the container running and access it
     
