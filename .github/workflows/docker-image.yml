@@ -7,8 +7,6 @@ on:
       - v**
     branches:
       - main
-      - fsms
-      - dev
 
   # Run manually
   workflow_dispatch:

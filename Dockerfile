@@ -10,6 +10,7 @@ LABEL authors="jmserrano"
 WORKDIR /app 
 COPY requirements.txt /app 
 RUN pip install -r requirements.txt
+RUN pip install . # To install the models package in the container
 
 # Copy the project code into the container
 COPY . /app
