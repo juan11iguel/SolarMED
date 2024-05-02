@@ -30,23 +30,22 @@
                 "source": false
               }
             }
-          }
-        ],
-        "currentTab": 1
-      },
-      {
-        "id": "87379a830128aadb",
-        "type": "tabs",
-        "children": [
+          },
           {
-            "id": "271f1d498f8af097",
+            "id": "c4bb8e70abee4f2c",
             "type": "leaf",
             "state": {
-              "type": "reveal-preview-view",
-              "state": {}
+              "type": "markdown",
+              "state": {
+                "file": "Resolution strategy.md",
+                "mode": "source",
+                "backlinks": true,
+                "source": false
+              }
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -112,7 +111,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "results/episode_reports/test2/report.md",
+                "file": "Resolution strategy.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -129,7 +128,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "results/episode_reports/test2/report.md",
+                "file": "Resolution strategy.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -152,7 +151,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "results/episode_reports/test2/report.md"
+                "file": "Resolution strategy.md"
               }
             }
           }
@@ -174,8 +173,19 @@
       "obsidian-advanced-slides:Show Slide Preview": false
     }
   },
-  "active": "1ed7acd2fd133118",
+  "active": "c4bb8e70abee4f2c",
   "lastOpenFiles": [
+    "attachments/solarMED_binary_tree.png",
+    "attachments/img.png",
+    "attachments/sf_ts_binary_tree.png",
+    "attachments/newplot 1.png",
+    "attachments/newplot.png",
+    "attachments/solarMED_optimization-Decision tree.svg",
+    "attachments",
+    "results/episode_reports/test2/attachments/solarMED_optimization-Decision tree.svg",
+    "results/episode_reports/test2/Untitled.md",
+    "Resolution strategy.md",
+    "results/episode_reports/test2/report.md",
     "results/episode_reports/test2/index.html",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Zero.woff",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Vector-Regular.woff",
@@ -185,18 +195,10 @@
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size3-Regular.woff",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size2-Regular.woff",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size1-Regular.woff",
-    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Script-Regular.woff",
-    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_SansSerif-Regular.woff",
     "results/episode_reports/test2/plugin/chalkboard/img/whiteboard.png",
     "results/episode_reports/test2/plugin/chalkboard/img/sponge.png",
     "results/episode_reports/test2/plugin/chalkboard/img/chalk-yellow.png",
     "results/episode_reports/test2/plugin/chalkboard/img/chalk-white.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/chalk-red.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/chalk-purple.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/chalk-orange.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/chalk-green.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/chalk-blue.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/boardmarker-yellow.png",
     "results/episode_reports/test2/plugin/menu/README.md",
     "results/episode_reports/test2/plugin/menu/CONTRIBUTING.md",
     "results/episode_reports/test2/plugin/customcontrols/README.md",
@@ -207,7 +209,6 @@
     "results/episode_reports/test2/report/plugin/chart/README.md",
     "results/episode_reports/test2/report/plugin/customcontrols/README.md",
     "results/episode_reports/test2/report/plugin/chalkboard/README.md",
-    "results/episode_reports/test2/report.md",
     "Welcome.md",
     "results/diagrams/operating_modes/Untitled.md",
     "results/episode_reports/test/report.md",

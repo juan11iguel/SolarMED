@@ -1,193 +1,306 @@
-import plotly.graph_objs as go
-import pandas as pd
+from typing import Literal
 from enum import Enum
-import plotly
+import numpy as np
+import pandas as pd
+import copy
 
-from solarMED_optimization import MedState, SF_TS_State
+import plotly.graph_objs as go
 
-# plotly.colors.qualitative
+from solarMED_modeling import SupportedStatesType, MedState, SF_TS_State, SolarMED_State, SolarMedState_with_value, SfTsState_with_value
 
-colors = {
-    "gray": "#E2E2E2",
-    "yellow": "#EECA3B",
-    "purple": "#A349A4",
-    "green": "#7DBE3C",
-    "white": "#FFFFFF",
-    "transparent": "rgba(0,0,0,0)"
 
+node_colors = {
+    str(MedState.__name__): "#c061cb", # Cuidado de no quitar el str() porque sino no se modifica la propia clase
+    str(SF_TS_State.__name__): "#ff7800",
+    str(SolarMED_State.__name__): '#6959CD'
 }
 
+# def make_annotations(pos, text, font_size=10, font_color='rgb(250,250,250)'):
+#     L=len(pos)
+#     if len(text)!=L:
+#         raise ValueError('The lists pos and text must have the same len')
+#     annotations = []
+#     for k in range(L):
+#         annotations.append(
+#             dict(
+#                 text=labels[k], # or replace labels with a different list for the text within the circle
+#                 x=pos[k][0], y=2*M-position[k][1],
+#                 xref='x1', yref='y1',
+#                 font=dict(color=font_color, size=font_size),
+#                 showarrow=False)
+#         )
+#     return annotations
 
-def state_evolution_plot(df, iteration: int = None):
+# all_paths: list[list[SupportedStatesType]]
 
-    # Encode states to integers
+def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Literal['MED', 'SFTS', 'SolarMED'], Np: int,
+                     edges_df: pd.DataFrame = None, width=1400, height=500, title: str = None, results_df: pd.DataFrame = None) -> go.FigureWidget:
 
-    if 'state_sf_ts' not in df.columns:
-        raise ValueError("Column 'state_sf_ts' not found in the DataFrame")
-    if 'state_med' not in df.columns:
-        raise ValueError("Column 'state_med' not found in the DataFrame")
+    """
 
-    if not isinstance(df["state_sf_ts"][0], SF_TS_State):
-        raise ValueError("The column 'state_sf_ts' must be of type SF_TS_State")
+    :param all_paths:
+    :param nodes_df:
+    :param edges_df:
+    :return:
+    """
 
-    if not isinstance(df["state_med"][0], MedState):
-        raise ValueError("The column 'state_med' must be of type MedState")
 
-    # sf_active = False and (ts_active = False or ts_active=True) -> 1
-    # sf_active = True and ts_active = False -> 6
-    # sf_active = True and ts_active = True -> 11
+    if system == 'MED' and isinstance(nodes_df, pd.DataFrame):
+        state_cls = MedState
+        state_cls_with_value = state_cls
+    elif system == 'SFTS' and isinstance(nodes_df, pd.DataFrame):
+        state_cls = SF_TS_State
+        state_cls_with_value = SfTsState_with_value
+    elif system == 'SolarMED':
+        state_cls = SolarMED_State
+        state_cls_with_value = SolarMedState_with_value
+    else:
+        raise ValueError(f"System {system} and nodes_df {type(nodes_df)} not supported")
 
-    df["sf_ts_value"] = (1.5 *  (df["state_sf_ts"] == SF_TS_State.IDLE) +
-                         1.5 *  (df["state_sf_ts"] == SF_TS_State.RECIRCULATING_TS) +
-                         6.5 *  (df["state_sf_ts"] == SF_TS_State.HEATING_UP_SF) +
-                         11.5 * (df["state_sf_ts"] == SF_TS_State.SF_HEATING_TS))
+    if title is None:
+        title = f"Directed graph of the operating modes evolution in the {state_cls.__name__} system"
 
-    # Assign the following labels to the states:
-    # 1 -> "S̲F̲ T̲S̲"
-    # 6 -> "S̅F̅ T̲S̲"
-    # 11 -> "S̅F̅ T̅S̅"
+    # Work with lists of nodes_df
+    if not isinstance(nodes_df, list):
+        nodes_df = [nodes_df]
 
-    df["sf_ts_label"] = df["sf_ts_value"].map({1.5: "S̲F̲ T̲S̲", 6.5: "S̅F̅ T̲S̲", 11.5: "S̅F̅ T̅S̅"})
-    df["sf_ts_bg"] = df["sf_ts_value"].map({1.5: colors["gray"], 6.5: colors["white"], 11.5: colors["yellow"]})
-    df["sf_ts_border"] = df["sf_ts_value"].map(
-        {1.5: colors["transparent"], 6.5: colors["yellow"], 11.5: colors["yellow"]}
-    )
+    # Build vectors in the format wanted by plotly ([xsrc_0, xdst_0, None, xsrc_1, xdst_1, None, ...] and [ysrc_0, ydst_0, None, ysrc_1, ydst_1, None, ...])
+    # Xe = []
+    Xe_solid = []
+    Xe_dash = []
 
-    # state_med = INACTIVE -> 3
-    # state_med = STARTING -> 8
-    # state_med = ACTIVE -> 13
-    # state_med = STOPPING -> 8
+    # Ye = []
+    Ye_solid = []
+    Ye_dash = []
 
-    df["state_med_value"] = (2.5 *  (df["state_med"] == MedState.OFF) +
-                             7.5 *  (df["state_med"] == MedState.GENERATING_VACUUM) +
-                             7.5 *  (df["state_med"] == MedState.IDLE) +
-                             7.5 *  (df["state_med"] == MedState.STARTING_UP) +
-                             7.5 *  (df["state_med"] == MedState.SHUTTING_DOWN) +
-                             12.5 * (df["state_med"] == MedState.ACTIVE))
+    if edges_df is not None:
+        for idx, row in edges_df.iterrows():
+            # Xe += [row['x_pos_src'], row['x_pos_dst'], None]
+            # Ye += [row['y_pos_src'], row['y_pos_dst'], None]
 
-    # Assign the following labels to the states:
-    # 3 -> "M̲E̲D̲"
-    # 8 -> "M̲E̲D̲"
-    # 13 -> "M̅E̅D̅"
+            Xe_solid += [row['x_pos_src'], row['x_pos_dst'], None] if row['line_type'] == 'solid' else []
+            Ye_solid += [row['y_pos_src'], row['y_pos_dst'], None] if row['line_type'] == 'solid' else []
 
-    df["state_med_label"] = df["state_med_value"].map({2.5: "M̲E̲D̲", 7.5: "M̲E̲D̲", 12.5: "M̅E̅D̅"})
-    df["state_med_bg"] = df["state_med_value"].map({2.5: colors["gray"], 7.5: colors["white"], 12.5: colors["green"]})
-    df["state_med_border"] = df["state_med_value"].map(
-        {2.5: colors["transparent"], 7.5: colors["green"], 12.5: colors["green"]}
-    )
+            Xe_dash += [row['x_pos_src'], row['x_pos_dst'], None] if row['line_type'] == 'dash' else []
+            Ye_dash += [row['y_pos_src'], row['y_pos_dst'], None] if row['line_type'] == 'dash' else []
 
-    # Create a figure
-    fig = go.Figure()
 
-    # Add traces
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["sf_ts_value"],
-        mode="lines+markers",
-        name="SF+TS state",
-        line=dict(color=colors["yellow"], width=0.5),
-        text=df["sf_ts_label"],
-        textposition="middle center",
-        # marker=dict(
-        #     size=15,
-        #     color="red",
-        #     symbol="circle",
-        #     line=dict(
-        #         width=10,
-        #         color='DarkSlateGrey'
-        #     )
-        # )
-    ))
+    fig = go.FigureWidget()
 
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["state_med_value"],
-        mode="lines",
-        name="state_med_value",
-        line=dict(color=colors["purple"], width=0.5),
-    ))
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=Xe,
+    #         y=Ye,
+    #         mode='lines',
+    #         line= dict(color='rgb(210,210,210)', width=1, dash=edges_df['line_type'].values.tolist()),
+    #         hoverinfo='none'
+    #     )
+    # )
 
-    # Update layout
-    annotations = []
+    system_types = []
+    system_types_with_value = []
+    ticktext = []
+    tickvals = []
+    last_val = 0
+    Xr = []
+    Yr = []
+    for system_idx, n_df in enumerate(nodes_df):
 
-    for i, row in df.iterrows():
-        annotations.append(dict(
-            x=row.name,
-            y=row['sf_ts_value'],
-            text=row['sf_ts_label'],
-            showarrow=False,
-            bordercolor=row['sf_ts_border'],
-            borderwidth=3,
-            bgcolor=row['sf_ts_bg'],
-            # Bold text
-            # font=dict(weight="bold")
-        ))
-        annotations.append(dict(
-            x=row.name,
-            y=row['state_med_value'],
-            text=row['state_med_label'],
-            showarrow=False,
-            bordercolor=row['state_med_border'],
-            borderwidth=3,
-            bgcolor=row['state_med_bg'],
-        ))
+        if type(n_df['state'][0]) == SolarMED_State:
+            system_types.append(SolarMED_State)
+            system_types_with_value.append(SolarMedState_with_value)
+        elif type(n_df['state'][0]) == MedState:
+            system_types.append(MedState)
+            system_types_with_value.append(MedState)
+        elif type(n_df['state'][0]) == SF_TS_State:
+            system_types.append(SF_TS_State)
+            system_types_with_value.append(SfTsState_with_value)
+        else:
+            raise ValueError(f"State {n_df['state'][0]} not supported")
 
-    # Add a vertical bar in iteration if provided
-    if iteration:
-        fig.add_shape(
-            dict(
-                type="rect", # other options are "rect", "circle", "line"
-                x0=iteration-0.5,
-                x1=iteration+0.5,
-                y0=0,
-                y1=15,
-                # line=dict(
-                #     color="orange",
-                #     width=1,
-                #     dash="dashdot"
-                # )
-                fillcolor="rgba(182, 182, 182,0.1)",
+
+        if results_df is not None:
+            """
+                Generate a path of coordinates for each subsystem given it's state
+            """
+            Xr.append([])
+            Yr.append([])
+
+            # Not generic, should be improved
+            state_col = 'med_state' if system_types[-1] == MedState else 'sf_ts_state'
+
+            for idx in range(len(results_df)-1):
+                x_aux, y_aux = get_coordinates_edge(src_node_id=f"step{idx:03}_{results_df.iloc[idx][state_col].value}", # med_state, sfts_state, etc, cómo saber cuál es el adecuado?
+                                                    dst_node_id=f"step{idx+1:03}_{results_df.iloc[idx+1][state_col].value}",
+                                                    nodes_df=n_df, y_shift=last_val)
+                Xr[system_idx] += x_aux
+                Yr[system_idx] += y_aux
+
+        fig.add_trace(
+            go.Scatter(
+                x=n_df['x_pos'].values,
+                y=n_df['y_pos'].values + last_val,
+                mode='markers',
+                name='states',
+                marker=dict(symbol='circle-dot', size=20, color=node_colors[system_types[-1].__name__]),
+                line=dict(color='rgb(50,50,50)', width=0.5),
+                text=n_df['state_name'].values,
+                hoverinfo='text'
             )
         )
 
+        # for system_ in system_types_with_value:
+        ticktext += [state.name for state in system_types_with_value[-1]]
+        tickvals += [state.value + last_val for state in system_types_with_value[-1]]
+
+        last_val += len(system_types_with_value[-1])
+        # last_val += len([state for state in system_types[-1]])
+
+
+    # Create separate traces for solid and dashed lines
+    fig.add_trace(
+        go.Scatter(
+            x=Xe_solid,
+            y=Ye_solid,
+            mode='lines+markers',
+            line=dict(color='rgb(210,210,210)', width=1, dash='solid'),
+            marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
+            text=edges_df['transition_id'].values if edges_df is not None else None,
+            hoverinfo='text',
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=Xe_dash,
+            y=Ye_dash,
+            mode='lines+markers',
+            line=dict(color='rgb(210,210,210)', width=1, dash='dash'),
+            marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
+            hoverinfo='none'
+        )
+    )
+
+    # Empty scatter to be used for highlighting arriving edges. Also re-using to represent results paths, if there are more than
+    # two subsystems this won't work, it should done apart in a loop
+    fig.add_trace(
+        go.Scatter(
+            x=Xr[0] if len(Xr) > 0 else None, y=Yr[0] if len(Yr) > 0 else None,
+            hoverinfo='none',
+            mode='lines+markers',
+            line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
+                                            width=3, dash='solid'),
+            marker=dict(symbol='arrow', size=10, color='#06C892', angleref="previous"),
+        )
+    )
+    # Empty scatter to be used for highlighting departing edges
+    fig.add_trace(
+        go.Scatter(
+            x=Xr[-1] if len(Xr) > 1 else None, y=Yr[-1] if len(Yr) > 1 else None,
+            hoverinfo='none',
+            mode='lines+markers',
+            line=dict(color='#AD72F3' if len(system_types) == 1 else node_colors[system_types[1].__name__],
+                                            width=3, dash='solid'),
+            marker=dict(symbol='arrow', size=10, color='#AD72F3', angleref="previous"),
+        )
+    )
+
+    axis_conf = dict(
+        showline=False,  # hide axis line, grid, ticklabels and  title
+        zeroline=False,
+        showgrid=False,
+        title=''
+    )
+
+    # if not isinstance(nodes_df, list):
+    #     ticktext = [state.name for state in state_cls]
+    #     tickvals = [state.value for state in state_cls_with_value]
+    # else:
+
+    fig.update_yaxes(
+        ticktext=ticktext,
+        tickvals=tickvals,
+    )
+
+    fig.update_xaxes(
+        tickvals=np.arange(Np, step=1),
+    )
+
     fig.update_layout(
-        annotations=annotations,
-        title="<b>State Machine evolution<b>" if iteration is None else f"<b>State Machine evolution</b> - Iteration {iteration}<br>{df['state_title'][iteration]}</br>",
-        xaxis_title="Time",
-        yaxis_title="State",
-        legend_title="Legend",
+        title=title,# + \
+              # f"<br> Average number of alternative paths per state {options_avg}</br>",
+        # "<br> Data source: <a href='https://networkdata.ics.uci.edu/data.php?id=11'> [1]</a>",
+        font=dict(size=12),
         showlegend=False,
-        # Add some margin to the right
-        margin=dict(r=10, t=70, b=10, l=10),
-        # plot_bgcolor="rgba(182, 182, 182,0.1)",
-        # plot_bgcolor="rgba(182, 182, 182,0.15)",
-        yaxis=dict(
-            showline=True,
+        autosize=False,
+        width=width,
+        height=height,
+        xaxis=dict(
+            zeroline=False,
+            showline=False,
             showgrid=False,
             showticklabels=True,
-            tickvals=[2, 7, 12],
-            tickcolor=colors["gray"],
-            ticktext=["Idle", "Transition", "Active"],
-            # minor_ticks="inside"
-            griddash='dash',
-            minor=dict(
-                tickvals=[5, 9],
-                showgrid=True,
-                gridwidth=10,
-                griddash='solid',
-            ),
-            # Remove zero line
-            zeroline=False,
+            title='Time steps'
         ),
-        xaxis=dict(zeroline=False),
+        yaxis=axis_conf,
+        margin=dict(
+            l=40,
+            r=40,
+            b=85,
+            t=100,
+        ),
+        hovermode='closest',
+        # annotations=[
+        #    dict(
+        #        showarrow=False,
+        #         text='This igraph.Graph has the Kamada-Kawai layout',
+        #         xref='paper', yref='paper',
+        #         x=0, y=-0.1,
+        #         xanchor='left', yanchor='bottom',
+        #         font=dict(size=14)
+        #     )
+        # ]
     )
 
     return fig
 
 
-def costs_plot():
-    pass
+# nodes_scatter.on_click(highlight_node_paths)
+
+def get_coordinates(node_id: str, edges_df: pd.DataFrame, type: Literal['src', 'dst']) -> tuple[list[float], list[float]]:
+
+    node_type = "dst" if type == "dst" else "src"
+
+    edges = edges_df[edges_df[f'{node_type}_node_name'] == node_id]
+
+    x_src_aux = edges['x_pos_src'].values
+    x_dst_aux = edges['x_pos_dst'].values
+    y_src_aux = edges['y_pos_src'].values
+    y_dst_aux = edges['y_pos_dst'].values
+
+    x = []
+    y = []
+    for xsrc, xdst, ysrc, ydst in zip(x_src_aux, x_dst_aux, y_src_aux, y_dst_aux):
+        x += [xsrc, xdst, None]
+        y += [ysrc, ydst, None]
+
+    return x, y
 
 
-def med_relative_cons_plot():
-    pass
+def get_coordinates_edge(src_node_id: str, dst_node_id: str, nodes_df: pd.DataFrame, y_shift=0) -> tuple[list[float], list[float]]:
+
+    src_node = nodes_df[nodes_df['node_id'] == src_node_id]
+    dst_node = nodes_df[nodes_df['node_id'] == dst_node_id]
+
+    if len(src_node) > 1 or len(dst_node) > 1:
+        raise RuntimeError(f"Multiple nodes with the same name {src_node_id} / {dst_node_id} found")
+    elif len(src_node) == 0 or len(dst_node) == 0:
+        raise RuntimeError(f"No nodes with the name {src_node_id} / {dst_node_id} found")
+
+    return (
+        [src_node['x_pos'].values[0], dst_node['x_pos'].values[0], None],
+        [src_node['y_pos'].values[0] + y_shift, dst_node['y_pos'].values[0]  + y_shift, None]
+    )
+
+
+
