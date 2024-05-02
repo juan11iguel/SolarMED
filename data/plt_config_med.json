@@ -65,9 +65,8 @@
         "med_temperatures": {
             "row_height": 1,
             "bg_color": "bg_gray",
-            "ylabels_left": [
-                "\u2070C"
-            ],
+
+            "ylabels_left": ["\u2070C"],
             "ylims_left": "manual",
             "traces_left": [
                 {
@@ -92,7 +91,11 @@
                     "color": "c_blue",
                     "dash": "dash"
                 }
-            ]
+            ],
+
+            "ylabels_right": ["mbar"],
+            "ylims_right": "manual",
+            "traces_right": [ {"var_id": "Pmed_c"}, {"var_id": "Pmed_14"} ]
         }
     }
 }

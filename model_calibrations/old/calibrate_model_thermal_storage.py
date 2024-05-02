@@ -48,7 +48,7 @@ formatter.offset_formats = ['',
     
 
 #%% Import data
-os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/models_psa"))
+os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/solarMED_modeling"))
 
 date_parser = lambda x: pd.to_datetime(x, format='%d-%b-%Y %H:%M:%S')
 # data = pd.read_csv('datos/datos_tanques.csv', parse_dates=['TimeStamp'], date_format='%d-%b-%Y %H:%M:%S')

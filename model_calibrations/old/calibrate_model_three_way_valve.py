@@ -55,7 +55,7 @@ formatter.offset_formats = ['',
 
 
 #%% Import data
-# os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/models_psa"))
+# os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/solarMED_modeling"))
 
 var_names = {v["signal_id"]: k for k, v in vars_info.items() if '3wv' in k or not '_' in k}
 

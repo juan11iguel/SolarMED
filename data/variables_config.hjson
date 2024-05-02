@@ -14,9 +14,11 @@
     # - flow_meter_EH_Proline_Promag_50P
 
     # Actuators with power consumption fit:
-    # 
+    # mmed_s, mmed_f, mmed_b, mmed_c, mmed_d
+    # Actuators without power consumption fit:
+    # msf, mts_src
 
-    # There are several variables that share the same signal, 
+    # NOTE: There are several variables that share the same signal,
     # for example, Tsf,out == Thx,p,out
 
     # Environment
@@ -209,6 +211,30 @@
         range: [0, 1.5], // kW
         description: "MED heat source and feed pumps power consumption",
     },
+
+    ## Additional variables
+    "Pmed_c": {
+        var_id: "Pmed_c",
+        signal_id: "PT-DES-015",
+        units_scada: "mbar",
+        units_model: "mbar",
+        instrument: "pressure_transmitter_WIKA_S10",
+        label_html: "P<sub>med,c</sub> (mbar)",
+        label_latex: "$P_{med,c}\\:(mbar)$",
+        range: [0, 600], // mbar, ?
+        description: "MED condenser pressure",
+    },
+    "Pmed_14": {
+        var_id: "Pmed_14",
+        signal_id: "PT-DES-014",
+        units_scada: "mbar",
+        units_model: "mbar",
+        instrument: "pressure_transmitter_WIKA_S10",
+        label_html: "P<sub>med,14</sub> (mbar)",
+        label_latex: "$P_{med,14}\\:(mbar)$",
+        range: [0, 600], // mbar, ?
+        description: "MED first effect pressure",
+    }
 
 
     # Solar field

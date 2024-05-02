@@ -3,7 +3,7 @@
 ![](docs/models/attachments/solarMED_optimization-general_diagram.svg)
 
 Repository with source code of a variety of models of a solar field - thermal storage and MED plant combined system located at Plataforma Solar de Almería.
-The model of the complete system, called `SolarMED` is contained in the [models_psa package](./models_psa).
+The model of the complete system, called `SolarMED` is contained in the [models_psa package](./solarMED_modeling).
 
 - Documentation and results of the modelling of the different components can be found in the [docs](./docs). For better visualization, using [Obsidian](https://obsidian.md) is recommended.
 - The model calibration for the different components is contained in [model_calibrations](./model_calibrations).
@@ -13,19 +13,19 @@ The model of the complete system, called `SolarMED` is contained in the [models_
 
 ## Package structure
 
-- [models_psa](./models_psa) is the package folder.
-- [models_psa.solar_med](models_psa/solar_med.py) is the main module containing the complete model class `SolarMED`.
-- [models_psa.solar_field](models_psa/solar_field.py) contains the solar field model code.
-- [models_psa.thermal_storage](models_psa/thermal_storage.py) contains the thermal storage model code.
-- [models_psa.med](models_psa/med.py) contains the MED model code (will do once updated, right now it's an external package from MATLAB)
-- [models_psa.heat_exchanger](models_psa/heat_exchanger.py) contains the heat exchanger model code.
-- [models_psa.three_way_valve](models_psa/three_way_valve.py) contains the three-way valve model code.
-- [models_psa.validation](models_psa/data_validation.py) contains validation utility functions (within_range_or_min_or_max, etc) and new types definitions (conHotTemperatureType, rangeType, etc)
-- [models_psa.power_consumption](models_psa/power_consumption.py) implements models to evaluate different actuators, mainly electricity consumption though maybe these will be refactored to extend the use of the `Actuator` class.
-- [models_psa.utils](models_psa/utils) contains different utility functions to process the experimental data.
-- [models_psa.metrics](models_psa/metrics) contains different metrics to evaluate the performance of the system (not yet implemented).
-- [models_psa.curve_fitting](models_psa/curve_fitting) contains curve fitting functions to calibrate simple fits e.g. fit electricity consumptions and so on.
-- [models_psa.calibration](models_psa/calibration) contains the code to perform model parameter calibrations.
+- [models_psa](./solarMED_modeling) is the package folder.
+- [models_psa.solar_med](solarMED_modeling/solar_med.py) is the main module containing the complete model class `SolarMED`.
+- [models_psa.solar_field](solarMED_modeling/solar_field.py) contains the solar field model code.
+- [models_psa.thermal_storage](solarMED_modeling/thermal_storage.py) contains the thermal storage model code.
+- [models_psa.med](solarMED_modeling/med.py) contains the MED model code (will do once updated, right now it's an external package from MATLAB)
+- [models_psa.heat_exchanger](solarMED_modeling/heat_exchanger.py) contains the heat exchanger model code.
+- [models_psa.three_way_valve](solarMED_modeling/three_way_valve.py) contains the three-way valve model code.
+- [models_psa.validation](solarMED_modeling/data_validation.py) contains validation utility functions (within_range_or_min_or_max, etc) and new types definitions (conHotTemperatureType, rangeType, etc)
+- [models_psa.power_consumption](solarMED_modeling/power_consumption.py) implements models to evaluate different actuators, mainly electricity consumption though maybe these will be refactored to extend the use of the `Actuator` class.
+- [models_psa.utils](solarMED_modeling/utils) contains different utility functions to process the experimental data.
+- [models_psa.metrics](solarMED_modeling/metrics) contains different metrics to evaluate the performance of the system (not yet implemented).
+- [models_psa.curve_fitting](solarMED_modeling/curve_fitting) contains curve fitting functions to calibrate simple fits e.g. fit electricity consumptions and so on.
+- [models_psa.calibration](solarMED_modeling/calibration) contains the code to perform model parameter calibrations.
 
 
 ## Examples

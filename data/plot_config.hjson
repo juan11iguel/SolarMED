@@ -662,7 +662,12 @@
         },
 
         // TODO: Add other relevant variables such as Tf
-      ]
+      ],
+
+      // Added pressure for reference during vacuum generation
+      "ylabels_right": ["mbar"],
+      "ylims_right": "manual",
+      "traces_right": [ {"var_id": "Pmed_c"}, {"var_id": "Pmed_14"} ]
     },
 
     // power_balance: {

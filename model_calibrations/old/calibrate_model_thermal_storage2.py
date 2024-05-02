@@ -62,7 +62,7 @@ Tin_labels_c = [ "Tts_c_t", "Tts_c_m", "Tts_c_b"]
 Tin_labels = Tin_labels_h + Tin_labels_c
 
 #%% Import data
-# os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/models_psa"))
+# os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/solarMED_modeling"))
 base_path = Path( f'{os.getenv("HOME")}/development_psa/models_psa/data')
 data_path = base_path / 'calibration/20230707_20230710_datos_tanques.csv'
 

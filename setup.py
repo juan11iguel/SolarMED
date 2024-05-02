@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='models_psa',
-    version='1.0',
+    name='solarMED_modeling',
+    version='2.0',
     packages=find_packages(),
     install_requires=[
         
@@ -12,5 +12,5 @@ setup(
     description="Repository with source code of a variety of models of a solar field - thermal storage and MED plant combined system at Plataforma Solar de Almería ",
     long_description="",
     long_description_content_type="text",
-    url="https://github.com/juan11iguel/models_psa",
+    url="https://github.com/juan11iguel/solarMED-modeling",
 )
