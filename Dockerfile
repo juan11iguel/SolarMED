@@ -3,12 +3,7 @@
 # The purpose of this is to keep the container running so that it can be used as a base image or as a placeholder for other services.
 
 FROM python:3.11
-LABEL authors="jmserrano"
-
-# Install project dependencies
-WORKDIR /app 
-COPY requirements.txt /app
-RUN pip install -r requirements.txt
+LABEL authors="Juan Miguel Serrano, Alejandro Clavera"
 
 # Install matlab runtime
 ENV MR=/app/MATLAB_Runtime
@@ -25,6 +20,12 @@ $MR/R2023b/bin/glnxa64:\
 $MR/R2023b/sys/os/glnxa64:\
 $MR/R2023b/sys/opengl/lib/glnxa64
 RUN cd $MR/application/ && python setup.py install
+
+# Install project dependencies
+WORKDIR /app 
+COPY requirements.txt /app
+RUN pip install -r requirements.txt
+
 
 # Copy the project code into the container
 COPY . /app
