@@ -162,9 +162,9 @@ class Base_FSM:
 
                 # Does it really need to raise an error? Maybe just log it
                 if self.warn_different_inputs_but_no_state_change:
-                    logger.warning(f"No valid transition for given inputs {current_inputs} from state {self.state}")
+                    logger.warning(f"Inputs changed from prior iteration, yet no valid transition. Inputs: {current_inputs}")
             else:
-                logger.debug("Inputs are the same from prior iteration, no transition needed")
+                logger.debug("No transition found and inputs are the same as in prior iteration, staying in the same state")
 
             return None
 
@@ -200,7 +200,7 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
             sample_time: int, name :str = "SF-TS_FSM", initial_state: SF_TS_State = SF_TS_State.IDLE,
 
             # Inputs / Decision variables (Optional)
-            Tsf_out: float = None, qts_src: float = None
+            Tsf_out: float = None, qts_src: float = None, qsf: float = None
     ):
 
         # Call parent constructor
@@ -209,6 +209,7 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
         # Store inputs in an array, needs to be updated every time the inputs change (step)
         self.Tsf_out = Tsf_out
         self.qts_src = qts_src
+        self.qsf = qsf
 
         inputs_array = self.update_inputs_array()
         self.inputs_array_prior = inputs_array
@@ -241,7 +242,7 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
         if format == 'array':
             # When the array format is used, all variables necessarily need to be parsed as floats
 
-            return np.array([self.Tsf_out, self.qts_src], dtype=float)
+            return np.array([self.Tsf_out, self.qts_src, self.qsf], dtype=float)
 
         elif format == 'dict':
             # In the dict format, each variable  can have its own type
@@ -249,6 +250,7 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
             return {
                 'Tsf_out': self.Tsf_out,
                 'qts_src': self.qts_src,
+                'qsf': self.qsf,
             }
 
     def update_inputs_array(self):
@@ -263,6 +265,7 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
 
     def stop_pump_sf(self, *args):
         self.Tsf_out = 0
+        self.qsf = 0
 
     def stop_pumps(self, *args):
         logger.info("Stopping pumps")
@@ -276,9 +279,18 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
         if return_valid_inputs:
             return dict(Tsf_out = 1.0)
         elif return_invalid_inputs:
-            return dict(Tsf_out = 0.0)
+            return dict(Tsf_out = 0.0, qsf = 0.0)
 
-        return self.Tsf_out > 0 if self.Tsf_out is not None else False
+        output = False
+        if self.Tsf_out is not None:
+            output = self.Tsf_out > 0
+
+        # Prioritize Tsf_out, but if it has no valid value, check qsf
+        if output == False and self.qsf is not None:
+            output = self.qsf > 0
+
+        return output
+
 
     # Thermal storage
     def is_pump_ts_on(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
@@ -291,16 +303,17 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
         return self.qts_src > 0 if self.qts_src is not None else False
 
 
-    def step(self, Tsf_out: float, qts_src: float):
+    def step(self, Tsf_out: float, qts_src: float, qsf: float = None):
 
         self.current_sample += 1
 
         # Inputs validation (would be done by Pydantic), here just update the values
         self.Tsf_out = Tsf_out
         self.qts_src = qts_src
+        self.qsf = qsf
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.inputs_array = np.array([self.Tsf_out, self.qts_src])
+        self.update_inputs_array()
 
         transition = self.get_next_valid_transition(prior_inputs=self.inputs_array_prior,
                                                     current_inputs=self.inputs_array)
@@ -308,9 +321,10 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
             transition()
 
         # Save prior inputs
-        self.Tsf_out_prior = Tsf_out
-        self.qts_src_prior = qts_src
-        self.inputs_array_prior = np.array([self.Tsf_out_prior, self.qts_src_prior])
+        self.inputs_array_prior = self.inputs_array
+        # self.Tsf_out_prior = Tsf_out
+        # self.qts_src_prior = qts_src
+        # self.inputs_array_prior = np.array([self.Tsf_out_prior, self.qts_src_prior])
 
     def to_dataframe(self, df: pd.DataFrame = None):
         # Return some of the internal variables as a dataframe
@@ -435,7 +449,7 @@ class MedFSM(Base_FSM):
         self.machine.add_transition('finish_shutdown', source=[st.SHUTTING_DOWN, st.IDLE], dest=st.OFF,
                                     conditions=['is_off_vacuum', 'is_brine_empty'])  # Since destination is OFF already resets FSM
         self.machine.add_transition('finish_suspend', source=st.SHUTTING_DOWN, dest=st.IDLE,
-                                    conditions=['is_low_vacuum', 'is_brine_empty'], after='set_brine_empty')
+                                    conditions=['is_brine_empty'], unless=['is_off_vacuum'], after='set_brine_empty')
 
         self.customize_fsm_style()
 
