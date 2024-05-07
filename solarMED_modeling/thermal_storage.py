@@ -34,9 +34,9 @@ def thermal_storage_model_single_tank(
         mb_in: float | list[float],
         mt_out: float,
         mb_out: float,
-        UA: np.ndarray = np.array([0.00677724, 0.0039658, 0.02872586]),
-        V_i: np.ndarray = np.array([2.97217468, 1.71277001, 9.4345576]),
-        N=3, ts=60, Tmin=60, V=15, calculate_energy=False
+        UA: np.ndarray,
+        V_i: np.ndarray,
+        ts, N:int = 3, Tmin:float = 60, calculate_energy=False
 ):
 
     """ Thermal storage steady state model
@@ -79,7 +79,7 @@ def thermal_storage_model_single_tank(
         eqs = [None for _ in range(N)]
 
         try:
-            w_props_i = [w_props(P=0.1, T=ti) for ti in Ti]
+            w_props_i = [w_props(P=0.16, T=ti) for ti in Ti]
         except NotImplementedError:
             print(f'Attempted inputs: {Ti}')
 
@@ -176,11 +176,11 @@ def thermal_storage_two_tanks_model(
     Tamb: float,
     qsrc: float,
     qdis: float,
-    UA_h: np.array([0.00677724, 0.0039658, 0.02872586]),
-    UA_c: np.array([0.00677724, 0.0039658, 0.02872586]),
-    Vi_h: np.array([2.97217468, 1.71277001, 9.4345576]),
-    Vi_c: np.array([2.97217468, 1.71277001, 9.4345576]),
-    ts=60, Tmin=60, V=30, unified_output=False,
+    UA_h: np.ndarray,
+    UA_c: np.ndarray,
+    Vi_c: np.ndarray,
+    Vi_h: np.ndarray,
+    ts: int, Tmin: float = 60, V=30, unified_output=False,
     calculate_energy=False
 ):
     """
@@ -220,7 +220,7 @@ def thermal_storage_two_tanks_model(
     msrc = qsrc * w_props(P=0.16, T=Tt_in+273.15).rho / 3600  # m³/h -> kg/s
     mdis = qdis * w_props(P=0.16, T=Tb_in+273.15).rho / 3600  # m³/h -> kg/s
 
-    if mdis - msrc > 0:
+    if mdis > msrc:
         # print('from cold to hot!')
         # Recirculation from cold to hot
         Ti_c = thermal_storage_model_single_tank(
@@ -261,9 +261,9 @@ def thermal_storage_two_tanks_model(
 
 
 def thermal_storage_model(Ti_ant: np.array, Tt_in, Tb_in, Tamb, msrc, mdis,
-                          UA: np.array([0.00677724, 0.0039658, 0.02872586, 0.00688542]),
-                          V_i: np.array([2.97217468, 1.71277001, 9.4345576, 3.7807375]),
-                          N=4, ts=60, Tmin=60, V=30, calculate_energy=False):
+                          UA: np.ndarray,
+                          V_i: np.ndarray,
+                          N:int, ts:int, Tmin:float=60, calculate_energy=False):
     """ DEPRECATED! Thermal storage steady state model
 
     Args:
