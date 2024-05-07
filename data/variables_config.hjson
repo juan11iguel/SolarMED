@@ -287,7 +287,7 @@
         units_model: "C",
         instrument: "pt100_class_A"
         label_html: "T<sub>ts,h,in</sub> (⁰C)",
-        label_latex: "$T_{ts,h,t,in}$",
+        label_latex: "$T_{ts,h,in}$",
         // range: [],
         description: "Thermal storage hot tank inlet temperature, from solar field heat exchanger",
     },
@@ -298,10 +298,10 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,t,in</sub> (⁰C)",
-        label_latex: "$T_{ts,h,t,in}$",
+        label_html: "T<sub>ts,h,in</sub> (⁰C)",
+        label_latex: "$T_{ts,h,in}$",
         // range: [],
-        description: "(Duplicate of Tts,h,t,in) Thermal storage hot tank inlet temperature, from solar field heat exchanger",
+        description: "(Duplicate of Tts,h,in) Thermal storage hot tank inlet temperature, from solar field heat exchanger",
     },
 
     "Tts_h_out": {

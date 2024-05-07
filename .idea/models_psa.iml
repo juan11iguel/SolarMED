@@ -8,6 +8,7 @@
     <content url="file://$MODULE_DIR$/../phd_visualizations" />
     <orderEntry type="jdk" jdkName="Python 3.11 (models_psa)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="SolarMED-optimization" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="GOOGLE" />

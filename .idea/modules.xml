@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../SolarMED-optimization/.idea/SolarMED-optimization.iml" filepath="$PROJECT_DIR$/../SolarMED-optimization/.idea/SolarMED-optimization.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/models_psa.iml" filepath="$PROJECT_DIR$/.idea/models_psa.iml" />
     </modules>
   </component>

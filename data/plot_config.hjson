@@ -282,6 +282,8 @@
           color: "plotly_blue",
           width: 3,
         },
+        // Add original value to compare with the estimated one
+        {var_id: "qhx_s_original", mode: "lines", color: "plotly_blue",  width: 1.5, dash: "dash",},
       ],
       // traces_right: [
       //   {
@@ -460,18 +462,10 @@
           },
   
           # From solar field
-          {
-            "var_id": "Tts_h_in",
-            "mode": "markers",
-            "color": "plotly_red",
-            "width": 3,
-            "conditional":{
-                "var_id": "qts_src",
-                "operator": ">",
-                "threshold_value": 1,
-            }
-          },        
-        ]
+          {"var_id": "Tts_h_in", "mode": "markers", "color": "plotly_yellow", "width": 3, "opacity": 0.5,
+            "conditional":{ "var_id": "qts_src", "operator": ">", "threshold_value": 1,}
+          },
+      ]
 
       # TODO: Estaría guay añadir una traza a la derecha con la evolución de 
       # la energía disponible (línea con área), calculada relativa a la Ts_in de la MED

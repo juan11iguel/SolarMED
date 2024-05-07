@@ -456,12 +456,12 @@
             # Hot tank
             {"var_id": "Tts_h_t", "mode": "lines", "color": "plotly_red", "width": 3,},
            
-            # To MED
+            # From solar field
             {"var_id": "Tts_h_in", "mode": "markers", "color": "plotly_yellow", "width": 3, "opacity": 0.5,
               "conditional":{ "var_id": "qts_src", "operator": ">", "threshold_value": 1,}
             },
-    
-            # From solar field
+
+            # To MED
             {"var_id": "Tts_h_out", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
               "conditional":{ "var_id": "qts_dis", "operator": ">", "threshold_value": 1,}
             },        
@@ -540,7 +540,7 @@
             {"var_id": "Tts_c_b", "mode": "lines", "color": "plotly_blue", "width": 3,},
             # From MED
             {"var_id": "Tts_c_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
-              "conditional":{ "var_id": "qts_dis", "operator": ">", "threshold_value": 1,}
+              "conditional":{ "var_id": "qmed_s", "operator": ">", "threshold_value": 1,}
             },
           ]
         },
