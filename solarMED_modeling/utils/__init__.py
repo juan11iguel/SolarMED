@@ -162,6 +162,22 @@ def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, s
 
 def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sample_rate_numeric:int=None) -> pd.DataFrame:
 
+    """
+    This function conditions the data by:
+        - Estimating the secondary flow rate of the heat exchanger
+        - calculating the auxiliary variables (benefit, cost, estimate states)
+        - calculating the power consumption of the solar field and thermal storage.
+        - Make sure some variables are within the allowed range.
+    Args:
+        df:
+        cost_w:
+        cost_e:
+        sample_rate_numeric:
+
+    Returns:
+
+    """
+
     # Check that Thx_p_in, Thx_s_in, Thx_p_out, Thx_s_out, qhx_p are in the dataframe
     required_columns = ['Thx_p_in', 'Thx_s_in', 'Thx_p_out', 'Thx_s_out', 'qhx_p']
     missing_columns = [col for col in required_columns if col not in df.columns]
@@ -170,11 +186,12 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
     else:
         # Estimate `qhx_s` since the measurement cannot be trusted
         df["qhx_s_estimated"] = np.nan
-
         df["qhx_s_estimated"] = df.apply(lambda row: estimate_flow_secondary(Tp_in=row['Thx_p_in'], Ts_in=row['Thx_s_in'], qp=row['qhx_p'], Tp_out=row['Thx_p_out'], Ts_out=row['Thx_s_out']), axis=1)
 
         # Where the heat exchanger was not operating normally, the estimation cannot be applied and the curve fit is used as an alternative
         nan_idxs = df['qhx_s_estimated'].isna()
+        # Add idxs where UK-SF-P001-fq < 20, since the energy balance is not reliable if low or no flow is present
+        nan_idxs = nan_idxs | (df['UK-SF-P001-fq'] < 20) # 20%?
 
         # Va a dar error porque las trazas de SolarMED no contienen la señal UK-SF-P001-fq
         try:
@@ -193,6 +210,13 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         df.rename(columns={'qhx_s_estimated': 'qhx_s'}, inplace=True)
 
         logger.info('Heat exchanger secondary flow rate estimated successfully.')
+
+    # TODO: Estimate `qts_dis` since measurement from FT-AQU-101 cannot be trusted
+    # Estimar a partir de válvula de tres vías () y FT-AQU-100 (mmed,s). Pendiente de hacer en cuaderno
+    # model_calibrations / calibrate_three_way_valve.ipynb y luego incluir aquí
+    # De momento dar un warning si difieren mucho
+    if df['qts_dis'].mean() < 0.5:
+        logger.error('Measured flow rate from `qts,dis` is too low, probably flow sensor was not working properly. This will affect the outputs dependent on this variable (Pts,dis)')
 
     try:
         df = calculate_aux_variables(df, cost_w=cost_w, cost_e=cost_e, sample_rate_numeric=sample_rate_numeric)
@@ -218,7 +242,7 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
     try:
         # This should be in `calculate_aux_variables`
         df["Jmed"] = df['Jmed_b'] + df['Jmed_c'] + df['Jmed_d'] + df['Jmed_s_f'] # kW
-        # TODO: Add electrical consumption of thermal storage and solar field
+        # TODO: Add electrical consumption of thermal storage and solar field and vacuum system
         df["Jts"] = 0 # kW
         df["Jsf"] = 0 # kW
 
