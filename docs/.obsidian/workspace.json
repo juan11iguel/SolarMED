@@ -13,10 +13,36 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Import data.md",
+                "file": "models/thermal_storage.md",
                 "mode": "source",
                 "source": false
               }
+            }
+          },
+          {
+            "id": "2d3b91e730d0f07e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "models/thermal_storage.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "35616d57e39ec232",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "f4dee0f38d5b09f5",
+            "type": "leaf",
+            "state": {
+              "type": "reveal-preview-view",
+              "state": {}
             }
           }
         ]
@@ -94,7 +120,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Import data.md",
+                "file": "models/thermal_storage.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -152,27 +178,31 @@
       "workspaces:Manage workspace layouts": false,
       "table-editor-obsidian:Advanced Tables Toolbar": false,
       "obsidian-excalidraw-plugin:Create new drawing": false,
-      "obsidian-advanced-slides:Show Slide Preview": false
+      "slides-extended:Show slide preview": false
     }
   },
   "active": "4e4b077760c000c1",
   "lastOpenFiles": [
+    "fsm_results/test2/report.md",
+    "validation/20231030/20231030_solarMED_validation_report.md",
+    "Resolution strategy.pdf",
+    "validation/20231106/20231106_solarMED_validation_report.md",
+    "models/thermal_storage.md",
+    "Validation signals list.md",
+    "validation/20230505/20230505_solarMED_validation_report.md",
+    "attachments/SolarMED_state_evolution_20230703.png",
+    "attachments/solarMED_optimization-Optimization.drawio 1.svg",
+    "attachments/SolarMED_state_evolution_20230703.svg",
+    "Import data.md",
     "attachments/SolarMED_validation_20230703.html",
     "attachments/SolarMED_validation_20230703.png",
     "models/complete_system.md~",
-    "Resolution strategy.pdf",
-    "fsm_results/test2/report.md",
     "fsm_results/test2/attachments/state_evolution_iteration_100.svg",
     "fsm_results/test2/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_100.svg",
     "fsm_results/test2/attachments/test2_MED_FSM_iteration_100.svg",
     "fsm_results/test2/attachments/state_evolution_iteration_99.svg",
     "fsm_results/test2/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_99.svg",
     "fsm_results/test2/attachments/test2_MED_FSM_iteration_99.svg",
-    "fsm_results/test2/attachments/state_evolution_iteration_98.svg",
-    "fsm_results/test2/attachments/test2_SolarFieldWithThermalStorage_FSM_iteration_98.svg",
-    "fsm_results/test2/attachments/test2_MED_FSM_iteration_98.svg",
-    "models/thermal_storage.md",
-    "Validation signals list.md",
     "README.md",
     "models/solar_field.md",
     "models/MED.md",
@@ -188,20 +218,15 @@
     "Pending tasks.md",
     "Nomenclature.md",
     "Issues.md",
-    "Import data.md",
     "old/Historical data processing.md",
     "old",
     "attachments.md",
     "validation/YYYYMMDD/solarMED_validation_report_YYYYMMDD.md",
-    "validation/20230628/20230628_solarMED_validation_report.md",
-    "validation/20230629/20230629_solarMED_validation_report.md",
     "validation/20230628/attachments/20230628_MED_validation.html",
     "validation/20230628/attachments/20230628_heat_exchanger_validation.html",
     "validation/20230628/attachments/20230628_solar_field_inverse_validation.html",
     "validation/20230628/attachments/20230628_solar_field_validation.html",
     "validation/20230628/attachments/20230628_thermal_storage_validation.html",
-    "validation/20230628/attachments/20230628_SolarMED_validation.html",
-    "validation/20230628/attachments/20230628_solarMED_visualization.html",
-    "validation/20230511/20230511_solarMED_validation_report.md"
+    "validation/20230628/attachments/20230628_SolarMED_validation.html"
   ]
 }
