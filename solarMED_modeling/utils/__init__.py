@@ -13,6 +13,7 @@ from loguru import logger
 from pathlib import Path
 from solarMED_modeling import calculate_aux_variables, calculate_powers_solar_field, calculate_powers_thermal_storage
 from solarMED_modeling.heat_exchanger import estimate_flow_secondary
+from solarMED_modeling.three_way_valve import estimate_flow_ts_discharge
 from solarMED_modeling.power_consumption import actuator_coefficients # Weird structure I know, should be in utils probably
 from solarMED_modeling.curve_fitting import evaluate_fit
 
@@ -160,7 +161,8 @@ def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, s
     return df
 
 
-def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sample_rate_numeric:int=None) -> pd.DataFrame:
+def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sample_rate_numeric:int=None,
+                      vars_config: dict = None) -> pd.DataFrame:
 
     """
     This function conditions the data by:
@@ -211,12 +213,38 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
 
         logger.info('Heat exchanger secondary flow rate estimated successfully.')
 
-    # TODO: Estimate `qts_dis` since measurement from FT-AQU-101 cannot be trusted
-    # Estimar a partir de válvula de tres vías () y FT-AQU-100 (mmed,s). Pendiente de hacer en cuaderno
-    # model_calibrations / calibrate_three_way_valve.ipynb y luego incluir aquí
-    # De momento dar un warning si difieren mucho
-    if df['qts_dis'].mean() < 0.5:
-        logger.error('Measured flow rate from `qts,dis` is too low, probably flow sensor was not working properly. This will affect the outputs dependent on this variable (Pts,dis)')
+    # Estimate `qts_dis`/`q3wv_src` since measurement from FT-AQU-101 cannot be trusted
+    required_columns = ['q3wv_dis', 'T3wv_dis_in', 'T3wv_dis_out', 'T3wv_src']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        logger.warning(f'Skipping estimation of qts_dis, missing required columns: {missing_columns}')
+    else:
+        # if df['qts_dis'].mean() < 0.5:
+        # De momento dar un warning si difieren mucho
+        # logger.error('Measured flow rate from `qts,dis` is too low, probably flow sensor was not working properly. This will affect the outputs dependent on this variable (Pts,dis)')
+
+        # Find flow upper limit from `qmed_s`
+        # try:
+        #     qts_dis_upper_limit = vars_config['qmed_s']['range'][1]
+        # except Exception as e:
+        #     qts_dis_upper_limit = 54 # m³/h
+        #     logger.warning(f'Error while finding upper limit for qmed_s: {e}, defaulting to {qts_dis_upper_limit} m³/h')
+
+        df["qts_dis_estimated"] = df.apply(
+            lambda row: estimate_flow_ts_discharge(qdis=row["q3wv_dis"], Tdis_in=row["T3wv_dis_in"], Tdis_out=row["T3wv_dis_out"], Tsrc=row["T3wv_src"], upper_limit_m3h=row["qmed_s"]), axis=1)
+
+        # Make nan to zeros
+        df['qts_dis_estimated'] = df['qts_dis_estimated'].fillna(0)
+
+        # Rename qts_dis_estimated to qts_dis and also copy it to q3wv_src, rename original signals
+        df.rename(columns={'qts_dis': 'qts_dis_original', 'q3wv_src': 'q3wv_src_orginal'}, inplace=True)
+        df['q3wv_src'] = df['qts_dis_estimated']
+        df.rename(columns={'qts_dis_estimated': 'qts_dis'}, inplace=True)
+
+        logger.info('Thermal storage discharge flow rate estimated successfully (qts_dis/q3wv_src).')
+
+
+
 
     try:
         df = calculate_aux_variables(df, cost_w=cost_w, cost_e=cost_e, sample_rate_numeric=sample_rate_numeric)
