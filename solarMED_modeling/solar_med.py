@@ -556,7 +556,7 @@ class SolarMED(BaseModel):
             mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float,  # MED decision variables
             Tmed_c_in: float, Tamb: float, I: float, wmed_f: float = None,  # Environment variables
             msf: float = None, # Optional, to provide the solar field flow rate when starting up (Tsf_out takes priority)
-            med_vacuum_state: int | MedVacuumState = None,  # Optional, to provide the MED vacuum state (OFF, LOW, HIGH)
+            med_vacuum_state: int | MedVacuumState = 2,  # Optional, to provide the MED vacuum state (OFF, LOW, HIGH)
     ) -> None:
 
         """
