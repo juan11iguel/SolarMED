@@ -1,0 +1,9 @@
+venv*
+old*
+.github*
+.idea*
+auxiliar*
+data*
+docs*
+issues*
+models_psa.egg-info*

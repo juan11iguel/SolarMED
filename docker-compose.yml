@@ -1,0 +1,21 @@
+# Compose to deploy a container that includes the code and environment to evaluate the different models and model calibrations
+# of the solarMED-modeling repository
+
+version: '3.8'
+
+services:
+  solarmed-modeling:
+    image: ghcr.io/juan11iguel/solarmed-modeling/main-latest:latest
+    # image: ghcr.io/juan11iguel/solarmed-modeling/dev-latest:latest
+
+    container_name: solarmed-modeling
+    # command: ["tail", "-f", "/dev/null"] # If you want to keep the container running and access it
+    
+    # The command below is to run the Jupyter Notebook server
+    command: jupyter notebook --allow-root --ip=0.0.0.0 --port=8888
+    ports:
+      - "8889:8888"
+
+    volumes:
+      - ./data:/app/data # In the data folder place the experimental data and configuration files in the host
+    #   - ./solarMED-modeling:/app

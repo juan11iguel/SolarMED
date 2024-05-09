@@ -116,6 +116,27 @@ pip install /path/to/matlab/package/directory
 python samples/MED_modelSample1.py
 ```
 
+## Docker
+
+A Dockerfile is provided to run the models in a container. The container is based on the `python:3.11` image and installs the necessary dependencies to run the models. A prebuilt image is available in this repository with a different tag for the different branches. To run the container, use the provided `docker-compose.yml` file with the command:
+
+```bash
+docker-compose up -d
+```
+
+By default the compose file will run a Jupyter server that can be accessed from a browser and this way run the different notebooks. To access it, copy the URL provided in the logs of the container:
+
+```bash
+docker logs solarmed-modeling
+```
+
+![alt text](docs/attachments/jupyter.png)
+
+Remember to replace the port with the one defined in the compose file as well as the IP address to the one where the notebook is being run from.
+
+The jupyter server will keep the container alive so it can be accessed at any point and directly run the different scripts. However if the Jupyter server overhead is not desired, another option is to uncomment the `command` line in the compose file, and use an alternative entrypoint such as `tail` that will not run anything but keep the container alive.
+
+
 ## Pending tasks
 
 High priority:
