@@ -4,6 +4,7 @@ import numpy as np
 from scipy.optimize import fsolve
 
 dot = np.multiply
+ts_pressure: float = 0.16  # MPa
 
 def calculate_stored_energy(Ti, V_i, Tmin):
     # T in ºC, V_i in m³ 
@@ -13,8 +14,8 @@ def calculate_stored_energy(Ti, V_i, Tmin):
     
     # Calculate the energy stored above Tmin
     # Estimate specific heat capacity (cp) and density (rho)
-    cp  = np.array([w_props(T=T+273.15, P=0.1).cp if T>=Tmin else 0 for T in interp_temperatures])
-    rho = np.array([w_props(T=T+273.15, P=0.1).rho if T>=Tmin else 0 for T in interp_temperatures])
+    cp  = np.array([w_props(T=T+273.15, P=ts_pressure).cp if T>=Tmin else 0 for T in interp_temperatures])
+    rho = np.array([w_props(T=T+273.15, P=ts_pressure).rho if T>=Tmin else 0 for T in interp_temperatures])
     
     # Calculate the temperature differences above Tmin
     temperature_diff = np.maximum(0, interp_temperatures - Tmin)
@@ -69,9 +70,9 @@ def thermal_storage_model_single_tank(
         # Ti = x+273.15 # K
         Ti = x
 
-        if any(Ti < Tmin_) or any(Ti > Tmax_):
-            # Return large error values if temperature limits are violated
-            return [1e6] * N
+        # if any(Ti < Tmin_) or any(Ti > Tmax_):
+        #     # Return large error values if temperature limits are violated
+        #     return [1e6] * N
         # if np.sum(V_i) > 1.1*V or np.sum(V_i) < 0.9*V:
         #     # Return large error values if total volume limits are violated
         #     return [1e6] * N
@@ -79,7 +80,7 @@ def thermal_storage_model_single_tank(
         eqs = [None for _ in range(N)]
 
         try:
-            w_props_i = [w_props(P=0.16, T=ti) for ti in Ti]
+            w_props_i = [w_props(P=ts_pressure, T=ti) for ti in Ti]
         except NotImplementedError:
             print(f'Attempted inputs: {Ti}')
 
@@ -91,10 +92,8 @@ def thermal_storage_model_single_tank(
         # Volumen i
         for i in range(1, N - 1):
             eqs[i] = (- rho_i[i] * V_i[i] * cp_i[i] * (Ti[i] - Ti_ant[i]) / ts +  # Cambio de temperatura en el volumen
-                      np.sum(mt_in) * cp_i[i - 1] * Ti[i - 1] - mt_out * cp_i[i] * Ti[
-                          i] +  # Recirculación con volumen superior
-                      - mb_out * cp_i[i] * Ti[i] + np.sum(mb_in) * cp_i[i + 1] * Ti[
-                          i + 1] +  # Recirculación con volumen inferior
+                      np.sum(mt_in) * cp_i[i - 1] * Ti[i - 1] - mt_out * cp_i[i] * Ti[i] +  # Recirculación con volumen superior
+                      - mb_out * cp_i[i] * Ti[i] + np.sum(mb_in) * cp_i[i + 1] * Ti[i+1] +  # Recirculación con volumen inferior
                       - UA[i] * (Ti[i] - Tamb))  # Pérdidas al ambiente
 
         # Volumen superior
@@ -107,8 +106,7 @@ def thermal_storage_model_single_tank(
         eqs[-1] = (- rho_i[-1] * V_i[-1] * cp_i[-1] * (
                     Ti[-1] - Ti_ant[-1]) / ts +  # Cambio de temperatura en el volumen
                    np.sum(dot(dot(mb_in, cp_Tbin), Tb_in)) - mb_out * cp_i[-1] * Ti[-1] +  # Aporte externo
-                   + mb_out * cp_i[-2] * Ti[-2] - np.sum(mb_in) * cp_i[-1] * Ti[
-                       -1] +  # Recirculación con volumen superior
+                   + mb_out * cp_i[-2] * Ti[-2] - np.sum(mb_in) * cp_i[-1] * Ti[-1] +  # Recirculación con volumen superior
                    - UA[-1] * (Ti[-1] - Tamb))  # Pérdidas al ambiente
 
         return eqs
@@ -145,16 +143,32 @@ def thermal_storage_model_single_tank(
     Tt_in = Tt_in if isinstance(Tt_in, list) else [Tt_in]  # Make sure it's a list
     mt_in = mt_in if isinstance(mt_in, list) else [mt_in]  # Make sure it's a list
     Tt_in = [t + 273.15 for t in Tt_in]  # K
-    cp_Ttin = [w_props(P=0.1, T=t).cp for t in Tt_in]  # P=1 bar-> 0.1 MPa, T=Tin C, cp [kJ/kg·K]
+    cp_Ttin = [w_props(P=ts_pressure, T=t).cp for t in Tt_in]  # P=1 bar-> 0.1 MPa, T=Tin C, cp [kJ/kg·K]
 
     Tb_in = Tb_in if isinstance(Tb_in, list) else [Tb_in]  # Make sure it's a list
     mb_in = mb_in if isinstance(mb_in, list) else [mb_in]  # Make sure it's a list
     Tb_in = [t + 273.15 for t in Tb_in]  # K
-    cp_Tbin = [w_props(P=0.1, T=t).cp for t in Tb_in]  # P=1 bar-> 0.1 MPa, T=Tin C, cp [kJ/kg·K]
+    cp_Tbin = [w_props(P=ts_pressure, T=t).cp for t in Tb_in]  # P=1 bar-> 0.1 MPa, T=Tin C, cp [kJ/kg·K]
 
     # V_i = V/N # Volumen de cada volumen de control
 
     initial_guess = Ti_ant
+
+    # debug_result = model_function(initial_guess)[0]
+
+    # if debug_result < -1000 or abs(debug_result-28.425790075780405) < 1e-1:
+    #     Ti = initial_guess
+    #     w_props_i = [w_props(P=ts_pressure, T=ti) for ti in Ti]
+    #     cp_i = [w.cp for w in w_props_i]  # [KJ/kg·K]
+    #     rho_i = [w.rho for w in w_props_i]  # [kg/m³]
+    #
+    #     temp_change = - rho_i[0] * V_i[0] * cp_i[0] * (Ti[0] - Ti_ant[0]) / ts
+    #     external_input = np.sum(dot(dot(mt_in, cp_Ttin), Tt_in)) - mt_out * cp_i[0] * Ti[0]
+    #     inner_circ = - np.sum(mt_in) * cp_i[0] * Ti[0] + mt_out * cp_i[1] * Ti[1]
+    #     env_losses = - UA[0] * (Ti[0] - Tamb)
+    #
+    #     print(f"{debug_result:.2f}: {external_input:.2f} + {inner_circ:.2f} + {env_losses:.2f}") # Print the upper volume equation evaluation result
+
     Ti: np.ndarray = fsolve(model_function, initial_guess)
 
     # Tt = ( Tamb*( UA**2+UA*cp_Tbin*(msrc+2*mdis) ) + Tt_in*(msrc*cp_Ttin*(UA+cp_Tbin*(msrc+mdis))) + Tb_in*(mdis**2*cp_Tbin**2) )/ \
@@ -217,8 +231,8 @@ def thermal_storage_two_tanks_model(
     """
 
     # Convert qdis and qsrc from m³/h to kg/s
-    msrc = qsrc * w_props(P=0.16, T=Tt_in+273.15).rho / 3600  # m³/h -> kg/s
-    mdis = qdis * w_props(P=0.16, T=Tb_in+273.15).rho / 3600  # m³/h -> kg/s
+    msrc = qsrc * w_props(P=ts_pressure, T=Tt_in+273.15).rho / 3600  # m³/h -> kg/s
+    mdis = qdis * w_props(P=ts_pressure, T=Tb_in+273.15).rho / 3600  # m³/h -> kg/s
 
     if mdis > msrc:
         # print('from cold to hot!')
@@ -304,7 +318,7 @@ def thermal_storage_model(Ti_ant: np.array, Tt_in, Tb_in, Tamb, msrc, mdis,
         eqs = [None for _ in range(N)]
 
         try:
-            w_props_i = [w_props(P=0.1, T=ti) for ti in Ti]
+            w_props_i = [w_props(P=ts_pressure, T=ti) for ti in Ti]
         except NotImplementedError:
             print(f'Attempted inputs: {Ti}')
 
@@ -358,8 +372,8 @@ def thermal_storage_model(Ti_ant: np.array, Tt_in, Tb_in, Tamb, msrc, mdis,
     Tamb = Tamb + 273.15  # K
     Ti_ant = Ti_ant + 273.15  # K
 
-    w_props_Ttin = w_props(P=0.1, T=Tt_in)
-    w_props_Tbin = w_props(P=0.1, T=Tb_in)
+    w_props_Ttin = w_props(P=ts_pressure, T=Tt_in)
+    w_props_Tbin = w_props(P=ts_pressure, T=Tb_in)
 
     cp_Ttin = w_props_Ttin.cp  # P=1 bar->0.1 MPa, T=Tin C, cp [kJ/kg·K]
     cp_Tbin = w_props_Tbin.cp  # P=1 bar->0.1 MPa, T=Tin C, cp [kJ/kg·K]
