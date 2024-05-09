@@ -1,6 +1,6 @@
 # Custom
 *.code-workspace
-docs/.obsidian
+docs/.obsidian/workspace.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -356,13 +356,23 @@
           width: 3,
         },
         {
+          var_id: "qts_dis_original",
+          name: "q<sub>ts,dis,measured</sub>",
+          color: "plotly_blue", "width": 1.5, "dash": "dash"
+        },
+        {
           var_id: "qts_src", //"qts_src",
           name: "q<sub>ts,src</sub>"
           mode: "lines",
           color: "plotly_red",
           width: 3,
         },
-      ],
+        {
+          var_id: "qts_src_original", //"qts_src",
+          name: "q<sub>ts,src,measured</sub>",
+          color: "plotly_red", "dash": "dash", "width": 1.5,
+        },
+      ]
 
       // traces_right: [
       //   {
