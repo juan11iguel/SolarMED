@@ -4,42 +4,41 @@
     "type": "split",
     "children": [
       {
-        "id": "8edd56fc1ab3da97",
+        "id": "866af598799e1b5c",
         "type": "tabs",
         "children": [
           {
-            "id": "0c1f0a97b61bc4ca",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "results/episode_reports/test2/report.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "ceaed57fedbd37a2",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "results/episode_reports/test2/report.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "c4bb8e70abee4f2c",
+            "id": "8fa335a7c3f6b0a1",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
                 "file": "Resolution strategy.md",
                 "mode": "source",
-                "backlinks": true,
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "abaf9c0f6ee5fbac",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "One problem strategy.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "31b22c46ca52b033",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "examples/result_presentation_template.md",
+                "mode": "source",
                 "source": false
               }
             }
@@ -111,7 +110,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Resolution strategy.md",
+                "file": "examples/result_presentation_template.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -128,7 +127,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Resolution strategy.md",
+                "file": "examples/result_presentation_template.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -151,7 +150,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Resolution strategy.md"
+                "file": "examples/result_presentation_template.md"
               }
             }
           }
@@ -170,35 +169,37 @@
       "daily-notes:Open today's daily note": false,
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
-      "obsidian-advanced-slides:Show Slide Preview": false
+      "slides-extended:Show slide preview": false
     }
   },
-  "active": "c4bb8e70abee4f2c",
+  "active": "31b22c46ca52b033",
   "lastOpenFiles": [
+    "Genetic Algorithm optimization.md",
+    "Resolution strategy.md",
+    "One problem strategy.md",
+    "attachments/Pasted image 20240510103455.png",
+    "attachments/solarMED_optimization-general_diagram.svg",
+    "attachments/solarMED_optimization-general_diagram.png",
+    "attachments/SolarMED_state_evaluation_example_v2.svg",
+    "attachments/SolarMED_state_evaluation_example_v2.html",
+    "attachments/SolarMED_state_evaluation_example_v1.svg",
+    "attachments/SolarMED_state_evaluation_example_v1.html",
+    "attachments/path_viz_med.png",
+    "attachments/SFTS_state_evaluation_example.svg",
+    "attachments/SFTS_state_evaluation_example.html",
+    "Welcome.md",
+    "results/episode_reports/test2/report.md",
+    "attachments/solarMED_optimization-Decision tree.svg",
     "attachments/solarMED_binary_tree.png",
     "attachments/img.png",
-    "attachments/sf_ts_binary_tree.png",
-    "attachments/newplot 1.png",
-    "attachments/newplot.png",
-    "attachments/solarMED_optimization-Decision tree.svg",
     "attachments",
-    "results/episode_reports/test2/attachments/solarMED_optimization-Decision tree.svg",
     "results/episode_reports/test2/Untitled.md",
-    "Resolution strategy.md",
-    "results/episode_reports/test2/report.md",
     "results/episode_reports/test2/index.html",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Zero.woff",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Vector-Regular.woff",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Vector-Bold.woff",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Typewriter-Regular.woff",
     "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size4-Regular.woff",
-    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size3-Regular.woff",
-    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size2-Regular.woff",
-    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size1-Regular.woff",
-    "results/episode_reports/test2/plugin/chalkboard/img/whiteboard.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/sponge.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/chalk-yellow.png",
-    "results/episode_reports/test2/plugin/chalkboard/img/chalk-white.png",
     "results/episode_reports/test2/plugin/menu/README.md",
     "results/episode_reports/test2/plugin/menu/CONTRIBUTING.md",
     "results/episode_reports/test2/plugin/customcontrols/README.md",
@@ -209,7 +210,6 @@
     "results/episode_reports/test2/report/plugin/chart/README.md",
     "results/episode_reports/test2/report/plugin/customcontrols/README.md",
     "results/episode_reports/test2/report/plugin/chalkboard/README.md",
-    "Welcome.md",
     "results/diagrams/operating_modes/Untitled.md",
     "results/episode_reports/test/report.md",
     "export/report/plugin/chalkboard/README.md",
