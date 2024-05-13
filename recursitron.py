@@ -274,7 +274,7 @@ def dump_as(paths: list[list[str]], file_path: Path, file_format: Literal['csv',
 
     if file_format == 'json':
         with open(file_path.with_suffix('.json'), 'w') as f:
-            json.dump(paths, f)
+            json.dump(paths, f, indent=4)
 
     else:
         df = pd.DataFrame(paths)

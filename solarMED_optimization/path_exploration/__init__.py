@@ -66,7 +66,7 @@ class Edge(BaseModel):
         self.line_type = self.line_type.lower()
 
 
-def generate_edges(result_list: list[dict], step_idx: int, system: Literal['MED', 'SFTS'], Np: int) -> list[dict]:
+def generate_edges(result_list: list[dict], step_idx: int, system: Literal['MED', 'SFTS'], Np: int, ) -> list[dict]:
 
     """
     Generate edges for the given FSM
@@ -183,13 +183,16 @@ def generate_edges(result_list: list[dict], step_idx: int, system: Literal['MED'
     return result_list
 
 
-def generate_edges_dataframe(edges_list: list[dict]) -> pd.DataFrame:
+def generate_edges_dataframe(edges_list: list[dict], nodes_df: pd.DataFrame = None) -> pd.DataFrame:
 
     df = pd.DataFrame(edges_list)
 
     # Make sure the first column is the src_node_id and the second is the dst_node_id
     cols = ['src_node_id', 'dst_node_id'] + [col for col in df.columns if col not in ['src_node_id', 'dst_node_id']]
     df = df.reindex(columns=cols)
+
+    if nodes_df is not None:
+        generate_edges_coordinates(nodes_df, edges_df=df)
 
     return df
 
