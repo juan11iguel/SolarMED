@@ -3,6 +3,8 @@ from enum import Enum
 import numpy as np
 import pandas as pd
 import copy
+import math
+from loguru import logger
 
 import plotly.graph_objs as go
 
@@ -34,7 +36,8 @@ node_colors = {
 # all_paths: list[list[SupportedStatesType]]
 
 def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Literal['MED', 'SFTS', 'SolarMED'], Np: int,
-                     edges_df: pd.DataFrame = None, width=1400, height=500, title: str = None, results_df: pd.DataFrame = None) -> go.FigureWidget:
+                     edges_df: pd.DataFrame | list[pd.DataFrame] = None, width=1400, height=500,
+                     title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30) -> go.FigureWidget:
 
     """
 
@@ -60,30 +63,26 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
     if title is None:
         title = f"Directed graph of the operating modes evolution in the {state_cls.__name__} system"
 
-    # Work with lists of nodes_df
+
+    if (isinstance(nodes_df, pd.DataFrame) and isinstance(edges_df, list) or
+            isinstance(nodes_df, list) and isinstance(edges_df, pd.DataFrame)):
+        raise ValueError("If nodes_df is a list, then edges_df should be a list too and viceversa")
+
+    # Work with lists of both nodes_df and edges_df
     if not isinstance(nodes_df, list):
         nodes_df = [nodes_df]
+    if not isinstance(edges_df, list) and edges_df is not None:
+        edges_df = [edges_df]
 
-    # Build vectors in the format wanted by plotly ([xsrc_0, xdst_0, None, xsrc_1, xdst_1, None, ...] and [ysrc_0, ydst_0, None, ysrc_1, ydst_1, None, ...])
-    # Xe = []
-    Xe_solid = []
-    Xe_dash = []
+    # Step size given max_samples
+    step_size = max(1, math.ceil(len(results_df) / max_samples))
 
-    # Ye = []
-    Ye_solid = []
-    Ye_dash = []
-
-    if edges_df is not None:
-        for idx, row in edges_df.iterrows():
-            # Xe += [row['x_pos_src'], row['x_pos_dst'], None]
-            # Ye += [row['y_pos_src'], row['y_pos_dst'], None]
-
-            Xe_solid += [row['x_pos_src'], row['x_pos_dst'], None] if row['line_type'] == 'solid' else []
-            Ye_solid += [row['y_pos_src'], row['y_pos_dst'], None] if row['line_type'] == 'solid' else []
-
-            Xe_dash += [row['x_pos_src'], row['x_pos_dst'], None] if row['line_type'] == 'dash' else []
-            Ye_dash += [row['y_pos_src'], row['y_pos_dst'], None] if row['line_type'] == 'dash' else []
-
+    if step_size > 1:
+        logger.warning(f'There are more samples than the maximum specified ({max_samples}), states will be shown every {step_size} samples. Aliasing may occur')
+        # From [jmmease](https://community.plotly.com/t/change-title-color-using-html/18217/2):
+        # > plotly.js doesn’t support arbitrary HTML markup in labels. Here is a description of the subset that is
+        # supported https://help.plot.ly/adding-HTML-and-links-to-charts/#step-2-the-essentials
+        title += f'<br><span style="font-size: 11px; font-color:"orange">(States shown every {step_size} samples, aliasing is likely to occur)</span></br>'
 
     fig = go.FigureWidget()
 
@@ -104,6 +103,15 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
     last_val = 0
     Xr = []
     Yr = []
+    Xr_dash = []
+    Yr_dash = []
+    # Xe = []
+    Xe_solid = []
+    Xe_dash = []
+
+    # Ye = []
+    Ye_solid = []
+    Ye_dash = []
     for system_idx, n_df in enumerate(nodes_df):
 
         if type(n_df['state'][0]) == SolarMED_State:
@@ -125,21 +133,94 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
             """
             Xr.append([])
             Yr.append([])
+            Xr_dash.append([])
+            Yr_dash.append([])
 
             # Not generic, should be improved
             state_col = 'med_state' if system_types[-1] == MedState else 'sf_ts_state'
 
-            for idx in range(len(results_df)-1):
-                x_aux, y_aux = get_coordinates_edge(src_node_id=f"step{idx:03}_{results_df.iloc[idx][state_col].value}", # med_state, sfts_state, etc, cómo saber cuál es el adecuado?
-                                                    dst_node_id=f"step{idx+1:03}_{results_df.iloc[idx+1][state_col].value}",
+            for idx in range(0, len(results_df)-step_size, step_size):
+
+                x_aux, y_aux = get_coordinates_edge(src_node_id=f"step{idx:03}_{results_df.iloc[idx][state_col].value}",
+                                                    dst_node_id=f"step{idx+step_size:03}_{results_df.iloc[idx+step_size][state_col].value}",
                                                     nodes_df=n_df, y_shift=last_val)
-                Xr[system_idx] += x_aux
-                Yr[system_idx] += y_aux
+
+                # If the y value of the current state is equal from the previous one, add a solid line to connect them
+                if results_df.iloc[idx][state_col].value == results_df.iloc[idx+step_size][state_col].value:
+                    Xr[system_idx] += x_aux
+                    Yr[system_idx] += y_aux
+
+                # If the y value of the current state is different from the previous one, add a dahsed line to connect them
+                else:
+                    Xr_dash[system_idx] += x_aux
+                    Yr_dash[system_idx] += y_aux
+
+
+        # Add result paths
+        if edges_df is not None:
+            """
+                Generate the coordinates for the possible paths for each subsystem provided in its edges_df
+            """
+
+            Xe_solid.append([])
+            Ye_solid.append([])
+            Xe_dash.append([])
+            Ye_dash.append([])
+
+            for idx in range(0, len(edges_df[system_idx]), step_size):
+                row = edges_df[system_idx].iloc[idx]
+                # Build vectors in the format wanted by plotly ([xsrc_0, xdst_0, None, xsrc_1, xdst_1, None, ...] and [ysrc_0, ydst_0, None, ysrc_1, ydst_1, None, ...])
+                # Xe += [row['x_pos_src'], row['x_pos_dst'], None]
+                # Ye += [row['y_pos_src'], row['y_pos_dst'], None]
+
+                Xe_solid[system_idx] += [row['x_pos_src'], row['x_pos_dst'], None] if row['line_type'] == 'solid' else []
+                Ye_solid[system_idx] += [row['y_pos_src'] + last_val, row['y_pos_dst'] + last_val, None] if row['line_type'] == 'solid' else []
+
+                Xe_dash[system_idx] += [row['x_pos_src'], row['x_pos_dst'], None] if row['line_type'] == 'dash' else []
+                Ye_dash[system_idx] += [row['y_pos_src'] + last_val, row['y_pos_dst'] + last_val, None] if row['line_type'] == 'dash' else []
+
+        # Add edges
+        if edges_df is not None:
+            # Create separate traces for solid and dashed lines
+            fig.add_trace(
+                go.Scatter(
+                    x=Xe_solid[system_idx],
+                    y=Ye_solid[system_idx],
+                    mode='lines+markers',
+                    line=dict(color='rgb(210,210,210)', width=1, dash='solid'),
+                    marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
+                    text=edges_df[system_idx]['transition_id'].values,
+                    hoverinfo='text',
+                )
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=Xe_dash[system_idx],
+                    y=Ye_dash[system_idx],
+                    mode='lines+markers',
+                    line=dict(color='rgb(210,210,210)', width=1, dash='dash'),
+                    marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
+                    hoverinfo='none'
+                )
+            )
+
+        # Add nodes
+        # Group the dataframe by 'step_idx'
+        grouped_nodes = n_df.groupby('step_idx')
+
+        # Filter the groups
+        displayed_nodes = {name: group for name, group in grouped_nodes if name % step_size == 0}
+        x_pos = [node_group['x_pos'].values for node_group in displayed_nodes.values()]
+        y_pos = [node_group['y_pos'].values + last_val for node_group in displayed_nodes.values()]
+
+        x_pos = np.concatenate(x_pos).tolist()
+        y_pos = np.concatenate(y_pos).tolist()
 
         fig.add_trace(
             go.Scatter(
-                x=n_df['x_pos'].values,
-                y=n_df['y_pos'].values + last_val,
+                x=x_pos,
+                y=y_pos,
                 mode='markers',
                 name='states',
                 marker=dict(symbol='circle-dot', size=20, color=node_colors[system_types[-1].__name__]),
@@ -157,30 +238,6 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
         # last_val += len([state for state in system_types[-1]])
 
 
-    # Create separate traces for solid and dashed lines
-    fig.add_trace(
-        go.Scatter(
-            x=Xe_solid,
-            y=Ye_solid,
-            mode='lines+markers',
-            line=dict(color='rgb(210,210,210)', width=1, dash='solid'),
-            marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
-            text=edges_df['transition_id'].values if edges_df is not None else None,
-            hoverinfo='text',
-        )
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            x=Xe_dash,
-            y=Ye_dash,
-            mode='lines+markers',
-            line=dict(color='rgb(210,210,210)', width=1, dash='dash'),
-            marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
-            hoverinfo='none'
-        )
-    )
-
     # Empty scatter to be used for highlighting arriving edges. Also re-using to represent results paths, if there are more than
     # two subsystems this won't work, it should done apart in a loop
     fig.add_trace(
@@ -190,7 +247,8 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
             mode='lines+markers',
             line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
                                             width=3, dash='solid'),
-            marker=dict(symbol='arrow', size=10, color='#06C892', angleref="previous"),
+            # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
+            #             angleref="previous"),
         )
     )
     # Empty scatter to be used for highlighting departing edges
@@ -201,9 +259,25 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
             mode='lines+markers',
             line=dict(color='#AD72F3' if len(system_types) == 1 else node_colors[system_types[1].__name__],
                                             width=3, dash='solid'),
-            marker=dict(symbol='arrow', size=10, color='#AD72F3', angleref="previous"),
+            # marker=dict(symbol='arrow', size=10, color='#AD72F3' if len(system_types) == 1 else node_colors[system_types[1].__name__]
+            #             , angleref="previous"),
         )
     )
+
+    # Add scatter for result dashed lines
+    for idx in range(len(Xr_dash)):
+        fig.add_trace(
+            go.Scatter(
+                x=Xr_dash[idx],
+                y=Yr_dash[idx],
+                hoverinfo='none',
+                mode='lines+markers',
+                line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[idx].__name__],
+                                            width=3, dash='dash'),
+                # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
+                #             angleref="previous"),
+            )
+        )
 
     axis_conf = dict(
         showline=False,  # hide axis line, grid, ticklabels and  title
@@ -223,7 +297,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
     )
 
     fig.update_xaxes(
-        tickvals=np.arange(Np, step=1),
+        tickvals=np.arange(Np, step=step_size),
     )
 
     fig.update_layout(
@@ -240,7 +314,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
             showline=False,
             showgrid=False,
             showticklabels=True,
-            title='Time steps'
+            title=f'Samples (sample rate: {str(results_df.index.to_series().diff().mode()[0])})' if results_df is not None else 'Samples',
         ),
         yaxis=axis_conf,
         margin=dict(
