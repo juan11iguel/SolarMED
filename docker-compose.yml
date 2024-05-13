@@ -1,1 +1,20 @@
-name: solarMED_optimization
+# Compose to deploy a container that includes the code and environment
+# to evaluate the code of the solarMED-modeling repository
+
+name: solarmed_optimization
+
+services:
+  solarmed-modeling:
+    image: ghcr.io/juan11iguel/solarmed-optimization/main-latest:latest
+    # image: solarmed-optimization/main-latest:latest
+
+    container_name: solarmed-optimization
+
+    # The command below is to run a Jupyter Notebook server
+    command: jupyter notebook --allow-root --ip=0.0.0.0 --port=8888
+    # Alternatively, if you want to keep the container running but do nothing
+    # command: ["tail", "-f", "/dev/null"]
+    ports:
+      - "8889:8888"
+    volumes:
+      - ./data:/app/data # In the data folder of the host machine, place the experimental data and configuration files that need to be accessed by the container
