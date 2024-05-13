@@ -1,10 +1,16 @@
 
 
+# Pendiente / ideas
+
+- En cada iteración, aunque solo se usen los resultados inmediatamente próximos para evaluar la siguiente iteración, habría que guardar todos los datos para después poder usarlos en la visualización (ver datos pasados, la decisión siguiente, pero también en gris ver los futuros valores y predicción). Hacer una animación estilo do-mpc?
+
 # Problem definition and characterization
 
 
 %% Diagrama para visualizar árbol, no hacer como un árbol realmente %%
 ![](attachments/solarMED_optimization-Decision%20tree.svg)
+
+Esto quiere decir que el algoritmo de optimización deberá proveer una matriz con tantas filas como variables de decisión, y tantas columnas como números de muestreos en el horizonte de control.
 
 
 **WIP visualización de evolución de modos de operación**
@@ -150,3 +156,69 @@ Artificially modifying the problem with unnecessary restrictions or by modifying
 
 - Trying to set as objective maximizing the operation time. If for example the optimization algorithm in one iteration tries values that invalidate the system midway through the evaluation and does not recover, the model automatically is going to penalize this behavior with a worse cost function value. And so eventually the most fit individuals or solutions will be the ones that prolong the operation for **as long as it makes *economical* sense** for the given horizon. 
 - Restricting the state changes. The model itself will penalize constant state changes since it has associated transient non-productive states (*generating vacuum, starting-up, shutting-down*) between steady states (*off, idle, active*). This will result in a worse cost obtained at the end of the path evaluation.
+
+## Variable sample rate
+
+Create a function that takes a number of samples to assign, and distributes them based on some criteria:
+
+```
+samples_opt = samples_assigner(number_of_samples: int, ratio: int, method: Literal["by_distance", "by_variability"], estimator_values: array = None)
+```
+
+Where `samples_opt` will have the shape $[\cdot]_{1\times N_p}$ being $N_p$  the prediction horizon (number of samples from the evaluation of the model). Its elements will be one/True when the decision variables should be updated and 0/False when not.
+
+Method:
+- By distance, based on some function (linear, quadratic, exponential) spread the samples with an increasing distance between them as the distance from the origin increases.
+- By variability of some reference variable. Using some process / environment variable or another estimator variable (`estimator_values`), and based on its variance, assign more samples where the variance is higher and less where not.
+
+Note: the first element will always be one.
+
+
+## Fitness function
+
+In order to evaluate the model given any sample rate, variable or not a function like this can be used:
+
+```
+def model_interface(
+	dec_vars: array[Lc x Nc], 
+	env_vars: array[Lenv x Np], 
+	samples_opt: array[1 x Np] | int, 
+	costs_w: array[1 x Np] | float, 
+	costs_e: array[1 x Np] | float
+) -> acum_cost: float
+
+	# Checks
+	costs_w = costs_w if isarray(costs_w) else np.ones(1, Np)*costs_w
+	costs_e = costs_e if isarray(costs_e) else np.ones(1, Np)*costs_e
+
+	if isinstance(samples_opt, int):
+		# Sample rate specified, build vector of samples where decision variables are updated
+		samples_opt = np.arange(start=0, stop=env_vars.shape[0?], step=samples_opt)
+	else:
+		# Samples specified
+		if np.sum(samples_opt) != Nc:
+			raise ValueError(There should be as many True elements in samples_opt as number of samples to update the decision variables)
+
+	# Initialization
+	dec_vars_idx = -1
+	current_dec_vars = None
+	acum_cost = zeros(1, Nc)
+
+	# Simulate
+	for idx=0:1:Np
+		if samples_opt[idx] == True:
+			dec_vars_idx += 1
+			current_dec_vars = dec_vars[dec_vars_idx]
+			
+		 model.step(
+			 current_dec_vars,
+			 env_vars[idx],
+			 costs_w[idx],
+			 costs_e[idx]
+		 )
+		 acum_cost[dec_vars_idx] += model.evaluate_cost()
+	
+	return np.sum(acum_cost)
+```
+
+Where Lx represents number of variables and Nx number of samples.
