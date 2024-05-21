@@ -74,7 +74,7 @@ height: 750
 	}
 </style>
 
-
+---
 # Solar MED model validation report 
 ## test 20230703
 
@@ -141,7 +141,12 @@ Poner algún texto introductorio del proceso
 ## Context. Objective function
 
 - Economic cost function:
-$$ J = \min\limits_{\Delta z} \left( C_{e}\left[rac{u.m.}{kWh}ight]·J_{e} [kW] - C_{w}\left[rac{u.m.}{m^3} ight]·q_{med,d} \left[ rac{m^3}{h} ight]ight)·t_{s} \: \left[ u.m. ight] $$
+$$ J = \min\limits_{\Delta z} \left( C_{e}\left[rac{u.m.}{kWh}
+ight]·J_{e} [kW] - C_{w}\left[rac{u.m.}{m^3} 
+ight]·q_{med,d} \left[ rac{m^3}{h} 
+ight]
+ight)·t_{s} \: \left[ u.m. 
+ight] $$
 
 Where the electricity consumption is obtained as the sum of every individual consumption:
 

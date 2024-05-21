@@ -77,7 +77,7 @@ def process_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, sample_rate_key: str) -> pd.DataFrame:
+def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, sample_rate_key: str, fill_nans: bool = True) -> pd.DataFrame:
 
     """
     This function reads the data from the provided paths, concatenates the dataframes and preprocesses the data.
@@ -97,7 +97,7 @@ def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, s
 
     """
 
-    index_cols = ['time', 'TimeStamp']
+    index_cols = ['time', 'TimeStamp', 0]
 
     if not isinstance(paths, list):
         paths = [paths]
@@ -109,6 +109,8 @@ def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, s
             raise FileNotFoundError(f"Path {path} does not exist.")
 
     # Read reference dataframe
+    logger.info(f"Reading data from {paths[0].name}")
+
     df = None
     for index_col in index_cols:
         try:
@@ -122,9 +124,13 @@ def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, s
         raise RuntimeError(f'Failed to read data from CSV file with any of the provided index columns: {index_cols}')
 
     df = process_dataframe(df)
+    # Sample every `sample_rate` seconds
+    df = df.resample(sample_rate_key).mean()
 
     # Read additional dataframes and concatenate them
     for idx, path in enumerate(paths[1:]):
+        logger.info(f"Reading data from {path.name}")
+
         df_aux = None
         for index_col in index_cols:
             try:
@@ -141,12 +147,24 @@ def data_preprocessing(paths: list[str, Path] | str | Path, vars_config: dict, s
 
         # Find the common columns in both dataframes and drop them from the second
         common_columns = df.columns.intersection(df_aux.columns)
+        if common_columns.any():
+            logger.debug(f"Common columns in both dataframes: {common_columns}, dropping them from the auxiliary dataframe.")
+
         df_aux = df_aux.drop(columns=common_columns)
+
+        # Sample every `sample_rate` seconds
+        df_aux = df_aux.resample(sample_rate_key).mean()
+
+        # Align the two dataframes on their index, so they start and end at the same time
+        df_aux, _ = df_aux.align(df, axis=0, join='right')
+
         df = pd.concat([df, df_aux], axis=1)
 
     # Preprocessing
-    # Sample every `sample_rate` seconds to reduce the size of the dataframe
-    df = df.resample(sample_rate_key).mean()
+
+    # Fill nans, first forward and then backward
+    df = df.ffill().bfill()
+
 
     # Rename columns from signal_id to var_id
     df = rename_signal_ids_to_var_ids(df, vars_config)

@@ -10,6 +10,7 @@ from enum import Enum, EnumType
 from typing import Any, Literal
 import copy
 import datetime
+import pickle
 from pydantic import (
     BaseModel,
     Field,
@@ -35,8 +36,14 @@ from .three_way_valve import three_way_valve_model
 from . import MedState, SF_TS_State, ThermalStorageState, SolarFieldState, SolarMED_State, MedVacuumState
 from .fsms import MedFSM, SolarFieldWithThermalStorage_FSM
 
-np.set_printoptions(precision=2)
-dot = np.multiply
+"""
+    TODO: 
+"""
+
+logger.disable("solarMED_modeling")
+
+np.set_printoptions(precision=2) # Set numpy to print only 2 decimal places
+dot = np.multiply # Alias for element-wise multiplication
 Nsf_max = 100  # Maximum number of steps to keep track of the solar field flow rate, should be higher than the maximum expected delay
 
 class ModelVarType(Enum):
@@ -130,13 +137,13 @@ class SolarMED(BaseModel):
     # Chapuza: Por favor, asegurarse de que aquí se definen en el mimso orden que se usan después al asociarle un caudal
     # mmed_b, mmed_f, mmed_d, mmed_c, mmed_s
     ## MED
-    med_actuators: list[Actuator] | list[str] = Field(["med_brine_pump", "med_feed_pump",
+    med_actuators: list[Actuator] | list[str] | list[dict] = Field(["med_brine_pump", "med_feed_pump",
                                                        "med_distillate_pump", "med_cooling_pump",
                                                        "med_heatsource_pump"],
                                                       description="Actuators to estimate electricity consumption for the MED",
                                                       title="MED actuators", repr=False, json_schema_extra={"var_type": ModelVarType.PARAMETER})
     ## Thermal storage
-    ts_actuators: list[Actuator] | list[str] = Field(["ts_src_pump"], title="Thermal storage actuators", repr=False,
+    ts_actuators: list[Actuator] | list[str] | list[dict] = Field(["ts_src_pump"], title="Thermal storage actuators", repr=False,
                                                      json_schema_extra={"var_type": ModelVarType.PARAMETER},
                                                      description="Actuators to estimate electricity consumption for the thermal storage")
     UAts_h: list[PositiveFloat] = Field([0.0069818, 0.00584034, 0.03041486], title="UAts,h",
@@ -155,7 +162,7 @@ class SolarMED(BaseModel):
                                        description="Volume of each control volume of the cold tank (m³)", repr=False)
 
     ## Solar field
-    sf_actuators: list[Actuator] | list[str] = Field(["sf_pump"], title="Solar field actuators", repr=False,
+    sf_actuators: list[Actuator] | list[str] | list[dict] = Field(["sf_pump"], title="Solar field actuators", repr=False,
                                                      json_schema_extra={"var_type": ModelVarType.PARAMETER},
                                                      description="Actuators to estimate electricity consumption for the solar field")
 
@@ -342,6 +349,14 @@ class SolarMED(BaseModel):
 
     Jtotal: float = Field(None, title="Jtotal", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWe"},
                           description="Total electrical power consumption (kWe)")
+    total_cost: float = Field(None, title="Total cost", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "u.m./h"},
+                              description="Total cost (u.m./h)")
+    total_income: float = Field(None, title="Total income", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "u.m./h"},
+                                description="Total income (u.m./h)")
+    net_profit: float = Field(None, title="Net profit", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "u.m."},
+                                description="Net profit (u.m.)")
+    net_loss: float = Field(None, title="Net loss", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "u.m."},
+                                description="Net loss (u.m.)")
 
 
     ## Finite State Machine (FSM) states
@@ -419,13 +434,13 @@ class SolarMED(BaseModel):
     #     except FileNotFoundError:
     #         raise ValidationError(f'Curve fits file not found in {self.curve_fits_path}')
 
-    @field_validator("med_actuators", "sf_actuators", "ts_actuators", mode='before')
-    @classmethod
-    def generate_actuators(cls, actuator_ids: SupportedActuators | list[SupportedActuators]) -> list[Actuator]:
-        if isinstance(actuator_ids, str):
-            actuator_ids = [actuator_ids]
-
-        return [Actuator(id=actuator_id) for actuator_id in actuator_ids]
+    # @field_validator("med_actuators", "sf_actuators", "ts_actuators", mode='before')
+    # @classmethod
+    # def generate_actuators(cls, actuator_ids: SupportedActuators | list[SupportedActuators]) -> list[Actuator]:
+    #     if isinstance(actuator_ids, str):
+    #         actuator_ids = [actuator_ids]
+    #
+    #     return [Actuator(id=actuator_id) for actuator_id in actuator_ids]
 
     # @field_validator("Tts_h", "Tts_c")
     # @classmethod
@@ -454,7 +469,7 @@ class SolarMED(BaseModel):
     @field_validator("Tmed_c_out_sp")
     @classmethod
     def validate_Tmed_c_out(cls, Tmed_c_out: float, info: ValidationInfo) -> float:
-        # The upper limit is not really needed, its value is an output restrained already by mmed_c upper lower bound
+        # The upper limit is not really needed, its value is an output restrained already by mmed_c lower bound
         return within_range_or_min_or_max(Tmed_c_out, range=(info.data["Tmed_c_in"],
                                                              info.data["lims_T_hot"][1]),
                                           var_name=info.field_name)
@@ -489,17 +504,18 @@ class SolarMED(BaseModel):
         self.Tts_c = np.array(self.Tts_c, dtype=float)
 
         # Make sure actuators are instances of the Actuator class
-        for idx, actuator in enumerate(self.med_actuators):
-            self.med_actuators[idx] = actuator if isinstance(actuator, Actuator) else Actuator(id=actuator)
-
-        for idx, actuator in enumerate(self.sf_actuators):
-            self.sf_actuators[idx] = actuator if isinstance(actuator, Actuator) else Actuator(id=actuator)
-
-        for idx, actuator in enumerate(self.ts_actuators):
-            self.ts_actuators[idx] = actuator if isinstance(actuator, Actuator) else Actuator(id=actuator)
+        actuator_groups = ['med_actuators', 'sf_actuators', 'ts_actuators']
+        for actuator_group in actuator_groups:
+            for idx, actuator in enumerate( getattr(self, actuator_group) ):
+                if isinstance(actuator, Actuator):
+                    getattr(self, actuator_group)[idx] = actuator
+                elif isinstance(actuator, str):
+                    getattr(self, actuator_group)[idx] = Actuator(id=actuator)
+                elif isinstance(actuator, dict):
+                    getattr(self, actuator_group)[idx] = Actuator(**actuator)
 
         # Initialize outlet temperature to the provided inlet initial temperature
-        self.Tsf_in = self.Tsf_in_ant[-1]
+        self.Tsf_in = self.Tsf_in_ant.take(-1)
         self.Tsf_out_ant = self.Tsf_in
 
         # Make a list of field names that are of type numeric (int, float, etc)
@@ -856,14 +872,17 @@ class SolarMED(BaseModel):
 
     def solve_MED(self, mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float, Tmed_c_in: float):
 
-        def auxiliary_consumption():
+        def auxiliary_consumption() -> float:
 
             # TODO: Replace these values by value from the class
             if self.med_vacuum_state == MedVacuumState.HIGH:
-                return 5  # kW, high vacuum consumption
+                return 5.0  # kW, high vacuum consumption
 
             if self.med_vacuum_state == MedVacuumState.LOW:
-                return 1  # kW, reduced vacuum consumption
+                return 1.0  # kW, reduced vacuum consumption
+
+            else:
+                return 0.0
 
 
         def default_values():
@@ -886,7 +905,7 @@ class SolarMED(BaseModel):
             Tmed_c_out = Tmed_c_in # Or 0?
 
             if self.use_finite_state_machine:
-                Jmed += auxiliary_consumption()
+                Jmed = auxiliary_consumption()
 
                 if self.med_state == MedState.STARTING_UP:
                     mmed_s = 10 * 3.6
@@ -1238,6 +1257,34 @@ class SolarMED(BaseModel):
 
         return msf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in
 
+    def evaluate_fitness_function(self,
+                                  cost_w: float = None, cost_e: float = None,
+                                  cost_type: Literal['economic', 'exergy'] = 'economic',
+                                  objective_type: Literal['maximize', 'minimize'] = 'maximize',
+                                  ):
+
+        if cost_type == 'exergy':
+            raise NotImplementedError("Exergy cost evaluation is not yet implemented")
+
+        if cost_w is None:
+            cost_w = self.cost_w
+        if cost_e is None:
+            cost_e = self.cost_e
+
+        # Economic cost
+        self.total_cost = self.Jtotal * cost_e # kWhe * u.m./kWhe -> u.m./h
+        self.total_income = self.mmed_d * cost_w # m³/h * u.m./m³ -> u.m./h
+
+        self.net_profit = (self.total_income - self.total_cost) * self.sample_time/3600 # u.m.
+        self.net_loss = -self.net_profit # u.m.
+
+        if objective_type == 'maximize':
+            return self.net_profit
+        elif objective_type == 'minimize':
+            return self.net_loss
+        else:
+            raise ValueError(f"Objective type {objective_type} not supported, choose one of 'maximize' or 'minimize'")
+
 
     def to_dataframe(self, df=None, rename_flows: bool = False) -> pd.DataFrame:
         """
@@ -1306,12 +1353,17 @@ class SolarMED(BaseModel):
 
         return self.model_dump(include=self.export_fields_config, by_alias=True)
 
-    def model_dump_state(self, reset_samples: bool = False):
+    def model_dump_instance(self, reset_samples: bool = False) -> dict:
         """
         WIP
 
-        Export an instance of the model on its current state as a json, that can be directly used to recreate a new
+        Export an instance of the model on its current state as a dict, that can be directly used to recreate a new
         working (🤞) identical instance.
+
+        Use example:
+        ```
+            model2 = SolarMEDModel(**model.model_dump_instance())
+        ```
 
         :reset_samples (bool). Whether to reset samples to 0 or keep current values. For the FSMs, if for example
         a counter like `vacuum_started_sample` is not zero, it will be set to zero and the FSM `current_sample` to the
@@ -1319,12 +1371,28 @@ class SolarMED(BaseModel):
         `current_sample`, which will be set to zero with this argument.
 
         Returns:
+            dict of model instance
 
         """
 
         # TODO: How to handle the FSM instances correctly? Just take the current samples? (startup_started_sample, current_sample, etc)
+        if reset_samples:
+            raise NotImplementedError("Resetting samples is not yet supported")
 
-        return self.model_dump()
+        dump = self.model_dump()
+
+        # Filter out fields whose values are not set (None)
+        dump = {k: v for k, v in dump.items() if v is not None}
+
+        # Add FSMs
+        dump['_med_fsm'] = pickle.dumps(self._med_fsm)
+        dump['_sf_ts_fsm'] = pickle.dumps(self._sf_ts_fsm)
+
+        # Add PID if set
+        if self._pid_sf is not None:
+            dump['_pid_sf'] = pickle.dumps(self._pid_sf)
+
+        return dump
 
 
     def terminate(self):

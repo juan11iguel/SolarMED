@@ -36,20 +36,20 @@
     # Global legends
     "global_legend": { # Name it as you want
         "title": "Optimization layer",
-        "bgcolor": "bg_blue_rgb",
+        "bgcolor": "bg_blue",
         "x": 0.9,
         "y": 0.8,
     },
     // "legend_control": {
     //     "title": "Control layer",
-    //     "bgcolor": "bg_gray_rgb",
+    //     "bgcolor": "bg_gray",
     //     "x": 0.9,
     //     "y": 0.1,
     // },
 
     # Plot legends, need to be named as the plot they belong to
     // "temperatures_dc_cv": {
-    //     "bgcolor": "bg_gray_rgb",
+    //     "bgcolor": "bg_gray",
     // },
 
   },
@@ -202,7 +202,7 @@
       # Plotted between this plot and the next one
       show_active: true,
       active_var_id: "sf_active",
-      active_color: "plotly_yellow_rgb", # Needs to end with _rgb
+      active_color: "plotly_yellow", # Needs to end with
 
 
       traces_left: [
@@ -356,16 +356,16 @@
           width: 3,
         },
         {
-          var_id: "qts_dis_original",
-          name: "q<sub>ts,dis,measured</sub>",
-          color: "plotly_blue", "width": 1.5, "dash": "dash"
-        },
-        {
           var_id: "qts_src", //"qts_src",
           name: "q<sub>ts,src</sub>"
           mode: "lines",
           color: "plotly_red",
           width: 3,
+        },
+        {
+          var_id: "qts_dis_original",
+          name: "q<sub>ts,dis,measured</sub>",
+          color: "plotly_blue", "width": 1.5, "dash": "dash"
         },
         {
           var_id: "qts_src_original", //"qts_src",
@@ -593,7 +593,7 @@
       # Plotted between this plot and the next one
       show_active: true,
       active_var_id: "med_active",
-      active_color: "dc_green_rgb", # Needs to end with _rgb
+      active_color: "dc_green", # Needs to end with
 
       traces_left: [
         {
