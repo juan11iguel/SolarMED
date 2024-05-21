@@ -1,4 +1,13 @@
 
+### Possible contributions to PyGAD
+
+- [ ] Add support for partial initialization
+- [ ] Improve documentation regarding the decision variable limits and mutation variation limits
+- [ ] Why are the default limits set to -4? They should be set to an arbitrary large number or force the user to specify it, otherwise it might lead to unintended errors
+- [ ] Passing methods to the PyGAD instance
+- [ ] Documentation should be segmented more, there is too much content on the same page
+- [ ] Improved visualization implementation
+
 ## Inicialización de las variables de decisión
 
 - En cada iteración de la simulación, excepto en la inicial se pueden reutilizar los mejores candidatos de la solución en la iteración anterior (no quedarse solo con el individuo más óptimo, si no de alguna manera extraer todo el espacio de soluciones en la última iteración). 
@@ -136,10 +145,3 @@ Aquí explicar lo entendido de cómo funciona cada parámetro, poner los valores
 - save_solutions: None
 
 
-### Possible contributions to PyGAD
-
-- [ ] Add support for partial initialization
-- [ ] Improve documentation regarding the decision variable limits and mutation variation limits
-- [ ] Why are the default limits set to -4? They should be set to an arbitrary large number or force the user to specify it, otherwise it might lead to unintended errors
-- [ ] Passing methods to the PyGAD instance
-- [ ] Documentation should be segmented more, there is too much content on the same page

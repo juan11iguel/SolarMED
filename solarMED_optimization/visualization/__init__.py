@@ -9,6 +9,7 @@ from loguru import logger
 import plotly.graph_objs as go
 
 from solarMED_modeling import SupportedStatesType, MedState, SF_TS_State, SolarMED_State, SolarMedState_with_value, SfTsState_with_value
+from solarMED_optimization.path_exploration import Node, generate_edges, generate_edges_dataframe
 
 
 node_colors = {
@@ -376,5 +377,56 @@ def get_coordinates_edge(src_node_id: str, dst_node_id: str, nodes_df: pd.DataFr
         [src_node['y_pos'].values[0] + y_shift, dst_node['y_pos'].values[0]  + y_shift, None]
     )
 
+
+def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: SupportedStatesType, show_edges: bool = False) -> go.Figure | go.FigureWidget:
+
+    Np = len(df)
+    edges_df = None
+    edges_list = []
+
+    nodes_dfs = []
+    edges_df = [] if show_edges else None
+
+    for subsystem_cls in subsystems_state_cls:
+        nodes_dfs.append(pd.DataFrame([
+            Node(step_idx=step_idx, state=state).model_dump()
+            for step_idx in range(Np) for state in [state for state in subsystem_cls]
+        ]))
+
+        # Generate edges dataframes
+        if show_edges:
+            if subsystem_cls == MedState:
+                system = 'MED'
+            elif subsystem_cls == SF_TS_State:
+                system = 'SFTS'
+            else:
+                raise NotImplementedError(f'Unsupported subsystem {subsystem_cls}')
+
+            for step_idx in range(Np):
+                edges_list = generate_edges(edges_list, step_idx, system=system, Np=Np)
+
+            edges_df.append( generate_edges_dataframe(edges_list, nodes_df=nodes_dfs[-1]) )
+
+    # # Generate nodes dataframes
+    # nodes_sfts_df = pd.DataFrame([
+    #     Node(step_idx=step_idx, state=state).model_dump()
+    #     for step_idx in range(Np) for state in [state for state in SF_TS_State]
+    # ])
+    # nodes_med_df = pd.DataFrame([
+    #     Node(step_idx=step_idx, state=state).model_dump()
+    #     for step_idx in range(Np) for state in [state for state in MedState]
+    # ])
+
+    fig = plot_state_graph(
+        nodes_df=nodes_dfs,
+        system='SolarMED',
+        edges_df=edges_df,
+        results_df=df,
+        Np=Np,
+        height=800,
+        width=1200,
+    )
+
+    return fig
 
 
