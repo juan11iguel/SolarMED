@@ -5,10 +5,11 @@ import re
 import time
 from loguru import logger
 import pygad
+import json
 
 from solarMED_modeling.solar_med import SolarMED
 
-from solarMED_optimization import EnvVarsSolarMED, CostVarsSolarMED
+from solarMED_optimization import EnvVarsSolarMED, CostVarsSolarMED, DecVarsSolarMED
 
 def fitness_function(ga_instance: pygad.GA, dec_vars: np.ndarray, solution_idx: int) -> float:  # acumulated profit
 
@@ -65,10 +66,34 @@ def fitness_function(ga_instance: pygad.GA, dec_vars: np.ndarray, solution_idx: 
             # IMPORTANT! Keep the order of the decision variables as they are in the gene_names
             current_dec_vars = {k: v for k, v in zip(base_gene_names, dec_vars[span[0]:span[1]])}
 
-        model_copy.step(
-            **current_dec_vars,
-            **env_vars.model_dump_at_index(idx),
-        )
+        try:
+            model_copy.step(
+                **current_dec_vars,
+                **env_vars.model_dump_at_index(idx),
+            )
+        except Exception as e:
+
+            logger.error(f"Error in step {idx} for solution {solution_idx}: {e}. Exporting the model instance and additional variables for debugging.")
+
+            ga_instance.additional_vars["model"].model_dump_instance(to_file="debugging/model_instance_error")
+
+            # Environment variables
+            env_vars_df = env_vars.to_dataframe()
+            env_vars_df.to_csv("debugging/env_vars_error.csv")
+
+            # Decision variables
+            dec_vars_df = DecVarsSolarMED(
+                mts_src=dec_vars[0::num_dec_vars],
+                Tsf_out=dec_vars[1::num_dec_vars],
+                mmed_s=dec_vars[2::num_dec_vars],
+                mmed_f=dec_vars[3::num_dec_vars],
+                Tmed_s_in=dec_vars[4::num_dec_vars],
+                Tmed_c_out=dec_vars[5::num_dec_vars],
+                med_vacuum_state=dec_vars[6::num_dec_vars]
+            ).to_dataframe()
+            dec_vars_df.to_csv("debugging/dec_vars_error.csv")
+
+            raise e
 
         acum_profit[dec_vars_idx] += model_copy.evaluate_fitness_function(cost_e=costs_e.take(idx),
                                                                           cost_w=costs_w.take(idx))

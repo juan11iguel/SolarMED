@@ -1,8 +1,10 @@
 from typing import Self
-import numpy as np
 import numpy.typing as npt
+import numpy as np
+import pandas as pd
 from pydantic import BaseModel, ConfigDict, model_validator
 from loguru import logger
+
 
 from solarMED_modeling import SupportedStatesType, MedState
 
@@ -34,6 +36,9 @@ class EnvVarsSolarMED(BaseModel):
     def model_dump_at_index(self, idx: int) -> dict:
         return {k: v[idx] for k, v in self.dict().items()}
 
+    def to_dataframe(self):
+        return pd.DataFrame(self.dict())
+
 
 class CostVarsSolarMED(BaseModel):
     """
@@ -43,6 +48,9 @@ class CostVarsSolarMED(BaseModel):
     costs_e: npt.NDArray[np.float64]  # Electricity cost
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def to_dataframe(self):
+        return pd.DataFrame(self.dict())
 
 
 class DecVarsSolarMED(BaseModel):
@@ -71,6 +79,10 @@ class DecVarsSolarMED(BaseModel):
             return {k: v[idx] for k, v in self.dict().items()}
         elif isinstance(idx, tuple):
             return {k: v[idx[0]:idx[1]] for k, v in self.dict().items()}
+
+    def to_dataframe(self):
+        return pd.DataFrame(self.dict())
+
 # def on_fitness(ga_instance: pygad.GA, population_fitness: np.ndarray):
 #     """
 #     Callback that is evaluated after the fitness function is evaluated for all the population
