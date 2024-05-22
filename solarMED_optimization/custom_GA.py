@@ -2,6 +2,7 @@ from pygad import GA
 import pickle
 import json
 from pathlib import Path
+from loguru import logger
 
 
 def find_non_picklable_attrs(object):
@@ -43,7 +44,7 @@ class MyGA(GA):
 
         output_path = Path(output_path)
         # set file format
-        output_path.with_suffix('.pkl')
+        output_path = output_path.with_suffix('.pkl')
 
         state = self.__dict__.copy()
         non_picklable_attrs = find_non_picklable_attrs(state)
@@ -52,6 +53,8 @@ class MyGA(GA):
 
         with open(output_path, 'wb') as f:
             pickle.dump(state, f)
+
+        logger.info(f"GA instance saved to {output_path}")
 
     def model_load(self, input_path: Path | str) -> None:
         input_path = Path(input_path)
