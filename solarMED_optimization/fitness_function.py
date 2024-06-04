@@ -30,9 +30,10 @@ def fitness_function(ga_instance: pygad.GA, dec_vars: np.ndarray, solution_idx: 
 
     if not ga_instance.gene_names:
         raise ValueError("Gene names must be defined in the GA instance")
-    num_dec_vars = int(len(ga_instance.gene_names) / Nc)
+    num_base_genes = ga_instance.additional_vars["num_base_genes"] #int(len(ga_instance.gene_names) / Nc)
     # Get the decision variables names by removing the step index suffixes (everything after the last '_')
-    base_gene_names = [ re.sub('_[^_]*$', '', gene_name) for gene_name in ga_instance.gene_names[0:num_dec_vars] ]
+    # base_gene_names = [ re.sub('_[^_]*$', '', gene_name) for gene_name in ga_instance.gene_names[0:num_dec_vars] ]
+    base_gene_names = ga_instance.additional_vars["base_gene_names"]
 
     # if isinstance(samples_opt, int):
     #     # Sample rate specified, build vector of samples where decision variables are updated
@@ -42,6 +43,10 @@ def fitness_function(ga_instance: pygad.GA, dec_vars: np.ndarray, solution_idx: 
     if np.sum(samples_opt) != Nc:
         raise ValueError(
             "There should be as many True elements in samples_opt as number of samples to update the decision variables")
+
+    # There should be as many updates for each decision variable as decision vars update samples
+    for i in range(num_base_genes):
+        assert len(dec_vars[i::num_base_genes]) == np.sum(samples_opt), f"Length of dec_vars[{i}::{num_base_genes}] is {len(dec_vars[i::num_base_genes])} but should be {np.sum(samples_opt)}"
 
     # Initialization
     dec_vars_idx = -1
@@ -62,7 +67,7 @@ def fitness_function(ga_instance: pygad.GA, dec_vars: np.ndarray, solution_idx: 
                     "The number of samples to update the decision variables is greater than the number of available "
                     "decision variables updates")
 
-            span: tuple[int, int] = (dec_vars_idx*num_dec_vars, (dec_vars_idx+1)*num_dec_vars)
+            span: tuple[int, int] = (dec_vars_idx*num_base_genes, (dec_vars_idx+1)*num_base_genes)
             # IMPORTANT! Keep the order of the decision variables as they are in the gene_names
             current_dec_vars = {k: v for k, v in zip(base_gene_names, dec_vars[span[0]:span[1]])}
 
@@ -83,13 +88,13 @@ def fitness_function(ga_instance: pygad.GA, dec_vars: np.ndarray, solution_idx: 
 
             # Decision variables
             dec_vars_df = DecVarsSolarMED(
-                mts_src=dec_vars[0::num_dec_vars],
-                Tsf_out=dec_vars[1::num_dec_vars],
-                mmed_s=dec_vars[2::num_dec_vars],
-                mmed_f=dec_vars[3::num_dec_vars],
-                Tmed_s_in=dec_vars[4::num_dec_vars],
-                Tmed_c_out=dec_vars[5::num_dec_vars],
-                med_vacuum_state=dec_vars[6::num_dec_vars]
+                mts_src=dec_vars[0::num_base_genes],
+                Tsf_out=dec_vars[1::num_base_genes],
+                mmed_s=dec_vars[2::num_base_genes],
+                mmed_f=dec_vars[3::num_base_genes],
+                Tmed_s_in=dec_vars[4::num_base_genes],
+                Tmed_c_out=dec_vars[5::num_base_genes],
+                med_vacuum_state=dec_vars[6::num_base_genes]
             ).to_dataframe()
             dec_vars_df.to_csv("debugging/dec_vars_error.csv")
 
