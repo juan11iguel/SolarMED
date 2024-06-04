@@ -40,7 +40,7 @@ from .fsms import MedFSM, SolarFieldWithThermalStorage_FSM
     TODO: 
 """
 
-logger.disable("solarMED_modeling")
+# logger.disable("solarMED_modeling")
 
 np.set_printoptions(precision=2) # Set numpy to print only 2 decimal places
 dot = np.multiply # Alias for element-wise multiplication
@@ -742,11 +742,17 @@ class SolarMED(BaseModel):
         # If both the solar field is active and the thermal storage is being recharged
         # Then the system is coupled, solve coupled subproblem
         if self.ts_active and self.sf_active and self.use_models:
-            self.msf, self.Tsf_out, self.Tsf_in, self.Tts_h, self.Tts_c, self.Tts_h_in = self.solve_coupled_subproblem()
+            msf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in = self.solve_coupled_subproblem()
+
+            # In case the coupled subproblem results in unfeasible operation, solve each system independently
+            # Otherwise, update the values
+            if self.sf_active:
+                self.msf, self.Tsf_out, self.Tsf_in = msf, Tsf_out, Tsf_in
+                self.Tts_h, self.Tts_c, self.Tts_h_in = Tts_h, Tts_c, Tts_h_in
 
         # Otherwise, solar field and thermal storage are decoupled, or their models are not being used and defaults are returned
         # Solve each system independently
-        else:
+        if not self.ts_active or not self.sf_active or not self.use_models:
             # Solve thermal storage
             self.Tts_h_in = self.Tts_c[-1] # Hot tank inlet temperature is the bottom temperature of the cold tank
             self.Tts_h, self.Tts_c = self.solve_thermal_storage(Tts_h_in=self.Tts_h_in)
@@ -760,7 +766,9 @@ class SolarMED(BaseModel):
                 else:
                     self.msf = 0
 
-            if not self.sf_active: # Ignore the provided flow rate if the solar field is not active
+            # Ignore the provided flow rate if the solar field is not active
+            # We will get here for exaple if the coupled subproblem results in unfeasible operation
+            if not self.sf_active:
                 self.msf = 0
 
             # Use either the provided flow rate or the calculated one from Tsf,out,sp or bypass the model
@@ -1222,38 +1230,64 @@ class SolarMED(BaseModel):
 
         Tts_c_b0 = Tts_c_b
         deltaTsf_out = 999; cnt = 0
-        while abs(deltaTsf_out) > 0.1 and cnt < cnt_max or Tsf_out0 > self.lims_T_hot[1]:
-            if abs(deltaTsf_out) < 0.1 or cnt >= cnt_max:
+        while (abs(deltaTsf_out) > 0.1 and cnt < cnt_max):
+
+
+            logger.info(f"HEX inputs: Tp_in = {Tsf_out0:.2f}, Ts_in = {Tts_c_b0:.2f}, qp = {msf:.1f}, qs = {self.mts_src:.2f} (m³/h)")
+            Tsf_in, Tts_h_in = self.solve_heat_exchanger(Tsf_out0, Tts_c_b0, msf, self.mts_src, return_epsilon=False)
+            logger.info(f"HEX outputs: Tp_out = {Tsf_in:.2f}, Ts_out = {Tts_h_in:.2f}")
+
+            temp_t = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf, )
+            while temp_t > self.lims_T_hot[1] and msf < self.lims_msf[1]:
                 # It means the iteration finished but resulted in an unfeasible temperature, increase the flow until
                 # it is feasible
                 msf += 1 # m³/h
-                logger.warning(f"Unfeasible temperature ({Tsf_out0:.0f} > {self.lims_T_hot[1]}), increasing flow to {msf:.1f} (m³/h) and recalculating")
-                cnt = 0
-
-
-            Tsf_in, Tts_h_in = self.solve_heat_exchanger(Tsf_out0, Tts_c_b0, msf, self.mts_src, return_epsilon=False)
+                logger.warning(f"Unfeasible temperature ({temp_t:.0f} > {self.lims_T_hot[1]}), increasing flow to {msf:.1f} (m³/h) and recalculating")
+                # cnt = 0
+                temp_t = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf, )
 
             Tsf_out = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf, )
 
+            if Tsf_out <= Tsf_in:
+                # When the solar field is not warming up the fluid, it just aborsbing energy from the heat exchanger and doing nothing else
+                Tsf_out = Tsf_in
+
             Tts_h, Tts_c = self.solve_thermal_storage(Tts_h_in)
             Tts_c_b = Tts_c[-1]
+
+            logger.debug(f"After iteration {cnt}, Tsf_out = {Tsf_out0:.2f}, Tsf_in = {Tsf_in:.2f}, msf = {msf:.2f}, Tts_c_b = {Tts_c_b:.2f}, Thx,s,out = {Tts_h_in:.2f}, mts = {self.mts_src:.2f}, ΔTsf_out = {deltaTsf_out:.3f}")
 
             deltaTsf_out = Tsf_out - Tsf_out0
             Tsf_out0 = Tsf_out
             Tts_c_b0 = Tts_c_b
             cnt += 1
 
+
         if self.resolution_mode == 'precise':
             if cnt == cnt_max:
                 logger.debug(f"Not converged in {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}")
             else:
                 logger.debug(f"Converged in {cnt} iterations")
-        else:
+        # else:
+            # Log message to debug heat exchanger
+            # logger.debug(f"Heat exchanger, after {cnt} iterations, Thx,p,in = {Tsf_out:.2f}, Thx,p,out = {Tsf_in:.2f}, Thx,s,in = {Tts_c_b:.2f}, Thx,s,out = {Tts_h_in:.2f}")
+
+            # Log message to debug solar field
             # logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, Tsf,out = {Tsf_out:.2f}, Tsf,out,sp = {self.Tsf_out_sp:.2f}, qsf = {self.lims_msf[0]}<{msf:.1f}<{self.lims_msf[1]} (m³/h), Tsf,in = {self.Tsf_in:.2f}")
-            deltaTts_h = Tts_h - self.Tts_h
-            deltaTts_c = Tts_c - self.Tts_c
-            logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, qts,src = {self.mts_src_sp:.1f} (m³/h), Tts,h,in = {Tts_h_in:.2f}, qts,dis = {self.mts_dis:.1f} (m³/h), Tts,c,in = {self.Tmed_s_out:.2f}")
-            logger.debug(f"Temperature change in thermal storage, ΔTts,h = {deltaTts_h}, ΔTts,c = {deltaTts_c}")
+
+            # Log messages to debug thermal storage
+            # deltaTts_h = Tts_h - self.Tts_h
+            # deltaTts_c = Tts_c - self.Tts_c
+            # logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, qts,src = {self.mts_src_sp:.1f} (m³/h), Tts,h,in = {Tts_h_in:.2f}, qts,dis = {self.mts_dis:.1f} (m³/h), Tts,c,in = {self.Tmed_s_out:.2f}")
+            # logger.debug(f"Temperature change in thermal storage, ΔTts,h = {deltaTts_h}, ΔTts,c = {deltaTts_c}")
+
+        # If after the iterations the resulting solar field temperature is out of bounds, declare unfeasible operation
+        if Tsf_out > self.lims_T_hot[1]:
+            logger.warning(f"Unfeasible operation, Tsf,out = {Tsf_out:.2f} > {self.lims_T_hot[1]}, deactivating solar field")
+            self.sf_active = False
+            # Now it's an uncoupled problem, which will be solved in the solve_step method
+            return 0, 0, 0, np.zeros(3), np.zeros(3), 0
+
 
         return msf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in
 
@@ -1353,7 +1387,7 @@ class SolarMED(BaseModel):
 
         return self.model_dump(include=self.export_fields_config, by_alias=True)
 
-    def model_dump_instance(self, reset_samples: bool = False) -> dict:
+    def model_dump_instance(self, reset_samples: bool = False, to_file: Path | str = None) -> dict:
         """
         WIP
 
@@ -1391,6 +1425,11 @@ class SolarMED(BaseModel):
         # Add PID if set
         if self._pid_sf is not None:
             dump['_pid_sf'] = pickle.dumps(self._pid_sf)
+
+        if to_file is not None:
+            to_file = Path(to_file).with_suffix('.pkl')
+            with open(to_file, 'wb') as f:
+                pickle.dump(dump, f)
 
         return dump
 

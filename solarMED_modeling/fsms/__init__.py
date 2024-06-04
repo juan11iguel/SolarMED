@@ -162,9 +162,9 @@ class Base_FSM:
 
                 # Does it really need to raise an error? Maybe just log it
                 if self.warn_different_inputs_but_no_state_change:
-                    logger.warning(f"Inputs changed from prior iteration, yet no valid transition. Inputs: {current_inputs}")
+                    logger.warning(f"[{self.name}] Inputs changed from prior iteration, yet no valid transition. Inputs: {current_inputs}")
             else:
-                logger.debug("No transition found and inputs are the same as in prior iteration, staying in the same state")
+                logger.debug(f"[{self.name}] No transition found and inputs are the same as in prior iteration, staying in the same state")
 
             return None
 
@@ -268,7 +268,7 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
         self.qsf = 0
 
     def stop_pumps(self, *args):
-        logger.info("Stopping pumps")
+        logger.info(f"[{self.name}] Stopping pumps")
         self.stop_pump_ts()
         self.stop_pump_sf()
 
@@ -478,14 +478,14 @@ class MedFSM(Base_FSM):
 
         # Inform of not invalid but wasteful operations
         if self.vacuum_generated == True and self.is_high_vacuum():
-            logger.warning("Vacuum already generated, keeping vacuum at high value is wasteful")
+            logger.warning(f"[{self.name}] Vacuum already generated, keeping vacuum at high value is wasteful")
         if event.state == MedState.OFF and self.is_low_vacuum():
-            logger.warning("MED vacuum state is OFF, vacuum should be off or high to start generating vacuum")
+            logger.warning(f"[{self.name}] MED vacuum state is OFF, vacuum should be off or high to start generating vacuum")
         if event.state in [MedState.SHUTTING_DOWN, MedState.IDLE, MedState.OFF] and self.are_inputs_valid():
-            logger.warning("MED is not operating, there is no point in having its inputs active")
+            logger.warning(f"[{self.name}] MED is not operating, there is no point in having its inputs active")
 
     def reset_fsm(self, *args):
-        logger.info(f"Resetting {self.name} FSM")
+        logger.info(f"[{self.name}] Resetting FSM")
         self.set_vacuum_reset()
         # self.set_brine_empty()
         # self.reset_startup()
@@ -494,56 +494,56 @@ class MedFSM(Base_FSM):
     # Vacuum
     def set_vacuum_start(self, *args):
         if self.generating_vacuum:
-            logger.warning("Already generating vacuum, no need to start again")
+            logger.warning(f"[{self.name}] Already generating vacuum, no need to start again")
             return
 
         # Else
         self.vacuum_started_sample = self.current_sample
-        logger.info(f"Started generating vacuum, it will take {self.vacuum_duration_samples} samples to complete")
+        logger.info(f"[{self.name}] Started generating vacuum, it will take {self.vacuum_duration_samples} samples to complete")
 
     def set_vacuum_reset(self, *args):
         self.vacuum_started_sample = None
-        logger.info("Cancelled vacuum generation")
+        logger.info(f"[{self.name}] Cancelled vacuum generation")
 
     def set_vacuum_done(self, *args):
         self.vacuum_generated = True
-        logger.info("Vacuum generated")
+        logger.info(f"[{self.name}] Vacuum generated")
 
     # Shutdown
     def set_brine_emptying_start(self, *args):
         if self.brine_empty:
-            logger.warning("Brine is already empty, no need to start emptying again")
+            logger.warning(f"[{self.name}] Brine is already empty, no need to start emptying again")
             return
 
         self.brine_emptying_started_sample = self.current_sample
-        logger.info(f"Started emptying brine, it will take {self.brine_emptying_samples} samples to complete")
+        logger.info(f"[{self.name}] Started emptying brine, it will take {self.brine_emptying_samples} samples to complete")
 
     def set_brine_empty(self, *args):
         self.brine_empty = True
         self.brine_emptying_started_sample = None
-        logger.info("Brine emptied")
+        logger.info(f"[{self.name}] Brine emptied")
 
     def set_brine_non_empty(self, *args):
         self.brine_empty = False
-        logger.info("Brine non-empty")
+        logger.info(f"[{self.name}] Brine non-empty")
 
     # Startup
     def set_startup_start(self, *args):
         if self.startup_done:
-            logger.warning("Startup already done, no need to start again")
+            logger.warning(f"[{self.name}] Startup already done, no need to start again")
             return
 
         self.startup_started_sample = self.current_sample
-        logger.info(f"Started starting up, it will take {self.startup_duration_samples} samples to complete")
+        logger.info(f"[{self.name}] Started starting up, it will take {self.startup_duration_samples} samples to complete")
 
     def set_startup_done(self, *args):
         self.startup_done = True
-        logger.info("Startup done")
+        logger.info(f"[{self.name}] Startup done")
 
     def reset_startup(self, *args):
         self.startup_done = False
         self.startup_started_sample = None
-        logger.info("Startup reset")
+        logger.info(f"[{self.name}] Startup reset")
 
     # State machine transition conditions
     # Vacuum
@@ -585,7 +585,7 @@ class MedFSM(Base_FSM):
             return True
         else:
             logger.info(
-                f"Still generating vacuum, {self.current_sample - self.vacuum_started_sample}/{self.vacuum_duration_samples} samples completed")
+                f"[{self.name}] Still generating vacuum, {self.current_sample - self.vacuum_started_sample}/{self.vacuum_duration_samples} samples completed")
             return False
 
     # Startup
@@ -597,7 +597,7 @@ class MedFSM(Base_FSM):
             return True
         else:
             logger.info(
-                f"Still starting up, {self.current_sample - self.startup_started_sample}/{self.startup_duration_samples} samples completed")
+                f"[{self.name}] Still starting up, {self.current_sample - self.startup_started_sample}/{self.startup_duration_samples} samples completed")
             return False
 
     # Shutdown
@@ -609,7 +609,7 @@ class MedFSM(Base_FSM):
             return True
         else:
             logger.info(
-                f"Still emptying brine, {self.current_sample - self.brine_emptying_started_sample}/{self.brine_emptying_samples} samples completed")
+                f"[{self.name}] Still emptying brine, {self.current_sample - self.brine_emptying_started_sample}/{self.brine_emptying_samples} samples completed")
             return False
 
     def are_inputs_active(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:  # inputs: list[float] | np.ndarray = np.array([0])

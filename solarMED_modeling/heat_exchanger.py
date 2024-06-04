@@ -11,7 +11,7 @@ def estimate_flow_secondary(Tp_in: float, Ts_in: float, qp: float, Tp_out: float
     try:
         w_props_Tp_in = w_props(P=0.16, T=(Tp_in + Tp_out) / 2 + 273.15)
         w_props_Ts_in = w_props(P=0.16, T=(Ts_in + Ts_out) / 2 + 273.15)
-    except NotImplementedError:
+    except Exception as e:
         logger.warning(f'Invalid temperature input values: Tp_in={Tp_in}, Ts_in={Ts_in}, Tp_out={Tp_out}, Ts_out={Ts_out} (ºC), returning NaN')
         return np.nan
 
@@ -83,8 +83,13 @@ def heat_exchanger_model(Tp_in: float, Ts_in: float, qp: float, qs: float, Tamb:
 
     inverted_hex = False
 
-    w_props_Tp_in = w_props(P=0.16, T=Tp_in + 273.15)
-    w_props_Ts_in = w_props(P=0.16, T=Ts_in + 273.15)
+    try:
+        w_props_Tp_in = w_props(P=0.16, T=Tp_in + 273.15)
+        w_props_Ts_in = w_props(P=0.16, T=Ts_in + 273.15)
+    except Exception as e:
+        print(f'Invalid temperature input values: Tp_in={Tp_in}, Ts_in={Ts_in} (ºC)')
+        raise e
+
     cp_Tp_in = w_props_Tp_in.cp * 1e3  # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
     cp_Ts_in = w_props_Ts_in.cp * 1e3  # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
 
@@ -170,6 +175,9 @@ def heat_exchanger_model(Tp_in: float, Ts_in: float, qp: float, qs: float, Tamb:
     else:
         Tp_out = Th_out
         Ts_out = Tc_out
+
+    if inverted_hex and Tp_out < Tp_in:
+        raise ValueError(f'If heat exchanger is inverted, we should be obtaining hotter temperatures at the outlet of the primary, not Tp,in {Tp_in:.2f} > Tp,out {Tp_out:.2f}')
 
     if return_epsilon:
         return Tp_out, Ts_out, epsilon

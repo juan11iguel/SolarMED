@@ -271,9 +271,17 @@ def solar_field_model(
         else:
             n = 1
 
-        deltaTout = K1 * I - K2 * (Tavg - Tamb) - K3 * q.take(-1) * (Tout_ant - Tin.take(-n))
+        deltaTout = K1 * I - K3 * q.take(-1) * (Tout_ant - Tin.take(-n)) - K2 * (Tavg - Tamb)
 
-    return Tout_ant + deltaTout * sample_time
+        # If the model predicts a lower temperature than the inlet, return the inlet temperature
+        # i.e. the solar field can't cool the fluid below the inlet temperature
+        # if Tout_ant + deltaTout * sample_time <= Tin.take(-1):
+        #     deltaTout = (Tin.take(-1) - Tout_ant) / sample_time
+        #     logger.warning(f'Solar field cant cooldown below inlet temperature. New {deltaTout:.4f}ºC')
+
+    out = Tout_ant + deltaTout * sample_time
+
+    return out
 
 # def solar_field_model_temp(Tin, Q, I, Tamb, beta, H, nt=1, np=7 * 5, ns=2, Lt=1.15 * 20):  # , Acs=7.85e-5):
 #     """Steady state model of a flat plate collector solar field
