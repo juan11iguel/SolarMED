@@ -38,7 +38,8 @@ node_colors = {
 
 def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Literal['MED', 'SFTS', 'SolarMED'], Np: int,
                      edges_df: pd.DataFrame | list[pd.DataFrame] = None, width=1400, height=500,
-                     title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30) -> go.FigureWidget:
+                     title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30,
+                     highligth_step: int = None) -> go.FigureWidget:
 
     """
 
@@ -137,7 +138,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
             Xr_dash.append([])
             Yr_dash.append([])
 
-            # Not generic, should be improved
+            # TODO: Not generic, should be improved
             state_col = 'med_state' if system_types[-1] == MedState else 'sf_ts_state'
 
             for idx in range(0, len(results_df)-step_size, step_size):
@@ -155,6 +156,27 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
                 else:
                     Xr_dash[system_idx] += x_aux
                     Yr_dash[system_idx] += y_aux
+
+                # If highligth_step is not None, create a circle around the node
+                if highligth_step is not None and idx == highligth_step:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[x_aux[0]], y=[y_aux[0]],
+                            mode='markers',
+                            marker=dict(symbol='circle-dot', size=40, color="#f5c211", ),
+                            line=None,
+                        )
+                    )
+            # Terrible, just for the last that was not included in the loop:
+            if highligth_step is not None and idx == highligth_step:
+                fig.add_trace(
+                    go.Scatter(
+                        x=[x_aux[0]], y=[y_aux[0]],
+                        mode='markers',
+                        marker=dict(symbol='circle-dot', size=40, color="#f5c211", ),
+                        line=None,
+                    )
+                )
 
 
         # Add result paths
@@ -378,7 +400,8 @@ def get_coordinates_edge(src_node_id: str, dst_node_id: str, nodes_df: pd.DataFr
     )
 
 
-def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: SupportedStatesType, show_edges: bool = False) -> go.Figure | go.FigureWidget:
+def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: SupportedStatesType, show_edges: bool = False,
+                                 highligth_step: int = None, width: int = None, height: int = None) -> go.Figure | go.FigureWidget:
 
     Np = len(df)
     edges_df = None
@@ -423,8 +446,9 @@ def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: Support
         edges_df=edges_df,
         results_df=df,
         Np=Np,
-        height=800,
-        width=1200,
+        height=800 if height is None else height,
+        width=1200 if width is None else width,
+        highligth_step=highligth_step
     )
 
     return fig
