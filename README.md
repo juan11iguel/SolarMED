@@ -11,21 +11,26 @@ The model of the complete system, called `SolarMED` is contained in the [models_
 - For examples on how to use it check the [examples](#examples) section.
 
 
+# TODOs
+
+- [x] Re-factor packaging using uv
+- [ ] Add .devcontainer
+
 ## Package structure
 
-- [models_psa](./solarMED_modeling) is the package folder.
-- [models_psa.solar_med](solarMED_modeling/solar_med.py) is the main module containing the complete model class `SolarMED`.
-- [models_psa.solar_field](solarMED_modeling/solar_field.py) contains the solar field model code.
-- [models_psa.thermal_storage](solarMED_modeling/thermal_storage.py) contains the thermal storage model code.
-- [models_psa.med](solarMED_modeling/med.py) contains the MED model code (will do once updated, right now it's an external package from MATLAB)
-- [models_psa.heat_exchanger](solarMED_modeling/heat_exchanger.py) contains the heat exchanger model code.
-- [models_psa.three_way_valve](solarMED_modeling/three_way_valve.py) contains the three-way valve model code.
-- [models_psa.validation](solarMED_modeling/data_validation.py) contains validation utility functions (within_range_or_min_or_max, etc) and new types definitions (conHotTemperatureType, rangeType, etc)
-- [models_psa.power_consumption](solarMED_modeling/power_consumption.py) implements models to evaluate different actuators, mainly electricity consumption though maybe these will be refactored to extend the use of the `Actuator` class.
-- [models_psa.utils](solarMED_modeling/utils) contains different utility functions to process the experimental data.
-- [models_psa.metrics](solarMED_modeling/metrics) contains different metrics to evaluate the performance of the system (not yet implemented).
-- [models_psa.curve_fitting](solarMED_modeling/curve_fitting) contains curve fitting functions to calibrate simple fits e.g. fit electricity consumptions and so on.
-- [models_psa.calibration](solarMED_modeling/calibration) contains the code to perform model parameter calibrations.
+- [models_psa](./src/solarmed_modeling) is the package folder.
+- [models_psa.solar_med](./src/solarmed_modeling/solar_med.py) is the main module containing the complete model class `SolarMED`.
+- [models_psa.solar_field](./src/solarmed_modeling/solar_field.py) contains the solar field model code.
+- [models_psa.thermal_storage](./src/solarmed_modeling/thermal_storage.py) contains the thermal storage model code.
+- [models_psa.med](./src/solarmed_modeling/med.py) contains the MED model code (will do once updated, right now it's an external package from MATLAB)
+- [models_psa.heat_exchanger](./src/solarmed_modeling/heat_exchanger.py) contains the heat exchanger model code.
+- [models_psa.three_way_valve](./src/solarmed_modeling/three_way_valve.py) contains the three-way valve model code.
+- [models_psa.validation](./src/solarmed_modeling/data_validation.py) contains validation utility functions (within_range_or_min_or_max, etc) and new types definitions (conHotTemperatureType, rangeType, etc)
+- [models_psa.power_consumption](./src/solarmed_modeling/power_consumption.py) implements models to evaluate different actuators, mainly electricity consumption though maybe these will be refactored to extend the use of the `Actuator` class.
+- [models_psa.utils](./src/solarmed_modeling/utils) contains different utility functions to process the experimental data.
+- [models_psa.metrics](./src/solarmed_modeling/metrics) contains different metrics to evaluate the performance of the system (not yet implemented).
+- [models_psa.curve_fitting](./src/solarmed_modeling/curve_fitting) contains curve fitting functions to calibrate simple fits e.g. fit electricity consumptions and so on.
+- [models_psa.calibration](./src/solarmed_modeling/calibration) contains the code to perform model parameter calibrations.
 
 
 ## Examples
@@ -143,8 +148,8 @@ High priority:
 - [ ] Recalibrate thermal storage model, once the experimental data is exported including the necessary variables to estimate qhx_s.
 - [x] Find a more robust alternative to obtain the flow from the solar field than inverting the model (implement an internal control loop for the outlet temperature?)
 - [ ] Calibrate input signal - flow of qhx_s once the experimental data is exported including the necessary variables to estimate qhx_s.
-- [ ] Extend MED model to accept the new operating modes (generating vacuum, starting up, shutting down, idle)
-- [ ] Integrate new `SolarMED` states.
+- [x] Extend MED model to accept the new operating modes (generating vacuum, starting up, shutting down, idle)
+- [x] Integrate new `SolarMED` states.
 - [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility
 
 UFSC collaboration towards alternative SolarMED configurations:

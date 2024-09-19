@@ -1,21 +1,40 @@
-# Compose to deploy a container that includes the code and environment to evaluate the different models and model calibrations
-# of the solarMED-modeling repository
-name: solarmed_modeling
+name: notebooks
+
+#  networks:
+#    base_proxy_network:
+#      external: true
 
 services:
-  solarmed-modeling:
-    image: ghcr.io/juan11iguel/solarmed-modeling/main-latest:latest
-    # image: ghcr.io/juan11iguel/solarmed-modeling/dev-latest:latest
-
-    container_name: solarmed-modeling
-
-    # The command below is to run a Jupyter Notebook server
-    command: jupyter notebook --allow-root --ip=0.0.0.0 --port=8888
-    # Alternatively, if you want to keep the container running but do nothing
-    # command: ["tail", "-f", "/dev/null"]
-    ports:
-      - "8889:8888"
+  solarmed_modeling:
+    container_name: solarmed_modeling
+    build: .
+    command: sh -c "uv run jupyter notebook --ip=0.0.0.0 --port=8888 --allow-root"
+    # command: sh -c "tail -f /dev/null" # If you want to keep the container running and access it
+    # The command below is to run the Jupyter Notebook server
+    # command: sh -c ".venv/bin/activate && jupyter notebook --allow-root --ip=0.0.0.0 --port=8888"
+    # ports:
+    #   - "8889:8888"
 
     volumes:
+      # Report notebooks
+      - ./notebooks:/app/:rw
+
+      # Auxiliary folders
       - ./data:/app/data # In the data folder place the experimental data and configuration files in the host
-    #   - ./solarMED-modeling:/app
+#        - $HOME/nextcloud-sync/synced_folders/data:/app/config:rw # This directory is a webDAV mount where the configuration files are read from, can also be updated
+#        - $HOME/nextcloud-sync/synced_folders/med_operation_diary:/app/diary:rw # This directory is a webDAV mount where the reports will be stored
+
+#      environment:
+#        - NOTEBOOK_MODE=container
+
+#      networks:
+#        - base_proxy_network
+#      labels:
+#        - "traefik.enable=true"
+#        - "traefik.http.routers.med_report_generator.rule=Host(`ai.psa.es`)"
+#        - "traefik.http.routers.med_report_generator.entrypoints=web"
+#        - "traefik.http.services.med_report_generator.loadbalancer.server.port=8888"
+#
+      # - "traefik.http.routers.med_report_generator.tls.certresolver=letsencryptresolver"
+      # - "traefik.http.middlewares.med_report_generator-ipallowlist.ipallowlist.sourcerange=10.10.104.0/24, 10.10.105.0/24, 192.168.0.0/16, 193.146.147.0/24"
+      # - "traefik.http.routers.med_report_generator.middlewares=error-pages-middleware"
