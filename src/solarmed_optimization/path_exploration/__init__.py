@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict
 
-from solarMED_modeling import MedState, SF_TS_State, SolarMED_State, SolarMedState_with_value, SfTsState_with_value
-from solarMED_modeling.fsms import SolarFieldWithThermalStorage_FSM, MedFSM
+from solarmed_modeling import MedState, SF_TS_State, SolarMED_State, SolarMedState_with_value, SfTsState_with_value
+from solarmed_modeling.fsms import SolarFieldWithThermalStorage_FSM, MedFSM
 
 SupportedStates = MedState | SF_TS_State | SolarMED_State
 SupportedFSMs = MedFSM | SolarFieldWithThermalStorage_FSM

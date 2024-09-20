@@ -7,9 +7,9 @@ from loguru import logger
 import pygad
 import json
 
-from solarMED_modeling.solar_med import SolarMED
+from solarmed_modeling.solar_med import SolarMED
 
-from solarMED_optimization import EnvVarsSolarMED, CostVarsSolarMED, DecVarsSolarMED
+from solarmed_optimization import EnvVarsSolarMED, CostVarsSolarMED, DecVarsSolarMED
 
 def fitness_function(ga_instance: pygad.GA, dec_vars: np.ndarray, solution_idx: int) -> float:  # acumulated profit
 

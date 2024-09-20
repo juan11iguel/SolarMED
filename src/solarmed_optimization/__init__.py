@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from loguru import logger
 
 
-from solarMED_modeling import SupportedStatesType, MedState
+from solarmed_modeling import SupportedStatesType, MedState
 
 
 def convert_to_state(state: str, state_cls: SupportedStatesType = MedState) -> SupportedStatesType:

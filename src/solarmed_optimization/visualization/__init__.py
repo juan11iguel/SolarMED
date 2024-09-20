@@ -8,8 +8,8 @@ from loguru import logger
 
 import plotly.graph_objs as go
 
-from solarMED_modeling import SupportedStatesType, MedState, SF_TS_State, SolarMED_State, SolarMedState_with_value, SfTsState_with_value
-from solarMED_optimization.path_exploration import Node, generate_edges, generate_edges_dataframe
+from solarmed_modeling import SupportedStatesType, MedState, SF_TS_State, SolarMED_State, SolarMedState_with_value, SfTsState_with_value
+from solarmed_optimization.path_exploration import Node, generate_edges, generate_edges_dataframe
 
 
 node_colors = {

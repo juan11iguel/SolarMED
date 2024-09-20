@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module version="4">
   <component name="NewModuleRootManager">
-    <orderEntry type="jdk" jdkName="Python 3.11 (SolarMED-optimization)" jdkType="Python SDK" />
+    <content url="file://$MODULE_DIR$/../SolarMED-modeling/src">
+      <sourceFolder url="file://$MODULE_DIR$/../SolarMED-modeling/src" isTestSource="false" />
+    </content>
+    <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">

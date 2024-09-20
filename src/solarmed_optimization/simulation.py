@@ -1,9 +1,9 @@
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from solarMED_modeling.solar_med import SolarMED
-from solarMED_optimization import EnvVarsSolarMED, CostVarsSolarMED, DecVarsSolarMED
-from solarMED_optimization.utils import timer_decorator
+from solarmed_modeling.solar_med import SolarMED
+from solarmed_optimization import EnvVarsSolarMED, CostVarsSolarMED, DecVarsSolarMED
+from solarmed_optimization.utils import timer_decorator
 
 
 @timer_decorator

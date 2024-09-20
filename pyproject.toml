@@ -1,0 +1,22 @@
+[project]
+name = "solarmed-optimization"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "loguru>=0.7.2",
+    "lxml>=5.3.0",
+    "pandas>=2.2.2",
+    "phd-visualizations",
+    "pydantic>=2.9.2",
+    "solarmed-modeling",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+solarmed-modeling = { path = "../SolarMED-modeling", editable = true }
+phd-visualizations = { git = "https://github.com/juan11iguel/phd_visualizations", branch = "main" }

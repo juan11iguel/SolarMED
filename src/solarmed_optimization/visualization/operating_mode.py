@@ -1,10 +1,11 @@
 from enum import Enum
 from lxml import etree
 from pydantic import BaseModel, Field, ConfigDict
-from phd_visualizations.diagrams import nsmap
 from loguru import logger
 from copy import deepcopy
 from typing import Literal
+
+from phd_visualizations.diagrams import nsmap
 
 logger.disable("operating_mode")
 
