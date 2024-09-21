@@ -3,37 +3,44 @@ import os
 import hjson
 import numpy as np
 import pandas as pd
-from IPython.display import display
 from loguru import logger
 import time
+import argparse
 
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.utils import data_preprocessing, data_conditioning
 from solarmed_modeling.utils.matlab_environment import set_matlab_environment
 # from solarmed_modeling.metrics import calculate_metrics
 
-set_matlab_environment()
+# Read arguments
+parser = argparse.ArgumentParser(description='Test script for SolarMED model')
+parser.add_argument('--data_path', type=str, default='./data', help='Path where the data/configuration files are stored')
+parser.add_argument('--date_str', type=str, default='20230703', help='Date string (YYYYMMDD) to be used for the data file: {YYYYMMDD}_solarMED.csv and {YYYYMMDD}_MED.csv')
+parser.add_argument('--sample_rate', type=str, default='60s', help='Sample rate of the data')
+parser.add_argument('--environment', type=str, choices=['linux-host', 'container'], default=os.getenv('ENVIRONMENT', None), help='Environment where the model is being run from')
+args = parser.parse_args()
+
+
+set_matlab_environment(environment=args.environment)
 logger.enable("solarmed_modeling")
 
 # Paths definition
-src_path = Path(f'{os.getenv("HOME")}/Nextcloud/Juanmi_MED_PSA/EURECAT/')
-data_path: Path = src_path / 'data'
-config_path: Path = Path('data')
+data_path: Path = Path(args.data_path)
 
 # Constants
-date_str: str = '20230703'
-filename_process_data = f'{date_str}_solarMED.csv'
+date_str: str = args.date_str
+filename_process_data = f'datasets/{date_str}_solarMED.csv'
 # filename_process_data = '20230505_solarMED.csv'
-filename_process_data2 = f'{date_str}_MED.csv'
+filename_process_data2 = f'datasets/{date_str}_MED.csv'
 
 # Parameters
-sample_rate = '60s'
+sample_rate = args.sample_rate
 # sample_rate = '300s'
 cost_w: float = 3 # €/m³, cost of water
 cost_e: float = 0.05 # €/kWh, cost of electricity
 
 # Load configuration
-with open(config_path / "variables_config.hjson") as f:
+with open(data_path / "variables_config.hjson") as f:
     vars_config = hjson.load(f)
 
 # Data preprocessing

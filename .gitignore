@@ -2,6 +2,7 @@
 *.code-workspace
 docs/.obsidian/workspace.json
 auxiliar/watermining_modelfolder/*
+data/datasets/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
