@@ -3,54 +3,66 @@
 # The purpose of this is to keep the container running so that it can be used as a base image or as a placeholder for other services.
 
 # FROM ubuntu:22.04
-FROM containers.mathworks.com/matlab-runtime:r2024b
+FROM containers.mathworks.com/matlab-runtime:r2023b
 LABEL authors="Juan Miguel Serrano, Alejandro Clavera"
 
-WORKDIR /app
-
 # Environment variables
-## The ENVIRONMENT is used to later in model set the correct matlab paths
-# Set to None since it's already done here
 ENV DEBIAN_FRONTEND=noninteractive
+ENV MATLAB_VERSION=R2023b
+ENV WORKDIR=${WORKDIR:-/workspaces/solarmed_modeling}
+ENV AGREE_TO_MATLAB_RUNTIME_LICENSE=yes
 
-# Install curl, git, python3, xclip, micro
-RUN apt-get update && apt-get install -y
-RUN apt-get update && apt-get install -y build-essential curl curl git python3 xclip micro wget unzip
+WORKDIR ${WORKDIR}
 
-# Install zsh
-# Install oh-my-zsh with customized theme
-RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.1.5/zsh-in-docker.sh)" -- \
-    -p git
-RUN echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> .zshrc
-RUN wget https://raw.githubusercontent.com/chbroecker/dotfiles/main/zsh/.p10k.zsh -O .p10k.zsh
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    python3 \
+    python3-venv \
+    xclip \
+    micro \
+    wget \
+    unzip
+
+# Install zsh, oh-my-zsh with customized theme and plugins (git, ssh-agent, zsh-autosuggestions, zsh-syntax-highlighting)
+RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.2.0/zsh-in-docker.sh)" -- \
+    -t https://github.com/denysdovhan/spaceship-prompt \
+    -a 'SPACESHIP_PROMPT_ADD_NEWLINE="false"' \
+    -a 'SPACESHIP_PROMPT_SEPARATE_LINE="false"' \
+    -p git \
+    -p ssh-agent \
+    -p https://github.com/zsh-users/zsh-autosuggestions \
+    -p https://github.com/zsh-users/zsh-syntax-highlighting
 
 
-# Install uv (alternative to pip, https://docs.astral.sh/uv/guides/integration/docker/#available-images)
+# Install uv
 ADD https://astral.sh/uv/install.sh /uv-installer.sh
-# Run the installer then remove it
 RUN sh /uv-installer.sh && rm /uv-installer.sh
-# Ensure the installed binary is on the `PATH`
 ENV PATH="/root/.cargo/bin/:$PATH"
 
-# Install project dependencies
-COPY pyproject.toml README.md uv.lock src MED_model_installers /app/
-RUN uv sync --frozen
+# Copy the project files
+COPY pyproject.toml README.md uv.lock ${WORKDIR}
+# If combined with the previous copy, it copies te contents of the folders instead of the folders themselves
+COPY src ${WORKDIR}/src
+COPY MED_model_installers ${WORKDIR}/MED_model_installers
 
-# Install matlab runtime
-# ENV MR=/app/MATLAB_Runtime
-# RUN mkdir MATLAB_Runtime
-# COPY MED_model_installers /app/MATLAB_Runtime
-# RUN chmod +rx ${MR}/MED_model_web_python_python_311.install
-# RUN ${MR}/MED_model_web_python_python_311.install \
-#     -agreeToLicense yes \
-#     -destinationFolder ${MR} \
-#     -mode silent
-# ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\
-# $MR/R2023b/runtime/glnxa64:\
-# $MR/R2023b/bin/glnxa64:\
-# $MR/R2023b/sys/os/glnxa64:\
-# $MR/R2023b/sys/opengl/lib/glnxa64
-RUN uv pip install /app/MED_model_installers/linux_python311_for_redistribution_files_only
+# Set matlab runtime environment variables
+ENV MR=/opt/matlabruntime/${MATLAB_VERSION}
+
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\
+$MR/runtime/glnxa64:\
+$MR/bin/glnxa64:\
+$MR/sys/os/glnxa64:\
+$MR/sys/opengl/lib/glnxa64
+
+
+# Install dependencies
+# In a normal docker container, this will provide a working virtual environment
+# In a dev container, the virtual environment won't be available, however if the build of the image suceeds it guarantees that 
+# recreating the environment will work, so at first devcontainer start run `uv sync` to create the virtual environment
+RUN uv sync --frozen
 
 # Copy the rest of the project
 # COPY . .

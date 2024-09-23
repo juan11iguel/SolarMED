@@ -24,7 +24,13 @@
 				"naumovs.color-highlight",
 				"laktak.hjson",
 				"GitHub.copilot",
-				"charliermarsh.ruff"
+				"charliermarsh.ruff",
+				"njpwerner.autodocstring",
+				"ms-toolsai.jupyter",
+				"yzhang.markdown-all-in-one",
+				"ms-python.python",
+				"ms-python.debugpy",
+				"ms-toolsai.datawrangler"
 			],
 			"containerEnv": {
 				"ENVIRONMENT": "container",

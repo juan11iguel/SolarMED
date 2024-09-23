@@ -8,6 +8,7 @@ dependencies = [
     "hjson>=3.1.0",
     "loguru>=0.7.2",
     "matplotlib>=3.9.2",
+    "med-model-r2023b",
     "pandas>=2.2.2",
     "phd-visualizations",
     "pydantic>=2.9.2",
@@ -27,3 +28,4 @@ dev-dependencies = [
 
 [tool.uv.sources]
 phd-visualizations = { git = "https://github.com/juan11iguel/phd_visualizations", branch = "main" }
+med-model-r2023b = { path = "MED_model_installers/linux_python311_for_redistribution_files_only" }
