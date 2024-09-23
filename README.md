@@ -31,7 +31,8 @@ Log here the results of the benchmarks:
 
 |  | Date test | Date evaluated | Scenario | Total time (s) | N iterations | Time/it. (s) | RMSE | MAE |
 |--|------|------|----------|-----------|-------|------|---|---|
-| 1 | 20230703 | 20240923   | _to_be_filled_ | 54.40 | 660 | 0.0824 | 0.78 | 0.61 |
+| 1 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. Debugging | 54.40 | 660 | 0.0824 | 0.78 | 0.61 |
+| 2 | 20230703 | 20240923   | Standard configuration. Asus Rog Flow X13 | 29.89 | 660 | 0.0453 | 0.78 | 0.61 |
 
 
 > [!NOTE] 

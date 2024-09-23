@@ -22,7 +22,7 @@ parser.add_argument('--environment', type=str, choices=['linux-host', 'container
 args = parser.parse_args()
 
 
-# set_matlab_environment(environment=args.environment)
+set_matlab_environment(environment=args.environment)
 logger.disable("solarmed_modeling")
 
 # Paths definition
