@@ -1,5 +1,16 @@
-"""Class to import models, give predictions, and provide performances.
+# /// script
+# dependencies = [
+#   "tensorflow>=2.17.0",
+#   "scikit-learn>=0.24.2",
+#   "numpy>=1.19.5",
+#   "pandas>=1.1.5",
+# ]
+# ///
+
 """
+Class to import models, give predictions, and provide performances.
+"""
+
 import pickle
 import sklearn
 import tensorflow as tf
@@ -45,7 +56,7 @@ class Predictor:
         self.target_means = self.target_dataset.mean(axis=0)
         self.target_stds = self.target_dataset.std(axis=0)
 
-        self.ann_model = tf.keras.saving.load_model(
+        self.ann_model = tf.keras.models.load_model(
             f'{path_to_ann_model}{filename_ann_model}')
         with open(f'{path_to_gbr_model}{prefix_gbr_model}Mc{filename_gbr_model}',
                   'rb') as picklefile:
@@ -158,31 +169,31 @@ class Predictor:
 Below is some example code that could be used for importing and testing.
 Note that we're measuring performance on the whole dataset here, and on all
 targets simultaneously.
-
-
-prediction_data = pd.read_csv('data/operation_points_v2.csv')
-
-predictor = Predictor(prediction_data,
-                      path_to_ann_model='models/',
-                      path_to_gbr_model='models/')
-
-features = prediction_data.loc[:, ['Ms', 'Ts_in', 'Mf', 'Tc_in', 'Tc_out']]
-targets = prediction_data.loc[:, ['Md', 'Ts_out', 'Mc']]
-
-prediction_ann = predictor.predict_ann(prediction_data)
-prediction_gbr = predictor.predict_gbr(prediction_data)
-
-performance_r2_ann = predictor.get_performance_r2(
-    prediction_ann, targets)
-performance_r2_gbr = predictor.get_performance_r2(
-    prediction_gbr, targets)
-performance_mse_ann = predictor.get_performance_mse(
-    prediction_ann, targets)
-performance_mse_gbr = predictor.get_performance_mse(
-    prediction_gbr, targets)
-
-print(performance_mse_ann)
-print(performance_r2_ann)
-print(performance_mse_gbr)
-print(performance_r2_gbr)
 """
+
+if __name__ == '__main__':
+    prediction_data = pd.read_csv('data/operation_points_v2.csv')
+
+    predictor = Predictor(prediction_data,
+                          path_to_ann_model='models/',
+                          path_to_gbr_model='models/')
+
+    features = prediction_data.loc[:, ['Ms', 'Ts_in', 'Mf', 'Tc_in', 'Tc_out']]
+    targets = prediction_data.loc[:, ['Md', 'Ts_out', 'Mc']]
+
+    prediction_ann = predictor.predict_ann(prediction_data)
+    prediction_gbr = predictor.predict_gbr(prediction_data)
+
+    performance_r2_ann = predictor.get_performance_r2(
+        prediction_ann, targets)
+    performance_r2_gbr = predictor.get_performance_r2(
+        prediction_gbr, targets)
+    performance_mse_ann = predictor.get_performance_mse(
+        prediction_ann, targets)
+    performance_mse_gbr = predictor.get_performance_mse(
+        prediction_gbr, targets)
+
+    print(performance_mse_ann)
+    print(performance_r2_ann)
+    print(performance_mse_gbr)
+    print(performance_r2_gbr)
