@@ -1,0 +1,1 @@
+This folder contains different notebooks used to develop and calibrate the individual models of each component that makes up the SolarMED system.

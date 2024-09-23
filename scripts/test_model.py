@@ -6,11 +6,12 @@ import pandas as pd
 from loguru import logger
 import time
 import argparse
+import datetime
 
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.utils import data_preprocessing, data_conditioning
 from solarmed_modeling.utils.matlab_environment import set_matlab_environment
-# from solarmed_modeling.metrics import calculate_metrics
+from solarmed_modeling.metrics import calculate_metrics
 
 # Read arguments
 parser = argparse.ArgumentParser(description='Test script for SolarMED model')
@@ -21,17 +22,19 @@ parser.add_argument('--environment', type=str, choices=['linux-host', 'container
 args = parser.parse_args()
 
 
-set_matlab_environment(environment=args.environment)
-logger.enable("solarmed_modeling")
+# set_matlab_environment(environment=args.environment)
+logger.disable("solarmed_modeling")
 
 # Paths definition
 data_path: Path = Path(args.data_path)
 
 # Constants
 date_str: str = args.date_str
-filename_process_data = f'datasets/{date_str}_solarMED.csv'
+filename_process_data: str = f'datasets/{date_str}_solarMED.csv'
 # filename_process_data = '20230505_solarMED.csv'
-filename_process_data2 = f'datasets/{date_str}_MED.csv'
+filename_process_data2: str = f'datasets/{date_str}_MED.csv'
+metric_variables: list[str] = ['qmed_d', 'qmed_c', 'Tsf_in', 'Tts_h_m', 'Tts_c_m']
+metric_ids: list[str] = ['RMSE', 'MAE']
 
 # Parameters
 sample_rate = args.sample_rate
@@ -131,11 +134,41 @@ for idx in range(idx_start, idx_end):
     df_mod = model.to_dataframe(df_mod)
 
 end_time_total = time.time()
+total_time = end_time_total - start_time_total
+avg_it_time = total_time / (idx_end - idx_start)
 logger.info(f"Total elapsed time: {end_time_total - start_time_total:.2f} seconds.")
 
 #%%
 # Sync model index with measured data
-# df_mod.index = df.index[idx_start-1:idx if idx<idx_end-1 else idx_end]
-#
-# # Calculate metrics
-# metrics =
+df_mod.index = df.index[idx_start-1:idx if idx<idx_end-1 else idx_end]
+
+# Gather metric_variables from experimental data and normalize them
+df_metrics = df[metric_variables].copy()
+df_metrics = (df_metrics - df_metrics.mean()) / df_metrics.std()
+
+# Gather metric_variables from model results and normalize them
+df_mod_metrics = df_mod[metric_variables].copy()
+df_mod_metrics = (df_mod_metrics - df_mod_metrics.mean()) / df_mod_metrics.std()
+
+# Calculate performance metrics for each variable
+metrics: dict[str, dict[str, np.ndarray[float]]] = {}
+for var_id in metric_variables:
+    metrics[var_id] = calculate_metrics(df_mod_metrics[var_id], df_metrics[var_id], metrics=metric_ids)
+    
+metrics['system'] = {}
+# Calculate performance metrics for the whole system (average of all variables)
+for metric_id in metric_ids:# metrics[metric_variables[0]].keys():
+    metrics['system'][metric_id] = np.mean([metrics[var_id][metric_id] for var_id in metric_variables])
+
+header_str = "".join([f"| {metric_id} " for metric_id in metrics['system']]) + "|"
+separator_row_str = "|---" * len(metrics['system']) + "|"
+values_str = "".join([f"| {value:.2f} " for value in metrics['system'].values()]) + "|"
+
+# Build report table
+
+md_report_table_str = \
+f"""|  | Date test | Date evaluated | Scenario | Total time (s) | N iterations | Time/it. (s) {header_str}
+|--|------|------|----------|-----------|-------|------{separator_row_str}
+| 1 | {date_str} | {datetime.datetime.now().strftime('%Y%m%d')}   | _to_be_filled_ | {total_time:.2f} | {idx_end-idx_start} | {avg_it_time:.4f} {values_str}"""
+
+print(md_report_table_str)

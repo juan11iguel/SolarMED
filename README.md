@@ -14,7 +14,29 @@ The model of the complete system, called `SolarMED` is contained in the [models_
 # TODOs
 
 - [x] Re-factor packaging using uv
-- [ ] Add .devcontainer
+- [x] Add .devcontainer
+- [ ] Add support for notebook deployment
+
+
+# Benchmarks
+
+The script [test_model.py](./scripts/test_model.py) is used to benchmark the model performance in different scenarios. The script is run with the following command:
+
+```bash
+uv run scripts/test_model.py
+```
+
+At the end it prints some performance metrics of the model (error metrics), and the time it took to run the model.
+Log here the results of the benchmarks:
+
+|  | Date test | Date evaluated | Scenario | Total time (s) | N iterations | Time/it. (s) | RMSE | MAE |
+|--|------|------|----------|-----------|-------|------|---|---|
+| 1 | 20230703 | 20240923   | _to_be_filled_ | 54.40 | 660 | 0.0824 | 0.78 | 0.61 |
+
+
+> [!NOTE] 
+> Comparison between runs where test date or sample rate (=number for iterations) changes, are not valid for total time and error metrics. Time per iteration (`Time/it.`) is a better "universal" execution time metric to compare different runs.
+
 
 ## Package structure
 

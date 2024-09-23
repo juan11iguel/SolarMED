@@ -1030,6 +1030,11 @@ wheels = [
 ]
 
 [[package]]
+name = "med-model-r2023b"
+version = "23.2"
+source = { directory = "MED_model_installers/linux_python311_for_redistribution_files_only" }
+
+[[package]]
 name = "mistune"
 version = "3.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1815,6 +1820,7 @@ dependencies = [
     { name = "hjson" },
     { name = "loguru" },
     { name = "matplotlib" },
+    { name = "med-model-r2023b" },
     { name = "pandas" },
     { name = "phd-visualizations" },
     { name = "pydantic" },
@@ -1833,6 +1839,7 @@ requires-dist = [
     { name = "hjson", specifier = ">=3.1.0" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "matplotlib", specifier = ">=3.9.2" },
+    { name = "med-model-r2023b", directory = "MED_model_installers/linux_python311_for_redistribution_files_only" },
     { name = "pandas", specifier = ">=2.2.2" },
     { name = "phd-visualizations", git = "https://github.com/juan11iguel/phd_visualizations?branch=main" },
     { name = "pydantic", specifier = ">=2.9.2" },
