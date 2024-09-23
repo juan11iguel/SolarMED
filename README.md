@@ -15,7 +15,7 @@ The model of the complete system, called `SolarMED` is contained in the [models_
 
 - [x] Re-factor packaging using uv
 - [x] Add .devcontainer
-- [ ] Add support for notebook deployment
+- [ ] Add support for notebook deployment. WIP reverse-proxy giving trouble, works on port
 
 
 # Benchmarks
@@ -33,10 +33,12 @@ Log here the results of the benchmarks:
 |--|------|------|----------|-----------|-------|------|---|---|
 | 1 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. Debugging | 54.40 | 660 | 0.0824 | 0.78 | 0.61 |
 | 2 | 20230703 | 20240923   | Standard configuration. Asus Rog Flow X13 | 29.89 | 660 | 0.0453 | 0.78 | 0.61 |
-
+| 3 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. | 28.97 | 660 | 0.0439 | 0.78 | 0.61 |
 
 > [!NOTE] 
 > Comparison between runs where test date or sample rate (=number for iterations) changes, are not valid for total time and error metrics. Time per iteration (`Time/it.`) is a better "universal" execution time metric to compare different runs.
+
+- "Standard configuration" stands for model using both fsms and evaluation component models, prior to applying any optimizations (such as assumming water properties as constant)
 
 
 ## Package structure
@@ -185,7 +187,7 @@ UFSC collaboration towards alternative SolarMED configurations:
 Low priority:
 - [ ] Move auxiliary calculations in `SolarMED` (powers, metrics, etc) to the module of the specific component in its own function instead of having them in the `step` method.
 - [ ] When `resolution_mode` is `'simple'`, the water physical properties should also be simplified in the models
-- [ ] Replace MED model with Python implementation from KWR.
+- [ ] Replace MED model with Python implementation from KWR. Attempted, having trouble importing the model
 
 Longer term: 
 - [ ] Implement alternative way of exporting experimental data from the plant instead of relying on manually exported txts from LABview.
