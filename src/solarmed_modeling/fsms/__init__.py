@@ -84,14 +84,14 @@ class Base_FSM:
             # When the array format is used, all variables necessarily need to be parsed as floats
 
             med_vac_float = float(str(self.med_vacuum_state.value)) if self.med_vacuum_state is not None else None
-            return np.array([self.mmed_s, self.mmed_f, self.Tmed_s_in, self.Tmed_c_out, med_vac_float], dtype=float)
+            return np.array([self.qmed_s, self.qmed_f, self.Tmed_s_in, self.Tmed_c_out, med_vac_float], dtype=float)
 
         elif format == 'dict':
             # In the dict format, each variable  can have its own type
 
             return {
-                'mmed_s': self.mmed_s,
-                'mmed_f': self.mmed_f,
+                'qmed_s': self.qmed_s,
+                'qmed_f': self.qmed_f,
                 'Tmed_s_in': self.Tmed_s_in,
                 'Tmed_c_out': self.Tmed_c_out,
                 'med_vacuum_state': self.med_vacuum_state,
@@ -378,8 +378,8 @@ class MedFSM(Base_FSM):
             initial_state: MedState = MedState.OFF,
 
             # Inputs / Decision variables (Optional)
-            mmed_s: float = None,
-            mmed_f: float = None,
+            qmed_s: float = None,
+            qmed_f: float = None,
             Tmed_s_in: float = None,
             Tmed_c_out: float = None,
             med_vacuum_state: MedVacuumState = None,
@@ -397,8 +397,8 @@ class MedFSM(Base_FSM):
         self.startup_duration_samples = int(self.startup_duration_time / self.sample_time)
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.mmed_s = mmed_s
-        self.mmed_f = mmed_f
+        self.qmed_s = qmed_s
+        self.qmed_f = qmed_f
         self.Tmed_s_in = Tmed_s_in
         self.Tmed_c_out = Tmed_c_out
         self.med_vacuum_state = med_vacuum_state
@@ -477,7 +477,7 @@ class MedFSM(Base_FSM):
         event = args[0]
 
         # Inform of not invalid but wasteful operations
-        if self.vacuum_generated == True and self.is_high_vacuum():
+        if self.vacuum_generated and self.is_high_vacuum():
             logger.warning(f"[{self.name}] Vacuum already generated, keeping vacuum at high value is wasteful")
         if event.state == MedState.OFF and self.is_low_vacuum():
             logger.warning(f"[{self.name}] MED vacuum state is OFF, vacuum should be off or high to start generating vacuum")
@@ -634,15 +634,15 @@ class MedFSM(Base_FSM):
         
         if return_valid_inputs:
             return dict(
-                mmed_s = 1.0,
-                mmed_f = 1.0,
+                qmed_s = 1.0,
+                qmed_f = 1.0,
                 Tmed_s_in = 1.0,
                 Tmed_c_out = 1.0,
             )
         elif return_invalid_inputs:
             return dict( # Just one would be enough
-                mmed_s = 0.0,
-                mmed_f = 0.0,
+                qmed_s = 0.0,
+                qmed_f = 0.0,
                 Tmed_s_in = 0.0,
                 Tmed_c_out = 0.0,
             )
@@ -656,14 +656,14 @@ class MedFSM(Base_FSM):
             """ When the array format is used, all variables necessarily need to be parsed as floats """
 
             med_vac_float = float(str(self.med_vacuum_state.value)) if self.med_vacuum_state is not None else None
-            return np.array([self.mmed_s, self.mmed_f, self.Tmed_s_in, self.Tmed_c_out, med_vac_float], dtype=float)
+            return np.array([self.qmed_s, self.qmed_f, self.Tmed_s_in, self.Tmed_c_out, med_vac_float], dtype=float)
 
         elif format == 'dict':
             """ In the dict format, each variable  can have its own type """
 
             return {
-                'mmed_s': self.mmed_s,
-                'mmed_f': self.mmed_f,
+                'qmed_s': self.qmed_s,
+                'qmed_f': self.qmed_f,
                 'Tmed_s_in': self.Tmed_s_in,
                 'Tmed_c_out': self.Tmed_c_out,
                 'med_vacuum_state': self.med_vacuum_state,
@@ -674,14 +674,14 @@ class MedFSM(Base_FSM):
 
         return self.inputs_array
 
-    def step(self, mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float,
+    def step(self, qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float,
              med_vacuum_state: int | MedVacuumState):
 
         self.current_sample += 1
 
         # Inputs validation (would be done by Pydantic), here just update the values
-        self.mmed_s = mmed_s
-        self.mmed_f = mmed_f
+        self.qmed_s = qmed_s
+        self.qmed_f = qmed_f
         self.Tmed_s_in = Tmed_s_in
         self.Tmed_c_out = Tmed_c_out
         self.med_vacuum_state = MedVacuumState(med_vacuum_state) if med_vacuum_state is not None else None
@@ -698,8 +698,8 @@ class MedFSM(Base_FSM):
 
         # Save prior inputs
 
-        # self.mmed_s_prior = self.mmed_s
-        # self.mmed_f_prior = self.mmed_f
+        # self.qmed_s_prior = self.qmed_s
+        # self.qmed_f_prior = self.qmed_f
         # self.Tmed_s_in_prior = self.Tmed_s_in
         # self.Tmed_c_out_prior = self.Tmed_c_out
         self.inputs_array_prior = self.inputs_array
@@ -714,8 +714,8 @@ class MedFSM(Base_FSM):
 
         data = pd.DataFrame({
             'state': self.state.name,
-            'mmed_s': self.mmed_s,
-            'mmed_f': self.mmed_f,
+            'qmed_s': self.qmed_s,
+            'qmed_f': self.qmed_f,
             'Tmed_s_in': self.Tmed_s_in,
             'Tmed_c_out': self.Tmed_c_out,
         }, index=[0])
@@ -743,9 +743,9 @@ class SolarMED(BaseModel):
     ## Solar field, por comprobar!!
     lims_msf: rangeType = Field((4.7, 14), title="msf limits", json_schema_extra={"units": "m3/h"},
                                 description="Solar field flow rate range (m³/h)", repr=False)
-    lims_mmed_s: rangeType = Field((30, 48), title="mmed,s limits", json_schema_extra={"units": "m3/h"},
+    lims_qmed_s: rangeType = Field((30, 48), title="mmed,s limits", json_schema_extra={"units": "m3/h"},
                                    description="MED hot water flow rate range (m³/h)", repr=False)
-    lims_mmed_f: rangeType = Field((5, 9), title="mmed,f limits", json_schema_extra={"units": "m3/h"},
+    lims_qmed_f: rangeType = Field((5, 9), title="mmed,f limits", json_schema_extra={"units": "m3/h"},
                                    description="MED feedwater flow rate range (m³/h)", repr=False)
     lims_mmed_c: rangeType = Field((8, 21), title="mmed,c limits", json_schema_extra={"units": "m3/h"},
                                    description="MED condenser flow rate range (m³/h)", repr=False)
@@ -768,7 +768,7 @@ class SolarMED(BaseModel):
 
     ## MED
     # Chapuza: Por favor, asegurarse de que aquí se definen en el mimso orden que se usan después al asociarle un caudal
-    # mmed_b, mmed_f, mmed_d, mmed_c, mmed_s
+    # mmed_b, qmed_f, mmed_d, mmed_c, qmed_s
     med_actuators: list[Actuator] | list[str] = Field(["med_brine_pump", "med_feed_pump",
                                                        "med_distillate_pump", "med_cooling_pump",
                                                        "med_heatsource_pump"],
@@ -893,9 +893,9 @@ class SolarMED(BaseModel):
                        description="Output. Solar field thermal power generated (kWth)")
 
     # MED
-    mmed_s_sp: float = Field(None, title="mmed,s*", json_schema_extra={"units": "m3/h"},
+    qmed_s_sp: float = Field(None, title="mmed,s*", json_schema_extra={"units": "m3/h"},
                              description="Decision variable. MED hot water flow rate (m³/h)")
-    mmed_f_sp: float = Field(None, title="mmed,f*", json_schema_extra={"units": "m3/h"},
+    qmed_f_sp: float = Field(None, title="mmed,f*", json_schema_extra={"units": "m3/h"},
                              description="Decision variable. MED feedwater flow rate (m³/h)")
     # Here absolute limits are defined, but upper limit depends on Tts_h_t
     Tmed_s_in_sp: float = Field(None, title="Tmed,s,in*", json_schema_extra={"units": "C"},
@@ -903,9 +903,9 @@ class SolarMED(BaseModel):
     Tmed_c_out_sp: float = Field(None, title="Tmed,c,out*", json_schema_extra={"units": "C"},
                                  description="Decision variable. MED condenser outlet temperature (ºC)")
 
-    mmed_s: float = Field(None, title="mmed,s", json_schema_extra={"units": "m3/h"},
+    qmed_s: float = Field(None, title="mmed,s", json_schema_extra={"units": "m3/h"},
                           description="Output. MED hot water flow rate (m³/h)")
-    mmed_f: float = Field(None, title="mmed,f", json_schema_extra={"units": "m3/h"},
+    qmed_f: float = Field(None, title="mmed,f", json_schema_extra={"units": "m3/h"},
                           description="Output. MED feedwater flow rate (m³/h)")
     Tmed_s_in: float = Field(None, title="Tmed,s,in", json_schema_extra={"units": "C"},
                              description="Output. MED hot water inlet temperature (ºC)")
@@ -1017,7 +1017,7 @@ class SolarMED(BaseModel):
             # Solar field decision variables
             Tsf_out: float,
             # MED decision variables
-            mmed_s, mmed_f, Tmed_s_in, Tmed_c_out, med_vacuum_state: MedVacuumState | int,
+            qmed_s, qmed_f, Tmed_s_in, Tmed_c_out, med_vacuum_state: MedVacuumState | int,
             # Environment variables
             Tmed_c_in: float, Tamb: float, I: float, wmed_f: float = None,
             # Optional
@@ -1028,8 +1028,8 @@ class SolarMED(BaseModel):
         # In this mockup class just copy the inputs into class variables
         self.mts_src = mts_src
         self.Tsf_out = Tsf_out
-        self.mmed_s = mmed_s
-        self.mmed_f = mmed_f
+        self.qmed_s = qmed_s
+        self.qmed_f = qmed_f
         self.Tmed_s_in = Tmed_s_in
         self.Tmed_c_out = Tmed_c_out
         self.med_vacuum_state = med_vacuum_state
@@ -1038,7 +1038,7 @@ class SolarMED(BaseModel):
         # based on this, the step method in the individual state machines are called
 
         self._sf_ts_fsm.step(Tsf_out=Tsf_out, qts_src=mts_src)
-        self._med_fsm.step(mmed_s=mmed_s, mmed_f=mmed_f, Tmed_s_in=Tmed_s_in, Tmed_c_out=Tmed_c_out,
+        self._med_fsm.step(qmed_s=qmed_s, qmed_f=qmed_f, Tmed_s_in=Tmed_s_in, Tmed_c_out=Tmed_c_out,
                           med_vacuum_state=med_vacuum_state)
 
         self.update_current_state()
@@ -1093,8 +1093,8 @@ class SolarMED(BaseModel):
             'state_title': self.get_state(mode='human_readable'),
 
             'state_med': self.med_state,
-            'mmed_s': self.mmed_s,
-            'mmed_f': self.mmed_f,
+            'qmed_s': self.qmed_s,
+            'qmed_f': self.qmed_f,
             'Tmed_s_in': self.Tmed_s_in,
             'Tmed_c_out': self.Tmed_c_out,
 

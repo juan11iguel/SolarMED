@@ -1,15 +1,12 @@
-import json
 import re
 import numpy as np
 import pandas as pd
-import re
 from iapws import IAPWS97 as w_props  # Librería propiedades del agua, cuidado, P Mpa no bar
 from loguru import logger
 from scipy.optimize import least_squares
-from enum import Enum, EnumType
+from enum import Enum
 from typing import Any, Literal
 import copy
-import datetime
 import pickle
 from pydantic import (
     BaseModel,
@@ -17,7 +14,6 @@ from pydantic import (
     ConfigDict,
     field_validator,
     computed_field,
-    ValidationError,
     ValidationInfo,
     PositiveFloat,
     PrivateAttr
@@ -27,11 +23,10 @@ from simple_pid import PID
 
 from .data_validation import (rangeType, within_range_or_zero_or_max, within_range_or_min_or_max,
                               conHotTemperatureType, check_value_single, conHotTemperatureType_upper_limit)
-from .curve_fitting import evaluate_fit
 from .solar_field import solar_field_model, solar_field_inverse_model
 from .heat_exchanger import heat_exchanger_model, calculate_heat_transfer_effectiveness
 from .thermal_storage import thermal_storage_two_tanks_model
-from .power_consumption import Actuator, SupportedActuators
+from .power_consumption import Actuator
 from .three_way_valve import three_way_valve_model
 from . import MedState, SF_TS_State, ThermalStorageState, SolarFieldState, SolarMED_State, MedVacuumState
 from .fsms import MedFSM, SolarFieldWithThermalStorage_FSM
@@ -44,14 +39,46 @@ from .fsms import MedFSM, SolarFieldWithThermalStorage_FSM
 
 np.set_printoptions(precision=2) # Set numpy to print only 2 decimal places
 dot = np.multiply # Alias for element-wise multiplication
-Nsf_max = 100  # Maximum number of steps to keep track of the solar field flow rate, should be higher than the maximum expected delay
+Nsf_max: int = 100  # Maximum number of steps to keep track of the solar field flow rate, should be higher than the maximum expected delay
 
 class ModelVarType(Enum):
     TIMESERIES = 0
     PARAMETER  = 1
 
-states_sf_ts = [state for state in SF_TS_State]
-states_med = [state for state in MedState]
+states_sf_ts: list[SF_TS_State] = [state for state in SF_TS_State]
+states_med: list[MedState] = [state for state in MedState]
+
+# Defaults
+default_startup_conditions: dict[str, float] = {
+    # var_id: value
+    'qmed_s': 10 * 3.6, # m³/h
+    'qmed_f': 5,        # m³/h
+    'qmed_b': 5         # m³/h
+}
+
+default_shutdown_conditions: dict[str, float] = {
+    # var_id: value
+    'qmed_b': 5,        # m³/h
+}
+
+default_actuators_consumptions_map: dict[str, dict[str, str]] = {
+    # var_id:: actuator_id
+    'med': {
+        'qmed_b': "med_brine_pump", 
+        'qmed_f': "med_feed_pump",
+        'qmed_d': "med_distillate_pump", 
+        'qmed_c': "med_cooling_pump",
+        'qmed_s': "med_heatsource_pump",
+    },
+    
+    'sf': {
+        'qsf': "sf_pump",
+    },
+    
+    'ts': {
+       'qts_src': "ts_src_pump"
+    }
+}
 
 
 class SolarMED(BaseModel):
@@ -89,16 +116,16 @@ class SolarMED(BaseModel):
     # Limits
     # Important to define first, so that they are available for validation
     ## Flows. Need to be defined separately to validate using `within_range_or_zero_or_max`
-    lims_mts_src: rangeType = Field((0.95, 20), title="mts,src limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
+    lims_qts_src: rangeType = Field((0.95, 20), title="qts,src limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
                                     description="Thermal storage heat source flow rate range (m³/h)", repr=False)
     ## Solar field, por comprobar!!
-    lims_msf: rangeType = Field((4.7, 14), title="msf limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
+    lims_qsf: rangeType = Field((4.7, 14), title="qsf limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
                                 description="Solar field flow rate range (m³/h)", repr=False)
-    lims_mmed_s: rangeType = Field((30, 48), title="mmed,s limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
+    lims_qmed_s: rangeType = Field((30, 48), title="mmed,s limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
                                    description="MED hot water flow rate range (m³/h)", repr=False)
-    lims_mmed_f: rangeType = Field((5, 9), title="mmed,f limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
+    lims_qmed_f: rangeType = Field((5, 9), title="mmed,f limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
                                    description="MED feedwater flow rate range (m³/h)", repr=False)
-    lims_mmed_c: rangeType = Field((8, 21), title="mmed,c limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
+    lims_qmed_c: rangeType = Field((8, 21), title="mmed,c limits", json_schema_extra={"units": "m3/h", "var_type": ModelVarType.PARAMETER},
                                    description="MED condenser flow rate range (m³/h)", repr=False)
 
     # Tmed_s_in, límite dinámico
@@ -121,31 +148,39 @@ class SolarMED(BaseModel):
     resolution_mode: Literal['simple', 'precise'] = Field(..., repr=False, json_schema_extra={"var_type": ModelVarType.PARAMETER},
                                                           description="Mode of solving the model, can either be a simplified but faster version (`simple`)"
                                                                       "or a more precise but slower (`precise`)")
-    ## FSM parameters
+    ## Finite State Machine parameters
     vacuum_duration_time: int = Field(5 * 60, title="MED vacuum,duration", json_schema_extra={"units": "s", "var_type": ModelVarType.PARAMETER},
                                       description="Time to generate vacuum (seconds)")
     brine_emptying_time: int = Field(3 * 60, title="MED brine,emptying,duration", json_schema_extra={"units": "s", "var_type": ModelVarType.PARAMETER},
                                      description="Time to extract brine from MED plant (seconds)")
     startup_duration_time: int = Field(1 * 60, title="MED startup,duration", json_schema_extra={"units": "s", "var_type": ModelVarType.PARAMETER},
                                        description="Time to start up the MED plant (seconds)")
+    startup_conditions: dict[str, float] = Field(default_startup_conditions, json_schema_extra={"var_type": ModelVarType.PARAMETER}, 
+                                                 description="Values for some variables on startup state", repr=False)
+    shutdown_conditions: dict[str, float] = Field(default_shutdown_conditions, json_schema_extra={"var_type": ModelVarType.PARAMETER}, 
+                                                  description="Values for some variables on shutdown state", repr=False)
     # TODO: Add cooldown times / hystheresis? It would greatly delay/reduce the exponential growth/explosion of possible transitions
     # active_cooldown_time: int = Field(3*60, title="MED active,cooldown", json_schema_extra={"units": "s"},
     #                                   description="Minimum time than the MED system needs to stay active after transitioning to this state (seconds)")
     # off_cooldown_time: int = Field(5*60, title="MED off,cooldown", json_schema_extra={"units": "s"},
     #                                description="Minimum time than the MED system needs to stay off after transitioning to this state (seconds)")
 
+    ## Common
+    actuators_consumptions: dict[str, dict[str, str | Actuator | dict]] = Field(default_actuators_consumptions_map, title="Actuators consumption object",
+                                                                  json_schema_extra={"var_type": ModelVarType.PARAMETER},
+                                                                  description="Map of process variables to actuator objects/ids", repr=False)
     # Chapuza: Por favor, asegurarse de que aquí se definen en el mimso orden que se usan después al asociarle un caudal
-    # mmed_b, mmed_f, mmed_d, mmed_c, mmed_s
+    # qmed_b, qmed_f, qmed_d, mmed_c, qmed_s
     ## MED
-    med_actuators: list[Actuator] | list[str] | list[dict] = Field(["med_brine_pump", "med_feed_pump",
-                                                       "med_distillate_pump", "med_cooling_pump",
-                                                       "med_heatsource_pump"],
-                                                      description="Actuators to estimate electricity consumption for the MED",
-                                                      title="MED actuators", repr=False, json_schema_extra={"var_type": ModelVarType.PARAMETER})
+    # med_actuators: list[Actuator] | list[str] | list[dict] = Field(["med_brine_pump", "med_feed_pump",
+    #                                                    "med_distillate_pump", "med_cooling_pump",
+    #                                                    "med_heatsource_pump"],
+    #                                                   description="Actuators to estimate electricity consumption for the MED",
+    #                                                   title="MED actuators", repr=False, json_schema_extra={"var_type": ModelVarType.PARAMETER})
     ## Thermal storage
-    ts_actuators: list[Actuator] | list[str] | list[dict] = Field(["ts_src_pump"], title="Thermal storage actuators", repr=False,
-                                                     json_schema_extra={"var_type": ModelVarType.PARAMETER},
-                                                     description="Actuators to estimate electricity consumption for the thermal storage")
+    # ts_actuators: list[Actuator] | list[str] | list[dict] = Field(["ts_src_pump"], title="Thermal storage actuators", repr=False,
+    #                                                  json_schema_extra={"var_type": ModelVarType.PARAMETER},
+    #                                                  description="Actuators to estimate electricity consumption for the thermal storage")
     UAts_h: list[PositiveFloat] = Field([0.0069818, 0.00584034, 0.03041486], title="UAts,h",
                                         json_schema_extra={"units": "W/K", "var_type": ModelVarType.PARAMETER},
                                         description="Heat losses to the environment from the hot tank (W/K)",
@@ -162,9 +197,9 @@ class SolarMED(BaseModel):
                                        description="Volume of each control volume of the cold tank (m³)", repr=False)
 
     ## Solar field
-    sf_actuators: list[Actuator] | list[str] | list[dict] = Field(["sf_pump"], title="Solar field actuators", repr=False,
-                                                     json_schema_extra={"var_type": ModelVarType.PARAMETER},
-                                                     description="Actuators to estimate electricity consumption for the solar field")
+    # sf_actuators: list[Actuator] | list[str] | list[dict] = Field(["sf_pump"], title="Solar field actuators", repr=False,
+    #                                                  json_schema_extra={"var_type": ModelVarType.PARAMETER},
+    #                                                  description="Actuators to estimate electricity consumption for the solar field")
 
     beta_sf: float = Field(4.36396e-02, title="βsf", json_schema_extra={"units": "m", "var_type": ModelVarType.PARAMETER},
                            repr=False, description="Solar field. Gain coefficient", gt=0, le=1)
@@ -197,12 +232,16 @@ class SolarMED(BaseModel):
                          description="Heat exchanger. Heat transfer coefficient", gt=0)
     H_hx: float = Field(0, title="Hhx", json_schema_extra={"var_type": ModelVarType.PARAMETER, "units": "W/m2"}, repr=False,
                         description="Heat exchanger. Losses to the environment")
+    
+    ## MED
+    Jvacuum: list[float] = Field(default_factory=lambda: [0., 1., 5.], title="Jvacuum", json_schema_extra={"var_type": ModelVarType.PARAMETER, "units": "kWe"},
+                                 description="MED vacuum system electrical power consumption (kWe)", repr=False)
 
     # Variables (states, outputs, decision variables, inputs, etc.)
     ## General
     current_sample: int = Field(0, title="Current sample (s)", json_schema_extra={"units": "sec", "var_type": ModelVarType.TIMESERIES},
                                 description="Current model sample (NOTE: not in sync with FSMs sample counters)")
-    ## Environment
+    ## Environment (uncontrolled inputs)
     wmed_f: float = Field(35, title="wmed,f", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "g/kg"},
                           description="Environment. Seawater / MED feedwater salinity (g/kg)", gt=0)
     Tamb: float = Field(None, title="Tamb", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
@@ -213,13 +252,13 @@ class SolarMED(BaseModel):
                              description="Environment. Seawater temperature (ºC)", ge=10, le=28)
 
     ## Thermal storage
-    mts_src_sp: float = Field(None, title="mts,src*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
-                              description="Decision variable. Thermal storage recharge flow rate (m³/h)")
+    qts_src_sp: float = Field(None, title="qts,src*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+                              description="Decision variable. Thermal storage recharge flow rate (m³/h)", ge=0)
 
-    mts_src: float = Field(None, title="mts,src", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
-                           description="Output. Thermal storage recharge flow rate (m³/h)")
-    mts_dis: float = Field(None, title="mts,dis", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
-                           description="Output. Thermal storage discharge flow rate (m³/h)")
+    qts_src: float = Field(None, title="qts,src", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+                           description="Output. Thermal storage recharge flow rate (m³/h)", ge=0)
+    qts_dis: float = Field(None, title="qts,dis", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+                           description="Output. Thermal storage discharge flow rate (m³/h)", ge=0)
     Tts_h_in: conHotTemperatureType = Field(None, title="Tts,h,in", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                                             description="Output. Thermal storage heat source inlet temperature, to top of hot tank == Thx_s_out (ºC)")
     Tts_c_in: conHotTemperatureType = Field(None, title="Tts,c,in", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
@@ -249,11 +288,11 @@ class SolarMED(BaseModel):
                                           description="Output. Solar field inlet temperature (ºC)")
     Tsf_in_ant: np.ndarray[conHotTemperatureType] = Field(..., title="Tsf,in_ant", json_schema_extra={"var_type": None, "units": "C"},
                                                           description="Solar field inlet temperature in the previous Nsf_max steps (ºC)")
-    msf_ant: np.ndarray[float] = Field(..., repr=False, exclude=False, json_schema_extra={"var_type": None},
+    qsf_ant: np.ndarray[float] = Field(..., repr=False, exclude=False, json_schema_extra={"var_type": None},
                                        description='Solar field flow rate in the previous Nsf_max steps', )
     Tsf_out_ant: conHotTemperatureType = Field(None, title="Tsf,out,ant", json_schema_extra={"var_type": None, "units": "C"},
                                                description="Output. Solar field prior outlet temperature (ºC)")
-    msf: float = Field(None, title="msf", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qsf: float = Field(None, title="qsf", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                        description="Output. Solar field flow rate (m³/h)", alias="qsf")
     SEC_sf: float = Field(None, title="SEC_sf", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWhe/kWth"},
                           description="Output. Solar field conversion efficiency (kWhe/kWth)")
@@ -263,30 +302,30 @@ class SolarMED(BaseModel):
                        description="Output. Solar field thermal power generated (kWth)")
 
     ## MED
-    mmed_s_sp: float = Field(None, title="mmed,s*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qmed_s_sp: float = Field(None, title="mmed,s*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                              description="Decision variable. MED hot water flow rate (m³/h)")
-    mmed_f_sp: float = Field(None, title="mmed,f*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qmed_f_sp: float = Field(None, title="mmed,f*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                              description="Decision variable. MED feedwater flow rate (m³/h)")
     # Here absolute limits are defined, but upper limit depends on Tts_h_t
     Tmed_s_in_sp: float = Field(None, title="Tmed,s,in*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                                 description="Decision variable. MED hot water inlet temperature (ºC)")
     Tmed_c_out_sp: float = Field(None, title="Tmed,c,out*", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                                  description="Decision variable. MED condenser outlet temperature (ºC)")
-    mmed_s: float = Field(None, title="mmed,s", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qmed_s: float = Field(None, title="mmed,s", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                           description="Output. MED hot water flow rate (m³/h)")
-    mmed_f: float = Field(None, title="mmed,f", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qmed_f: float = Field(None, title="mmed,f", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                           description="Output. MED feedwater flow rate (m³/h)")
     Tmed_s_in: float = Field(None, title="Tmed,s,in", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                              description="Output. MED hot water inlet temperature (ºC)")
     Tmed_c_out: float = Field(None, title="Tmed,c,out", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                               description="Output. MED condenser outlet temperature (ºC)", ge=0)
-    mmed_c: float = Field(None, title="mmed,c", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qmed_c: float = Field(None, title="mmed,c", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                           description="Output. MED condenser flow rate (m³/h)")
     Tmed_s_out: float = Field(None, title="Tmed,s,out", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                               description="Output. MED heat source outlet temperature (ºC)")
-    mmed_d: float = Field(None, title="mmed,d", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qmed_d: float = Field(None, title="mmed,d", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                           description="Output. MED distillate flow rate (m³/h)")
-    mmed_b: float = Field(None, title="mmed,b", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    qmed_b: float = Field(None, title="mmed,b", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                           description="Output. MED brine flow rate (m³/h)")
     Jmed: float = Field(None, title="Jmed", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWe"},
                         description="Output. MED electrical power consumption (kW)")
@@ -307,10 +346,10 @@ class SolarMED(BaseModel):
                                             description="Output. Heat exchanger secondary circuit (cold side) inlet temperature == Tts_c_out(ºC)")
     Thx_s_out: conHotTemperatureType = Field(None, title="Thx,s,out", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                                              description="Output. Heat exchanger secondary circuit (cold side) outlet temperature == Tts_t_in (ºC)")
-    mhx_p: float = Field(None, title="mhx,p", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
-                         description="Output. Heat exchanger primary circuit (hot side) flow rate == msf (m³/h)")
-    mhx_s: float = Field(None, title="mhx,s", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
-                         description="Output. Heat exchanger secondary circuit (cold side) flow rate == mts_src (m³/h)")
+    qhx_p: float = Field(None, title="mhx,p", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+                         description="Output. Heat exchanger primary circuit (hot side) flow rate == qsf (m³/h)")
+    qhx_s: float = Field(None, title="mhx,s", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+                         description="Output. Heat exchanger secondary circuit (cold side) flow rate == qts_src (m³/h)")
     Phx_p: float = Field(None, title="Pth,hx,p", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWth"},
                          description="Output. Heat exchanger primary circuit (hot side) power == Pth_sf (kWth)")
     Phx_s: float = Field(None, title="Pth,hx,s", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWth"},
@@ -322,9 +361,9 @@ class SolarMED(BaseModel):
     # Same case as with heat exchanger
     R3wv: float = Field(None, title="R3wv", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "-"},
                         description="Output. Three-way valve mix ratio (-)")
-    m3wv_src: float = Field(None, title="m3wv,src", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
-                            description="Output. Three-way valve source flow rate == mts,dis (m³/h)")
-    m3wv_dis: float = Field(None, title="m3wv,dis", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+    q3wv_src: float = Field(None, title="m3wv,src", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
+                            description="Output. Three-way valve source flow rate == qts,dis (m³/h)")
+    q3wv_dis: float = Field(None, title="m3wv,dis", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "m3/h"},
                             description="Output. Three-way valve discharge flow rate == mmed,s (m³/h)")
     T3wv_src: conHotTemperatureType = Field(None, title="T3wv,src", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                                             description="Output. Three-way valve source temperature == Tts,h,t (ºC)")
@@ -448,7 +487,7 @@ class SolarMED(BaseModel):
     #     # Just to make sure it's a numpy array
     #     return np.array(Tts, dtype=float)
 
-    @field_validator("mmed_s_sp", "mmed_f_sp", "mts_src_sp", "msf", "mmed_c")
+    @field_validator("qmed_s_sp", "qmed_f_sp", "qts_src_sp", "qsf", "qmed_c")
     @classmethod
     def validate_flow(cls, flow: float, info: ValidationInfo) -> PositiveFloat:
         lims_field = "lims_" + info.field_name.removesuffix("_sp")
@@ -485,17 +524,16 @@ class SolarMED(BaseModel):
                                            var_name=info.field_name)
 
 
-    def model_post_init(self, ctx):
+    def model_post_init(self, ctx) -> None:
 
         if self.sample_time > 1200 and self.use_models:
-            logger.warning("Sample time is too high for the time-dependent models (i.e. solar field). "
+            raise RuntimeWarning("Sample time is too high for the time-dependent models (i.e. solar field). "
                                  "This is likely to cause unfeasibilities in the model evaluation")
 
         if not self.use_models and not self.use_finite_state_machine:
             raise ValueError("At least one of `use_models` or `use_finite_state_machine` must be set to True")
 
         if self.use_models:
-
             # Initialize the MATLAB engine
             self.init_matlab_engine()
 
@@ -503,16 +541,20 @@ class SolarMED(BaseModel):
         self.Tts_h = np.array(self.Tts_h, dtype=float)
         self.Tts_c = np.array(self.Tts_c, dtype=float)
 
-        # Make sure actuators are instances of the Actuator class
-        actuator_groups = ['med_actuators', 'sf_actuators', 'ts_actuators']
-        for actuator_group in actuator_groups:
-            for idx, actuator in enumerate( getattr(self, actuator_group) ):
-                if isinstance(actuator, Actuator):
-                    getattr(self, actuator_group)[idx] = actuator
-                elif isinstance(actuator, str):
-                    getattr(self, actuator_group)[idx] = Actuator(id=actuator)
+        # Validate that there are as many values of vacuum consumption as states
+        assert len(self.Jvacuum) == len(MedVacuumState), "The number of vacuum consumption values must be equal to the number of vacuum states"
+
+        # Validate and initialize actuators
+        if set(['ts', 'med', 'sf']) != set(self.actuators_consumptions.keys()):
+            raise ValueError(f"Actuators consumptions must have keys for 'ts', 'med', and 'sf', use an empty dict if there are no actuators for a category. Example: {default_actuators_consumptions_map}")
+        for actuator_category in self.actuators_consumptions.values():
+            for var_id, actuator in actuator_category.items():
+                if isinstance(actuator, str):
+                    actuator_category[var_id] = Actuator(id=actuator)
                 elif isinstance(actuator, dict):
-                    getattr(self, actuator_group)[idx] = Actuator(**actuator)
+                    actuator_category[var_id] = Actuator(**actuator)
+                elif not isinstance(actuator, Actuator):
+                    raise ValueError(f"Actuator {actuator} is not a valid actuator, should an id of supported actuator, a dict to initialize an Actuator instance, or an Actuator instance")
 
         # Initialize outlet temperature to the provided inlet initial temperature
         self.Tsf_in = self.Tsf_in_ant.take(-1)
@@ -534,16 +576,15 @@ class SolarMED(BaseModel):
                 brine_emptying_time=self.brine_emptying_time, startup_duration_time=self.startup_duration_time
             )
 
-
         logger.info(f'''
         SolarMED model initialized with: 
             - Evaluating models: {self.use_models}
             - Evaluating finite state machines: {self.use_finite_state_machine}
             - Resolution mode: {self.resolution_mode}
             - Sample time: {self.sample_time} s
-            - MED actuators: {[actuator.id for actuator in self.med_actuators]}
-            - Solar field actuators: {[actuator.id for actuator in self.sf_actuators]}
-            - Thermal storage actuators: {[actuator.id for actuator in self.ts_actuators]}
+            - MED actuators: {[actuator.id for actuator in self.actuators_consumptions['med'].values()]}
+            - Solar field actuators: {[actuator.id for actuator in self.actuators_consumptions['sf'].values()]}
+            - Thermal storage actuators: {[actuator.id for actuator in self.actuators_consumptions['ts'].values()]}
         ''')
 
     # def set_operating_state(self) -> None:
@@ -567,11 +608,11 @@ class SolarMED(BaseModel):
 
     def step(
             self,
-            mts_src: float,  # Thermal storage decision variables
+            qts_src: float,  # Thermal storage decision variables
             Tsf_out: float,  # Solar field decision variables
-            mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float,  # MED decision variables
+            qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float,  # MED decision variables
             Tmed_c_in: float, Tamb: float, I: float, wmed_f: float = None,  # Environment variables
-            msf: float = None, # Optional, to provide the solar field flow rate when starting up (Tsf_out takes priority)
+            qsf: float = None, # Optional, to provide the solar field flow rate when starting up (Tsf_out takes priority)
             med_vacuum_state: int | MedVacuumState = 2,  # Optional, to provide the MED vacuum state (OFF, LOW, HIGH)
     ) -> None:
 
@@ -582,14 +623,14 @@ class SolarMED(BaseModel):
                 - Decision variables
                     MED
                     ---------------------------------------------------
-                    + mmed_s (m³/h): Heat source flow rate
-                    + mmed_f (m³/h): Feed water flow rate
+                    + qmed_s (m³/h): Heat source flow rate
+                    + qmed_f (m³/h): Feed water flow rate
                     + Tmed_s_in (ºC): Heat source inlet temperature
                     + Tmed_c_out (ºC): Cooling water outlet temperature
 
                     THERMAL STORAGE
                     ---------------------------------------------------
-                    + mts_src (m³/h): Thermal storage heat source flow rate
+                    + qts_src (m³/h): Thermal storage heat source flow rate
 
                     SOLAR FIELD
                     ---------------------------------------------------
@@ -616,24 +657,24 @@ class SolarMED(BaseModel):
         self.Tmed_c_in = Tmed_c_in
 
         # MED
-        self.mmed_s_sp = mmed_s #if mmed_s is not None else self.mmed_s # Use the previous value
-        self.mmed_f_sp = mmed_f
+        self.qmed_s_sp = qmed_s #if qmed_s is not None else self.qmed_s # Use the previous value
+        self.qmed_f_sp = qmed_f
         self.Tmed_s_in_sp = Tmed_s_in
         self.Tmed_c_out_sp = Tmed_c_out
         self.med_vacuum_state = med_vacuum_state
 
         # Thermal storage
-        self.mts_src_sp = mts_src
-        self.mts_src = self.mts_src_sp  # To make sure we use the validated value
+        self.qts_src_sp = qts_src
+        self.qts_src = self.qts_src_sp  # To make sure we use the validated value
 
         # Solar field
         self.Tsf_out_sp = Tsf_out # To make sure we use the validated value
         if self.Tsf_out_sp == 0:
-            if msf is not None:
-                self.msf = msf
-                logger.debug(f"Solar field warm up mode, using provided qsf: {msf:.1f} (m³/h) instead of Tsf,out,sp")
+            if qsf is not None:
+                self.qsf = qsf
+                logger.debug(f"Solar field warm up mode, using provided qsf: {qsf:.1f} (m³/h) instead of Tsf,out,sp")
             else:
-                self.msf = 0
+                self.qsf = 0
 
         # Initialize variables
         # self.penalty = 0
@@ -643,18 +684,18 @@ class SolarMED(BaseModel):
 
         # Set operating mode
         # Check MED state
-        if self.mmed_s_sp > 0 and self.mmed_f_sp > 0 and self.Tmed_s_in_sp > 0 and self.Tmed_c_out_sp > 0:
+        if self.qmed_s_sp > 0 and self.qmed_f_sp > 0 and self.Tmed_s_in_sp > 0 and self.Tmed_c_out_sp > 0:
             self.med_active = True
 
         # Check solar field state
-        if self.Tsf_out_sp > 0 or self.msf > 0:
+        if self.Tsf_out_sp > 0 or self.qsf > 0:
             self.sf_active = True
             # Initialize solar field local controller
         if self.sf_active and self.use_models:
-            self._pid_sf = PID(Kp=self.Kp_sf, Ki=self.Ki_sf, sample_time=self.sample_time, output_limits=(self.lims_msf[0], self.lims_msf[-1]), setpoint=self.Tsf_out_sp)
+            self._pid_sf = PID(Kp=self.Kp_sf, Ki=self.Ki_sf, sample_time=self.sample_time, output_limits=(self.lims_qsf[0], self.lims_qsf[-1]), setpoint=self.Tsf_out_sp)
 
         # Check heat exchanger state / thermal storage state
-        if self.mts_src_sp > 0:
+        if self.qts_src_sp > 0:
             self.ts_active = True
 
         # # Update operating mode
@@ -665,11 +706,11 @@ class SolarMED(BaseModel):
 
         if self.use_finite_state_machine:
             # Save FSMs before updating them
-            sf_ts_fsm0 = copy.deepcopy(self._sf_ts_fsm)
-            med_fsm0 = copy.deepcopy(self._med_fsm)
+            # sf_ts_fsm0 = copy.deepcopy(self._sf_ts_fsm)
+            # med_fsm0 = copy.deepcopy(self._med_fsm)
 
-            self._sf_ts_fsm.step(Tsf_out=self.Tsf_out_sp, qts_src=self.mts_src_sp, qsf=self.msf)
-            self._med_fsm.step(mmed_s=self.mmed_s_sp, mmed_f=self.mmed_f_sp, Tmed_s_in=self.Tmed_s_in_sp,
+            self._sf_ts_fsm.step(Tsf_out=self.Tsf_out_sp, qts_src=self.qts_src_sp, qsf=self.qsf)
+            self._med_fsm.step(qmed_s=self.qmed_s_sp, qmed_f=self.qmed_f_sp, Tmed_s_in=self.Tmed_s_in_sp,
                                Tmed_c_out=self.Tmed_c_out_sp, med_vacuum_state=self.med_vacuum_state)
 
             self.update_current_state()
@@ -696,14 +737,14 @@ class SolarMED(BaseModel):
         #     self._sf_ts_fsm = sf_ts_fsm0
         #     self._med_fsm = med_fsm0
         #
-        #     self._sf_ts_fsm.step(Tsf_out=self.Tsf_out, qts_src=self.mts_src)
-        #     self._med_fsm.step(mmed_s=self.mmed_s, mmed_f=self.mmed_f, Tmed_s_in=self.Tmed_s_in,
+        #     self._sf_ts_fsm.step(Tsf_out=self.Tsf_out, qts_src=self.qts_src)
+        #     self._med_fsm.step(qmed_s=self.qmed_s, qmed_f=self.qmed_f, Tmed_s_in=self.Tmed_s_in,
         #                        Tmed_c_out=self.Tmed_c_out, med_vacuum_state=self.med_vacuum_state)
         #
         #     self.update_current_state()
         #     logger.debug(f"SolarMED state after step evaluation: {self.current_state}")
 
-    def init_matlab_engine(self):
+    def init_matlab_engine(self) -> None:
         """
         Manually initialize the MATLAB MED model, in case it was terminated.
         """
@@ -716,38 +757,44 @@ class SolarMED(BaseModel):
         self._matlab = matlab
         logger.info('MATLAB engine initialized')
 
-    def solve_step(self):
+    def solve_step(self) -> None:
         # Every individual model `solve` method considers either the active state of the component
         # or the use_models logical variable to return its outputs. If any is false they are not evaluated
         # but return their default values
         # Maybe it would be preferable to make it more explicit?
 
         # 1st. MED
-
-        (self.mmed_s, self.mmed_f, self.Tmed_s_in, self.Tmed_c_out, self.mmed_d, self.mmed_c, self.mmed_b,
-         self.Tmed_s_out, self.Jmed, self.Pmed, self.SEEC_med, self.STEC_med) = \
-            self.solve_MED(self.mmed_s_sp, self.mmed_f_sp, self.Tmed_s_in_sp, self.Tmed_c_out_sp, self.Tmed_c_in)
+        (self.qmed_s, self.qmed_f, self.Tmed_s_in, 
+         self.Tmed_c_out, self.qmed_d, self.qmed_c, 
+         self.qmed_b, self.Tmed_s_out) = \
+            self.solve_MED(
+                qmed_s = self.qmed_s_sp, 
+                qmed_f = self.qmed_f_sp, 
+                Tmed_s_in = self.Tmed_s_in_sp, 
+                Tmed_c_out = self.Tmed_c_out_sp, 
+                Tmed_c_in = self.Tmed_c_in
+            )
 
 
         # 2nd. Three-way valve
-        self.m3wv_src, self.R3wv = three_way_valve_model(
-            Mdis=self.mmed_s, Tsrc=self.Tts_h[0], Tdis_in=self.Tmed_s_in, Tdis_out=self.Tmed_s_out
+        self.q3wv_src, self.R3wv = three_way_valve_model(
+            Mdis=self.qmed_s, Tsrc=self.Tts_h[0], Tdis_in=self.Tmed_s_in, Tdis_out=self.Tmed_s_out
         )
 
-        self.mts_dis = self.m3wv_src
-        self.m3wv_dis = self.mmed_s
+        self.qts_dis = self.q3wv_src
+        self.q3wv_dis = self.qmed_s
 
-        # 3rd. Solve solar field, heat exchanger and thermal storage
+        # 3rd. Solve solar field, heat exchanger and thermal storage subproblem
 
         # If both the solar field is active and the thermal storage is being recharged
         # Then the system is coupled, solve coupled subproblem
         if self.ts_active and self.sf_active and self.use_models:
-            msf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in = self.solve_coupled_subproblem()
+            qsf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in = self.solve_coupled_subproblem()
 
             # In case the coupled subproblem results in unfeasible operation, solve each system independently
             # Otherwise, update the values
             if self.sf_active:
-                self.msf, self.Tsf_out, self.Tsf_in = msf, Tsf_out, Tsf_in
+                self.qsf, self.Tsf_out, self.Tsf_in = qsf, Tsf_out, Tsf_in
                 self.Tts_h, self.Tts_c, self.Tts_h_in = Tts_h, Tts_c, Tts_h_in
 
         # Otherwise, solar field and thermal storage are decoupled, or their models are not being used and defaults are returned
@@ -757,22 +804,22 @@ class SolarMED(BaseModel):
             self.Tts_h_in = self.Tts_c[-1] # Hot tank inlet temperature is the bottom temperature of the cold tank
             self.Tts_h, self.Tts_c = self.solve_thermal_storage(Tts_h_in=self.Tts_h_in)
 
-            # Solve solar field, calculate msf and validate it's within limits, then recalculate Tsf
+            # Solve solar field, calculate qsf and validate it's within limits, then recalculate Tsf
             # if self.sf_active:
             if self.Tsf_out_sp > 0:
                 if self.use_models:
-                    # self.msf = self.solve_solar_field_inverse(Tsf_out=self.Tsf_out_sp)
-                    self.msf = self._pid_sf(self.Tsf_out_ant, dt=self.sample_time)
+                    # self.qsf = self.solve_solar_field_inverse(Tsf_out=self.Tsf_out_sp)
+                    self.qsf = self._pid_sf(self.Tsf_out_ant, dt=self.sample_time)
                 else:
-                    self.msf = 0
+                    self.qsf = 0
 
             # Ignore the provided flow rate if the solar field is not active
             # We will get here for exaple if the coupled subproblem results in unfeasible operation
             if not self.sf_active:
-                self.msf = 0
+                self.qsf = 0
 
             # Use either the provided flow rate or the calculated one from Tsf,out,sp or bypass the model
-            self.Tsf_out = self.solve_solar_field(Tsf_in=self.Tsf_in, msf=self.msf)
+            self.Tsf_out = self.solve_solar_field(Tsf_in=self.Tsf_in, qsf=self.qsf)
 
             # Since they are decoupled, necessarily the outlet of the solar field becomes its inlet
             self.Tsf_in = self.Tsf_out + 3  # Tener en cuenta de que esto no tiene sentido físico, pero se observa en los datos experimentales
@@ -780,77 +827,22 @@ class SolarMED(BaseModel):
         # Update solar field prior values
         self.Tsf_out_ant = self.Tsf_out
 
-        self.msf_ant = np.roll(self.msf_ant, -1)  # Shift all elements to the left
-        self.msf_ant[-1] = self.msf  # Add the new value at the end
+        self.qsf_ant = np.roll(self.qsf_ant, -1)  # Shift all elements to the left
+        self.qsf_ant[-1] = self.qsf  # Add the new value at the end
 
         self.Tsf_in_ant = np.roll(self.Tsf_in_ant, -1)  # Shift all elements to the left
         self.Tsf_in_ant[-1] = self.Tsf_in  # Add the new value at the end
 
         # Calculate additional outputs
-        # TODO: Clean this part by moving it to a separate method / module
-        # Pth_sf, Jsf_e, SEC_sf
-        if self.sf_active and self.use_models:
-            w_props_sf = w_props(P=0.16, T=(self.Tsf_in + self.Tsf_out) / 2 + 273.15)
-            self.Psf = self.msf * w_props_sf.rho * (self.Tsf_out - self.Tsf_in) * w_props_sf.cp / 3600  # kWth
-            # self.Jsf_e = self.electrical_consumption(self.msf, self.consumption_fits[""]) # kWhe # TODO: Add the right fit
-            self.Jsf = self.sf_actuators[0].calculate_power_consumption(self.msf)
-            self.SEC_sf = self.Jsf / self.Psf if self.Psf > 0 else np.nan  # kWhe/kWth
-        else:
-            self.Psf = 0
-            self.Jsf = 0
-            self.SEC_sf = np.nan
-
-        if self.ts_active and self.use_models:
-            # Pth_ts_out, Pth_ts_in, Jts_e
-            w_props_ts_in = w_props(P=0.16, T=(self.Tts_h_in + self.Tts_c[-1]) / 2 + 273.15)
-            self.Pts_src = self.mts_src * w_props_ts_in.rho * (
-                        self.Tts_h_in - self.Tts_c[-1]) * w_props_ts_in.cp / 3600  # kWth
-            self.Jts = self.ts_actuators[0].calculate_power_consumption(self.mts_src)
-        else:
-            self.Pts_src = 0
-            self.Jts = 0
-
-        if self.med_active and self.use_models:
-            w_props_ts_out = w_props(P=0.16, T=(self.Tmed_s_out + self.Tts_h[1]) / 2 + 273.15)
-            self.Pts_dis = self.mts_dis * w_props_ts_out.rho * (
-                    self.Tts_h[1] - self.Tmed_s_out) * w_props_ts_out.cp / 3600  # kWth
-            # self.Jts_e = self.electrical_consumption(self.mts_src, self.consumption_fits[""]) # kWhe # TODO: Add the right fit
-
-            # TODO: If there is an alternative thermal storage configuration, the index needs to be the one where the extraction is done
-            self.Tts_h_out = self.Tts_h[0]
-            self.Tts_c_in = self.Tmed_s_out
-        else:
-            self.Pts_dis = 0
-            self.Tts_h_out = 0
-            self.Tts_c_in = 0
+        self.calculate_med_aux_outputs()
+        self.calculate_sf_aux_outputs()
+        self.calculate_ts_aux_outputs()
+        self.calculate_hx_aux_outputs()
+        # Total variables
+        self.Jtotal = self.Jmed + self.Jts + self.Jsf
 
 
-        if self.use_models:
-            # Copied variables for the heat exchanger
-            self.Thx_p_in = self.Tsf_out
-            self.Thx_p_out = self.Tsf_in
-            self.Thx_s_in = self.Tts_c[-1]
-            self.Thx_s_out = self.Tts_h_in
-            self.mhx_p = self.msf
-            self.mhx_s = self.mts_src
-            self.Phx_p = self.Psf
-            self.Phx_s = self.Pts_src
-
-            self.epsilon_hx = calculate_heat_transfer_effectiveness(
-                Tp_in=self.Thx_p_in,
-                Tp_out=self.Thx_p_out,
-                Ts_in=self.Thx_s_in,
-                Ts_out=self.Thx_s_out,
-                qp=self.mhx_p,
-                qs=self.mhx_s
-            )
-
-            # Total variables
-            self.Jtotal = self.Jmed + self.Jts + self.Jsf
-
-        # self.epsilon_hx = self.Pth_hx_s / self.Pth_hx_p if self.Pth_hx_p > 0 else np.nan
-
-    def get_state(self, mode: Literal["default", "human_readable"] = 'default') -> SolarMED_State:
+    def get_state(self, mode: Literal["default", "human_readable"] = 'default') -> SolarMED_State | str:
         # state_code = self.generate_state_code(self._sf_ts_fsm.state, self._med_fsm.state)
 
         state_code = str(self.sf_state.value) + str(self.ts_state.value) + str(self.med_state.value)
@@ -861,11 +853,11 @@ class SolarMED(BaseModel):
             state_str =  state_str.replace('_', ' ').lower()
             # Replace ts to TS, sf to SF and med to MED
             state_str = state_str.replace('ts', 'TS').replace('sf', 'SF').replace('med', 'MED')
-
+            
             return state_str
-
-        else:
-            return SolarMED_State(state_code)
+        
+        # Else
+        return SolarMED_State(state_code)
 
     def update_internal_states(self) -> None:
         self.med_state = self._med_fsm.get_state()
@@ -877,71 +869,46 @@ class SolarMED(BaseModel):
         self.update_internal_states()
         self.current_state = self.get_state()
 
-
-    def solve_MED(self, mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float, Tmed_c_in: float):
-
-        def auxiliary_consumption() -> float:
-
-            # TODO: Replace these values by value from the class
-            if self.med_vacuum_state == MedVacuumState.HIGH:
-                return 5.0  # kW, high vacuum consumption
-
-            if self.med_vacuum_state == MedVacuumState.LOW:
-                return 1.0  # kW, reduced vacuum consumption
-
-            else:
-                return 0.0
-
+    def solve_MED(self, qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float, Tmed_c_in: float) -> tuple[float, float, float, float, float, float, float, float]:
 
         def default_values():
+            
             # Process outputs
-            mmed_d = 0
-            mmed_c = 0
-            mmed_b = 0
+            qmed_d = 0
+            qmed_c = 0
+            qmed_b = 0
             Tmed_s_out = 0
 
-            # Consumptions / metrics
-            Jmed = 0
-            Pmed = 0
-            SEEC_med = np.nan
-            STEC_med = np.nan
-
             # Overiden decision variables
-            mmed_s = 0
-            mmed_f = 0
+            qmed_s = 0
+            qmed_f = 0
             Tmed_s_in = 0
             Tmed_c_out = Tmed_c_in # Or 0?
-
+            
             if self.use_finite_state_machine:
-                Jmed = auxiliary_consumption()
 
                 if self.med_state == MedState.STARTING_UP:
-                    mmed_s = 10 * 3.6
-                    mmed_f = 5 * 3.6
-                    mmed_b = mmed_f
+                    qmed_s = self.startup_conditions['qmed_s']
+                    qmed_f = self.startup_conditions['qmed_f']
+                    qmed_b = self.startup_conditions['qmed_b']
+                    
                 elif self.med_state == MedState.SHUTTING_DOWN:
-                    mmed_b = 5
+                    qmed_b = self.shutdown_conditions['qmed_b']
+            
 
-                # Additional consumptions when STARTING_UP for example
-                Jmed += np.sum(
-                    [actuator.calculate_power_consumption(flow)
-                     for actuator, flow in zip(self.med_actuators, [mmed_b, mmed_f, mmed_d, mmed_c, mmed_s])
-                     ]
-                )
-
-            return mmed_s, mmed_f, Tmed_s_in, Tmed_c_out, mmed_d, mmed_c, mmed_b, Tmed_s_out, Jmed, Pmed, SEEC_med, STEC_med
+            return qmed_s, qmed_f, Tmed_s_in, Tmed_c_out, qmed_d, qmed_c, qmed_b, Tmed_s_out
 
 
         Tmed_c_out0 = Tmed_c_out
         med_model_solved = False
 
-        if self.med_active == False or not self.use_models:
+        if not self.med_active or not self.use_models:
             return default_values()
 
 
-        MsIn = self._matlab.double([mmed_s / 3.6], size=(1, 1))  # m³/h -> L/s
+        MsIn = self._matlab.double([qmed_s / 3.6], size=(1, 1))  # m³/h -> L/s
         TsinIn = self._matlab.double([Tmed_s_in], size=(1, 1))
-        MfIn = self._matlab.double([mmed_f], size=(1, 1))
+        MfIn = self._matlab.double([qmed_f], size=(1, 1))
         TcwinIn = self._matlab.double([Tmed_c_in], size=(1, 1))
         op_timeIn = self._matlab.double([0], size=(1, 1))
         # wf=wmed_f # El modelo sólo es válido para una salinidad así que ni siquiera
@@ -951,7 +918,7 @@ class SolarMED(BaseModel):
 
             TcwoutIn = self._matlab.double([Tmed_c_out], size=(1, 1))
             # try:
-            mmed_d, Tmed_s_out, mmed_c, _, _ = self._MED_model.MED_model(
+            qmed_d, Tmed_s_out, qmed_c, _, _ = self._MED_model.MED_model(
                 MsIn,  # L/s
                 TsinIn,  # ºC
                 MfIn,  # m³/h
@@ -961,17 +928,16 @@ class SolarMED(BaseModel):
                 nargout=5
             )
 
-            if mmed_c > self.lims_mmed_c[1]:
+            if qmed_c > self.lims_qmed_c[1]:
                 Tmed_c_out += 1
-            elif mmed_c < self.lims_mmed_c[0]:
+            elif qmed_c < self.lims_qmed_c[0]:
                 Tmed_c_out -= 1
             else:
                 med_model_solved = True
 
         if not med_model_solved:
             self.med_active = False
-            logger.warning(
-                f'MED is not active due to unfeasible operation in the condenser, setting all MED outputs to 0')
+            logger.warning('MED is not active due to unfeasible operation in the condenser, setting all MED outputs to 0')
 
             return default_values()
 
@@ -982,81 +948,47 @@ class SolarMED(BaseModel):
             )
 
         ## Brine flow rate
-        mmed_b = mmed_f - mmed_d  # m³/h
-
-        ## MED electrical consumption
-        Jmed = 0
-        Jmed += np.sum(
-            [actuator.calculate_power_consumption(flow)
-             for actuator, flow in zip(self.med_actuators, [mmed_b, mmed_f, mmed_d, mmed_c, mmed_s])
-             ]
-        )
-        Jmed += auxiliary_consumption()
-
-        SEEC_med = Jmed / mmed_d  # kWhe/m³
-
-        ## MED STEC
-        w_props_s = w_props(P=0.1, T=(Tmed_s_in + Tmed_s_out) / 2 + 273.15)
-        cp_s = w_props_s.cp  # kJ/kg·K
-        rho_s = w_props_s.rho  # kg/m³
-        # rho_d = w_props(P=0.1, T=Tmed_c_out+273.15) # kg/m³
-        mmed_s_kgs = mmed_s * rho_s / 3600  # kg/s
-
-        Pmed = mmed_s_kgs * (Tmed_s_in - Tmed_s_out) * cp_s  # kWth
-        STEC_med = Pmed / mmed_d  # kWhth/m³
+        qmed_b = qmed_f - qmed_d  # m³/h
 
         if not med_model_solved:
             self.med_active = False
-            logger.warning(f'MED is not active due to unfeasible operation in the condenser, setting all MED outputs to 0')
+            logger.warning('MED is not active due to unfeasible operation in the condenser, setting all MED outputs to 0')
 
-        return mmed_s, mmed_f, Tmed_s_in, Tmed_c_out, mmed_d, mmed_c, mmed_b, Tmed_s_out, Jmed, Pmed, SEEC_med, STEC_med
+        return qmed_s, qmed_f, Tmed_s_in, Tmed_c_out, qmed_d, qmed_c, qmed_b, Tmed_s_out
 
     def solve_thermal_storage(self, Tts_h_in: float, calculate_consumption: bool = False) \
-            -> (tuple[np.ndarray[conHotTemperatureType], np.ndarray[conHotTemperatureType], float] |
-                tuple[np.ndarray[conHotTemperatureType], np.ndarray[conHotTemperatureType]]):
+            -> tuple[np.ndarray[conHotTemperatureType], np.ndarray[conHotTemperatureType]]:
 
-        if self.use_models:
-            Tts_h, Tts_c = thermal_storage_two_tanks_model(
-                Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c,  # [ºC], [ºC]
-                Tt_in=Tts_h_in,  # ºC
-                Tb_in=self.Tmed_s_out,  # ºC
-                Tamb=self.Tamb,  # ºC
+        if not self.use_models:
+            return self.Tts_h, self.Tts_c
+        
+        # Else
+        Tts_h, Tts_c = thermal_storage_two_tanks_model(
+            Ti_ant_h=self.Tts_h, Ti_ant_c=self.Tts_c,  # [ºC], [ºC]
+            Tt_in=Tts_h_in,  # ºC
+            Tb_in=self.Tmed_s_out,  # ºC
+            Tamb=self.Tamb,  # ºC
 
-                qsrc=self.mts_src,  # m³/h
-                qdis=self.mts_dis,  # m³/h
+            qsrc=self.qts_src,  # m³/h
+            qdis=self.qts_dis,  # m³/h
 
-                UA_h=self.UAts_h,  # W/K
-                UA_c=self.UAts_c,  # W/K
-                Vi_h=self.Vts_h,  # m³
-                Vi_c=self.Vts_c,  # m³
-                ts=self.sample_time, Tmin=self.lims_Tmed_s_in[0]  # seg, ºC
-            )
-
-            # Electrical consumption
-            Jts = 0
-            Jts += np.sum(
-                [actuator.calculate_power_consumption(flow)
-                 for actuator, flow in zip(self.ts_actuators, [self.mts_src])
-                 ]
-            )
-
-            if calculate_consumption:
-                return Tts_h, Tts_c, Jts
-
-        else:
-            Tts_h = self.Tts_h
-            Tts_c = self.Tts_c
+            UA_h=self.UAts_h,  # W/K
+            UA_c=self.UAts_c,  # W/K
+            Vi_h=self.Vts_h,  # m³
+            Vi_c=self.Vts_c,  # m³
+            ts=self.sample_time, Tmin=self.lims_Tmed_s_in[0]  # seg, ºC
+        )
 
         return Tts_h, Tts_c
-
-    def solve_heat_exchanger(self, Tsf_out, Tts_c_b, msf, mts_src, return_epsilon=False) -> tuple[float, float, float] | tuple[float, float]:
+        
+    def solve_heat_exchanger(self, Tsf_out, Tts_c_b, qsf, qts_src, return_epsilon=False) -> tuple[float, float, float] | tuple[float, float]:
 
         Thx_p_out, Thx_s_out, epsilon = heat_exchanger_model(
             Tp_in=Tsf_out,  # Solar field outlet temperature (decision variable, ºC)
             Ts_in=Tts_c_b,  # Cold tank bottom temperature (ºC)
 
-            qp=msf,  # Solar field flow rate (m³/h)
-            qs=mts_src,  # Thermal storage charge flow rate (decision variable, m³/h)
+            qp=qsf,  # Solar field flow rate (m³/h)
+            qs=qts_src,  # Thermal storage charge flow rate (decision variable, m³/h)
 
             Tamb=self.Tamb,  # Ambient temperature (ºC)
 
@@ -1071,59 +1003,50 @@ class SolarMED(BaseModel):
         else:
             return Thx_p_out, Thx_s_out
 
-    def solve_solar_field(self, Tsf_in: float, msf: float, calculate_consumption: bool = False) -> float | tuple[float, float]:
+    def solve_solar_field(self, Tsf_in: float, qsf: float) -> float:
 
         """
         Make sure to set `Tsf_out_ant` to the prior `Tsf_out` value before calling this method
         """
 
-        if self.use_models:
-            msf = np.append(self.msf_ant, msf)
-            Tsf_in = np.append(self.Tsf_in_ant, Tsf_in)
+        if not self.use_models:
+            return self.Tsf_out_sp 
+            
+        # Else
+        qsf = np.append(self.qsf_ant, qsf)
+        Tsf_in = np.append(self.Tsf_in_ant, Tsf_in)
 
-            Tsf_out = solar_field_model(
-                Tin=Tsf_in, # From current value, up to array start
-                q=msf, # From current value, up to array start
-                I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant,
+        Tsf_out = solar_field_model(
+            Tin=Tsf_in, # From current value, up to array start
+            q=qsf, # From current value, up to array start
+            I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant,
 
-                # Model tuned parameters
-                H=self.H_sf, beta=self.beta_sf, gamma=self.gamma_sf,
-                # Model fixed parameters
-                Acs=self.Acs_sf, nt=self.nt_sf, npar=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf,
-                sample_time=self.sample_time, consider_transport_delay=True,
-            )
-
-            # Electrical consumption
-            Jsf = 0
-            Jsf += np.sum(
-                [actuator.calculate_power_consumption(flow)
-                 for actuator, flow in zip(self.ts_actuators, [self.mts_src])
-                 ]
-            )
-            if calculate_consumption:
-                return Tsf_out, Jsf
-        else:
-            Tsf_out = self.Tsf_out_sp # Just bypass the model
-
+            # Model tuned parameters
+            H=self.H_sf, beta=self.beta_sf, gamma=self.gamma_sf,
+            # Model fixed parameters
+            Acs=self.Acs_sf, nt=self.nt_sf, npar=self.np_sf, ns=self.ns_sf, Lt=self.Lt_sf,
+            sample_time=self.sample_time, consider_transport_delay=True,
+        )
+        
         return Tsf_out
-
-    def energy_generation_and_storage_subproblem(self, inputs):
+                       
+    def energy_generation_and_storage_subproblem(self, inputs) -> list[float]:
         # TODO: Allow to provide water properties as inputs so they are calculated only once
 
         if len(inputs) == 2:
             Tts_c_b = inputs[0]
-            msf = inputs[1]
+            qsf = inputs[1]
         else:
             # Bottom tank temperature is not considered to change
             Tts_c_b = self.Tts_c[-1]
-            msf = inputs[0]
+            qsf = inputs[0]
 
         # Heat exchanger of solar field - thermal storage
         Tsf_in, Tts_t_in = heat_exchanger_model(
             Tp_in=self.Tsf_out_sp,  # Solar field outlet temperature (decision variable, ºC)
             Ts_in=Tts_c_b,  # Cold tank bottom temperature (ºC)
-            qp=msf,  # Solar field flow rate (m³/h)
-            qs=self.mts_src_sp,  # Thermal storage charge flow rate (decision variable, m³/h)
+            qp=qsf,  # Solar field flow rate (m³/h)
+            qs=self.qts_src_sp,  # Thermal storage charge flow rate (decision variable, m³/h)
             Tamb=self.Tamb,
             UA=self.UA_hx,
             H=self.H_hx,
@@ -1133,9 +1056,9 @@ class SolarMED(BaseModel):
         # Solar field
         Tsf_in = np.append(self.Tsf_in_ant, Tsf_in)
 
-        msf = solar_field_inverse_model(
+        qsf = solar_field_inverse_model(
             Tin=Tsf_in,
-            q_ant=self.msf_ant,
+            q_ant=self.qsf_ant,
             I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant, Tout=self.Tsf_out_sp,
 
             # Model tuned parameters
@@ -1146,9 +1069,9 @@ class SolarMED(BaseModel):
             filter_signal=True, f=self.filter_sf
         )
 
-        # Si ahora msf realmente no depende de Tsf_in, dejamos de tener un problema acoplado no?
+        # Si ahora qsf realmente no depende de Tsf_in, dejamos de tener un problema acoplado no?
         # pid = copy.deepcopy(self.pid_sf)
-        # msf = pid(self.Tsf_out_ant, dt=self.sample_time)
+        # qsf = pid(self.Tsf_out_ant, dt=self.sample_time)
 
         # Thermal storage
         _, Tts_c = thermal_storage_two_tanks_model(
@@ -1156,8 +1079,8 @@ class SolarMED(BaseModel):
             Tt_in=Tts_t_in,  # ºC
             Tb_in=self.Tmed_s_out,  # ºC
             Tamb=self.Tamb,  # ºC
-            qsrc=self.mts_src_sp,  # m³/h
-            qdis=self.mts_dis,  # m³/h
+            qsrc=self.qts_src_sp,  # m³/h
+            qdis=self.qts_dis,  # m³/h
             UA_h=self.UAts_h,  # W/K
             UA_c=self.UAts_c,  # W/K
             Vi_h=self.Vts_h,  # m³
@@ -1166,9 +1089,9 @@ class SolarMED(BaseModel):
         )
 
         if len(inputs) == 2:
-            return [abs(Tts_c[-1] - inputs[0]), abs(msf - inputs[1])]
+            return [abs(Tts_c[-1] - inputs[0]), abs(qsf - inputs[1])]
         else:
-            return [abs(msf - inputs[0])]
+            return [abs(qsf - inputs[0])]
 
     def solve_coupled_subproblem(self, ) -> tuple[float, float, float, np.ndarray, np.ndarray, float]:
         """
@@ -1178,45 +1101,45 @@ class SolarMED(BaseModel):
         temperature. This is determined by the heat exchanger. However, the heat exchanger on itself depends on the
         flow of the solar field and the thermal storage outlet temperature (does not change much).
 
-        1. Find the flow of the solar field (msf) and the outlet temperature of the cold tank (Tts_c_b),
+        1. Find the flow of the solar field (qsf) and the outlet temperature of the cold tank (Tts_c_b),
         that minimize the difference between the current Tts_c_b (it is assumed it does not change much between samples)
         and solar field flow for the given Tsf_out_sp.
 
-        2. With the obtained msf and Tts_c_b, recalculate Tsf_out and Tts_c_b, and iterate until convergence
+        2. With the obtained qsf and Tts_c_b, recalculate Tsf_out and Tts_c_b, and iterate until convergence
         """
 
         if self.resolution_mode == 'precise':
 
-            initial_guess = [self.Tts_c[-1], self.msf if self.msf is not None else self.lims_msf[0]]
-            bounds = ((self.lims_T_hot[0], self.lims_msf[0]), (self.lims_T_hot[1], self.lims_msf[1]))
+            initial_guess = [self.Tts_c[-1], self.qsf if self.qsf is not None else self.lims_qsf[0]]
+            bounds = ((self.lims_T_hot[0], self.lims_qsf[0]), (self.lims_T_hot[1], self.lims_qsf[1]))
 
             outputs = least_squares(self.energy_generation_and_storage_subproblem, initial_guess, bounds=bounds)
             Tts_c_b = outputs.x[0]
-            msf = outputs.x[1]
+            qsf = outputs.x[1]
 
             cnt_max = 10
 
         elif self.resolution_mode == 'simple':
             # """
-            # In the simplified version, we assume Tts_c_b does not change and just solve for msf, also less iterations
+            # In the simplified version, we assume Tts_c_b does not change and just solve for qsf, also less iterations
             # for convergence
             # """
-            # initial_guess = [self.msf if self.msf is not None else self.lims_msf[0]]
-            # bounds = ((self.lims_msf[0], ), (self.lims_msf[1]), )
+            # initial_guess = [self.qsf if self.qsf is not None else self.lims_qsf[0]]
+            # bounds = ((self.lims_qsf[0], ), (self.lims_qsf[1]), )
             #
             # if initial_guess[0] == 0:
-            #     initial_guess[0] = self.lims_msf[0]
+            #     initial_guess[0] = self.lims_qsf[0]
             #
             # outputs = least_squares(self.energy_generation_and_storage_subproblem, initial_guess, bounds=bounds)
             # Tts_c_b = self.Tts_c[-1]
-            # msf = outputs.x[0]
+            # qsf = outputs.x[0]
 
             Tts_c_b = self.Tts_c[-1]
             if self.Tsf_out_sp > 0.1:
                 pid = copy.deepcopy(self._pid_sf) # Setpoint already established when initializaing the PID
-                msf = pid(self.Tsf_out_ant, dt=self.sample_time)
+                qsf = pid(self.Tsf_out_ant, dt=self.sample_time)
             else:
-                msf = self.msf # If no valid setpoint is provided, a flow was provided, otherwise the solar field would've been inactive
+                qsf = self.qsf # If no valid setpoint is provided, a flow was provided, otherwise the solar field would've been inactive
 
             cnt_max = 10
 
@@ -1233,20 +1156,20 @@ class SolarMED(BaseModel):
         while (abs(deltaTsf_out) > 0.1 and cnt < cnt_max):
 
 
-            logger.info(f"HEX inputs: Tp_in = {Tsf_out0:.2f}, Ts_in = {Tts_c_b0:.2f}, qp = {msf:.1f}, qs = {self.mts_src:.2f} (m³/h)")
-            Tsf_in, Tts_h_in = self.solve_heat_exchanger(Tsf_out0, Tts_c_b0, msf, self.mts_src, return_epsilon=False)
+            logger.info(f"HEX inputs: Tp_in = {Tsf_out0:.2f}, Ts_in = {Tts_c_b0:.2f}, qp = {qsf:.1f}, qs = {self.qts_src:.2f} (m³/h)")
+            Tsf_in, Tts_h_in = self.solve_heat_exchanger(Tsf_out0, Tts_c_b0, qsf, self.qts_src, return_epsilon=False)
             logger.info(f"HEX outputs: Tp_out = {Tsf_in:.2f}, Ts_out = {Tts_h_in:.2f}")
 
-            temp_t = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf, )
-            while temp_t > self.lims_T_hot[1] and msf < self.lims_msf[1]:
+            temp_t = self.solve_solar_field(Tsf_in=Tsf_in, qsf=qsf, )
+            while temp_t > self.lims_T_hot[1] and qsf < self.lims_qsf[1]:
                 # It means the iteration finished but resulted in an unfeasible temperature, increase the flow until
                 # it is feasible
-                msf += 1 # m³/h
-                logger.warning(f"Unfeasible temperature ({temp_t:.0f} > {self.lims_T_hot[1]}), increasing flow to {msf:.1f} (m³/h) and recalculating")
+                qsf += 1 # m³/h
+                logger.warning(f"Unfeasible temperature ({temp_t:.0f} > {self.lims_T_hot[1]}), increasing flow to {qsf:.1f} (m³/h) and recalculating")
                 # cnt = 0
-                temp_t = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf, )
+                temp_t = self.solve_solar_field(Tsf_in=Tsf_in, qsf=qsf, )
 
-            Tsf_out = self.solve_solar_field(Tsf_in=Tsf_in, msf=msf, )
+            Tsf_out = self.solve_solar_field(Tsf_in=Tsf_in, qsf=qsf, )
 
             if Tsf_out <= Tsf_in:
                 # When the solar field is not warming up the fluid, it just aborsbing energy from the heat exchanger and doing nothing else
@@ -1255,7 +1178,7 @@ class SolarMED(BaseModel):
             Tts_h, Tts_c = self.solve_thermal_storage(Tts_h_in)
             Tts_c_b = Tts_c[-1]
 
-            logger.debug(f"After iteration {cnt}, Tsf_out = {Tsf_out0:.2f}, Tsf_in = {Tsf_in:.2f}, msf = {msf:.2f}, Tts_c_b = {Tts_c_b:.2f}, Thx,s,out = {Tts_h_in:.2f}, mts = {self.mts_src:.2f}, ΔTsf_out = {deltaTsf_out:.3f}")
+            logger.debug(f"After iteration {cnt}, Tsf_out = {Tsf_out0:.2f}, Tsf_in = {Tsf_in:.2f}, qsf = {qsf:.2f}, Tts_c_b = {Tts_c_b:.2f}, Thx,s,out = {Tts_h_in:.2f}, qts = {self.qts_src:.2f}, ΔTsf_out = {deltaTsf_out:.3f}")
 
             deltaTsf_out = Tsf_out - Tsf_out0
             Tsf_out0 = Tsf_out
@@ -1273,12 +1196,12 @@ class SolarMED(BaseModel):
             # logger.debug(f"Heat exchanger, after {cnt} iterations, Thx,p,in = {Tsf_out:.2f}, Thx,p,out = {Tsf_in:.2f}, Thx,s,in = {Tts_c_b:.2f}, Thx,s,out = {Tts_h_in:.2f}")
 
             # Log message to debug solar field
-            # logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, Tsf,out = {Tsf_out:.2f}, Tsf,out,sp = {self.Tsf_out_sp:.2f}, qsf = {self.lims_msf[0]}<{msf:.1f}<{self.lims_msf[1]} (m³/h), Tsf,in = {self.Tsf_in:.2f}")
+            # logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, Tsf,out = {Tsf_out:.2f}, Tsf,out,sp = {self.Tsf_out_sp:.2f}, qsf = {self.lims_qsf[0]}<{qsf:.1f}<{self.lims_qsf[1]} (m³/h), Tsf,in = {self.Tsf_in:.2f}")
 
             # Log messages to debug thermal storage
             # deltaTts_h = Tts_h - self.Tts_h
             # deltaTts_c = Tts_c - self.Tts_c
-            # logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, qts,src = {self.mts_src_sp:.1f} (m³/h), Tts,h,in = {Tts_h_in:.2f}, qts,dis = {self.mts_dis:.1f} (m³/h), Tts,c,in = {self.Tmed_s_out:.2f}")
+            # logger.debug(f"Coupled subproblem, after {cnt} iterations, ΔTsf,out = {deltaTsf_out:.3f}, qts,src = {self.qts_src_sp:.1f} (m³/h), Tts,h,in = {Tts_h_in:.2f}, qts,dis = {self.qts_dis:.1f} (m³/h), Tts,c,in = {self.Tmed_s_out:.2f}")
             # logger.debug(f"Temperature change in thermal storage, ΔTts,h = {deltaTts_h}, ΔTts,c = {deltaTts_c}")
 
         # If after the iterations the resulting solar field temperature is out of bounds, declare unfeasible operation
@@ -1289,13 +1212,139 @@ class SolarMED(BaseModel):
             return 0, 0, 0, np.zeros(3), np.zeros(3), 0
 
 
-        return msf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in
+        return qsf, Tsf_out, Tsf_in, Tts_h, Tts_c, Tts_h_in
+
+    def calculate_ts_aux_outputs(self) -> None:
+        
+        if not self.use_models:
+            # Source
+            self.Pts_src = 0
+            self.Jts = 0
+            # Discharge
+            self.Pts_dis = 0
+            self.Tts_h_out = 0
+            self.Tts_c_in = 0
+            
+            return
+        
+        # Else
+        if not self.ts_active:
+            self.Pts_src = 0
+            self.Jts = 0
+        else:
+            # Pth_ts_out, Pth_ts_in, Jts_e
+            w_props_ts_in = w_props(P=0.16, T=(self.Tts_h_in + self.Tts_c[-1]) / 2 + 273.15)
+            self.Pts_src = self.qts_src * w_props_ts_in.rho * (
+                        self.Tts_h_in - self.Tts_c[-1]) * w_props_ts_in.cp / 3600  # kWth
+                        
+            # Electrical consumption
+            # Jts = 0
+            # Jts += np.sum(
+            #     [
+            #         actuator.calculate_power_consumption(flow)
+            #         for actuator, flow in zip(self.ts_actuators, [self.qts_src])
+            #     ]
+            # )
+            self.Jts = 0
+            self.Jts += np.sum(
+                [actuator(getattr(self, var_id)) for var_id, actuator in self.actuators_consumptions['ts'].items()]
+            )
+            
+        if not self.med_active:
+            self.Pts_dis = 0
+            self.Tts_h_out = 0
+            self.Tts_c_in = 0
+        else:
+            w_props_ts_out = w_props(P=0.16, T=(self.Tmed_s_out + self.Tts_h[1]) / 2 + 273.15)
+            self.Pts_dis = self.qts_dis * w_props_ts_out.rho * (
+                    self.Tts_h[1] - self.Tmed_s_out) * w_props_ts_out.cp / 3600  # kWth
+
+            # TODO: If there is an alternative thermal storage configuration, the index needs to be the one where the extraction is done
+            self.Tts_h_out = self.Tts_h[0]
+            self.Tts_c_in = self.Tmed_s_out
+
+    def calculate_sf_aux_outputs(self) -> None:
+        
+        if not self.sf_active or not self.use_models:
+            self.Psf = 0
+            self.Jsf = 0
+            self.SEC_sf = np.nan
+            
+            return
+        
+        # Else
+        w_props_sf = w_props(P=0.16, T=(self.Tsf_in + self.Tsf_out) / 2 + 273.15)
+        self.Psf = self.qsf * w_props_sf.rho * (self.Tsf_out - self.Tsf_in) * w_props_sf.cp / 3600  # kWth
+        
+        # Electrical consumption
+        self.Jsf = 0
+        self.Jsf += np.sum(
+            [actuator(getattr(self, var_id)) for var_id, actuator in self.actuators_consumptions['sf'].items()]
+        )
+        self.SEC_sf = self.Jsf / self.Psf if self.Psf > 0 else np.nan  # kWhe/kWth
+        
+
+    def calculate_hx_aux_outputs(self) -> None:
+        
+        if not self.use_models:
+            return
+        # Else
+        # Copied variables for the heat exchanger
+        self.Thx_p_in = self.Tsf_out
+        self.Thx_p_out = self.Tsf_in
+        self.Thx_s_in = self.Tts_c[-1]
+        self.Thx_s_out = self.Tts_h_in
+        self.qhx_p = self.qsf
+        self.qhx_s = self.qts_src
+        self.Phx_p = self.Psf
+        self.Phx_s = self.Pts_src
+
+        self.epsilon_hx = calculate_heat_transfer_effectiveness(
+            Tp_in=self.Thx_p_in,
+            Tp_out=self.Thx_p_out,
+            Ts_in=self.Thx_s_in,
+            Ts_out=self.Thx_s_out,
+            qp=self.qhx_p,
+            qs=self.qhx_s
+        )
+
+    def calculate_med_aux_outputs(self) -> None:
+        
+        def auxiliary_consumption() -> float:
+            """ Calculate the auxiliary consumptions of the MED system """
+            return self.Jvacuum[self.med_vacuum_state.value]
+        
+        if not self.use_models or not self.med_active:
+            self.Jmed = 0
+            self.STEC_med = np.nan
+            self.SEEC_med = np.nan
+            return
+            
+        # Electrical consumption
+        self.Jmed = 0
+        self.Jmed += np.sum(
+            [actuator(getattr(self, var_id)) for var_id, actuator in self.actuators_consumptions['med'].items()]
+        )
+        self.Jmed += auxiliary_consumption()
+
+        # Electrical performance
+        self.SEEC_med = self.Jmed / self.qmed_d  # kWhe/m³
+        # Thermal performance
+        w_props_s = w_props(P=0.1, T=(self.Tmed_s_in + self.Tmed_s_out) / 2 + 273.15)
+        cp_s = w_props_s.cp  # kJ/kg·K
+        rho_s = w_props_s.rho  # kg/m³
+        # rho_d = w_props(P=0.1, T=Tmed_c_out+273.15) # kg/m³
+        qmed_s_kgs = self.qmed_s * rho_s / 3600  # kg/s
+
+        Pmed = qmed_s_kgs * (self.Tmed_s_in - self.Tmed_s_out) * cp_s  # kWth
+        self.STEC_med = Pmed / self.qmed_d  # kWhth/m³
+        
 
     def evaluate_fitness_function(self,
                                   cost_w: float = None, cost_e: float = None,
                                   cost_type: Literal['economic', 'exergy'] = 'economic',
                                   objective_type: Literal['maximize', 'minimize'] = 'maximize',
-                                  ):
+                                  ) -> float:
 
         if cost_type == 'exergy':
             raise NotImplementedError("Exergy cost evaluation is not yet implemented")
@@ -1307,18 +1356,17 @@ class SolarMED(BaseModel):
 
         # Economic cost
         self.total_cost = self.Jtotal * cost_e # kWhe * u.m./kWhe -> u.m./h
-        self.total_income = self.mmed_d * cost_w # m³/h * u.m./m³ -> u.m./h
+        self.total_income = self.qmed_d * cost_w # m³/h * u.m./m³ -> u.m./h
 
         self.net_profit = (self.total_income - self.total_cost) * self.sample_time/3600 # u.m.
         self.net_loss = -self.net_profit # u.m.
 
-        if objective_type == 'maximize':
-            return self.net_profit
-        elif objective_type == 'minimize':
-            return self.net_loss
-        else:
+        if objective_type not in ['maximize', 'minimize']:
             raise ValueError(f"Objective type {objective_type} not supported, choose one of 'maximize' or 'minimize'")
-
+        elif objective_type == 'maximize':
+            return self.net_profit
+        
+        return self.net_loss
 
     def to_dataframe(self, df=None, rename_flows: bool = False) -> pd.DataFrame:
         """
@@ -1356,10 +1404,10 @@ class SolarMED(BaseModel):
             for col in data.columns:
                 # logger.debug(f"Processing column {col}")
                 # if (re.match(r'mmed*', col) or
-                #     re.match(r'msf*', col) or
+                #     re.match(r'qsf*', col) or
                 #     re.match(r'mhx*', col) or
                 #     re.match(r'm3wv*', col) or
-                #     re.match(r'mts*', col)):
+                #     re.match(r'qts*', col)):
                 if re.match('m(?!ed)', col):
                     data[f'q{col[1:]}'] = data[col]
 
@@ -1367,14 +1415,10 @@ class SolarMED(BaseModel):
         if rename_flows:
             data.rename(columns=lambda x: re.sub('^m(?!ed)', 'q', x), inplace=True) # Peligroso
 
-        if df is not None:
-            df = pd.concat([df, data], ignore_index=True)
-        else:
-            df = data
+        
+        return pd.concat([df, data], ignore_index=True) if df is not None else data
 
-        return df
-
-    def model_dump_configuration(self):
+    def model_dump_configuration(self) -> dict:
         """
         Export model instance parameters / configuration
         Returns:
@@ -1433,8 +1477,7 @@ class SolarMED(BaseModel):
 
         return dump
 
-
-    def terminate(self):
+    def terminate(self) -> None:
         """
         Terminate the model and free resources. To be called when no more steps are needed.
         It just terminates the MATLAB engine, all the data and states are preserved.

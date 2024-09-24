@@ -35,6 +35,9 @@ Log here the results of the benchmarks:
 | 2 | 20230703 | 20240923   | Standard configuration. Asus Rog Flow X13 | 29.89 | 660 | 0.0453 | 0.78 | 0.61 |
 | 3 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. | 28.97 | 660 | 0.0439 | 0.78 | 0.61 |
 | 4 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. Tras llorarle a Joaquín para más potensia | 29.27 | 660 | 0.0443 | 0.78 | 0.61 |
+| 5 | 20230703 | 20240924   | Standard configuration. VM ai.psa.es. After some changes (not optimization focused) | 25.90 | 660 | 0.0392 | 0.78 | 0.61 |
+
+
 
 > [!NOTE] 
 > Comparison between runs where test date or sample rate (=number for iterations) changes, are not valid for total time and error metrics. Time per iteration (`Time/it.`) is a better "universal" execution time metric to compare different runs.

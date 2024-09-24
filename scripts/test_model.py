@@ -80,7 +80,7 @@ model = SolarMED(
 
     ## Solar field
     Tsf_in_ant=df['Tsf_in'].iloc[idx_start - span:idx_start].values,
-    msf_ant=df['qsf'].iloc[idx_start - span:idx_start].values,
+    qsf_ant=df['qsf'].iloc[idx_start - span:idx_start].values,
 
     # cost_w = 3, # €/m³
     # cost_e = 0.05, # €/kWhe,
@@ -107,12 +107,12 @@ for idx in range(idx_start, idx_end):
     model.step(
         # Decision variables
         ## MED
-        mmed_s=ds['qmed_s'],
-        mmed_f=ds['qmed_f'],
+        qmed_s=ds['qmed_s'],
+        qmed_f=ds['qmed_f'],
         Tmed_s_in=ds['Tmed_s_in'],
         Tmed_c_out=ds['Tmed_c_out'],
         ## Thermal storage
-        mts_src=ds['qhx_s'],
+        qts_src=ds['qhx_s'],
         ## Solar field
         Tsf_out=ds['Tsf_out'],
 
@@ -120,7 +120,7 @@ for idx in range(idx_start, idx_end):
 
         # Inputs
         # When the solar field is starting up, a flow can be provided to sync the model with the real system, if a valid Tsf_out is provided, it will be prioritized
-        msf=ds['qsf'] if ds['qsf'] > 4 else None,
+        qsf=ds['qsf'] if ds['qsf'] > 4 else None,
 
         # Environment variables
         Tmed_c_in=ds['Tmed_c_in'],
