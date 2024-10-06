@@ -30,7 +30,8 @@
 				"yzhang.markdown-all-in-one",
 				"ms-python.python",
 				"ms-python.debugpy",
-				"ms-toolsai.datawrangler"
+				"ms-toolsai.datawrangler",
+				"mechatroner.rainbow-csv"
 			],
 			"containerEnv": {
 				"ENVIRONMENT": "container",
