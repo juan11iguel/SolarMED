@@ -180,7 +180,7 @@ def data_preprocessing(paths: list[str | Path] | str | Path, vars_config: dict, 
 
 
 def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sample_rate_numeric:int=None,
-                      vars_config: dict = None) -> pd.DataFrame:
+                      vars_config: dict = None, estimate_qhx_s: bool = True) -> pd.DataFrame:
 
     """
     This function conditions the data by:
@@ -211,7 +211,8 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         # Where the heat exchanger was not operating normally, the estimation cannot be applied and the curve fit is used as an alternative
         nan_idxs = df['qhx_s_estimated'].isna()
         # Add idxs where UK-SF-P001-fq < 20, since the energy balance is not reliable if low or no flow is present
-        nan_idxs = nan_idxs | (df['UK-SF-P001-fq'] < 20) # 20%?
+        if 'UK-SF-P001-fq' in df.columns:
+            nan_idxs = nan_idxs | (df['UK-SF-P001-fq'] < 20) # 20%?
 
         # Va a dar error porque las trazas de SolarMED no contienen la señal UK-SF-P001-fq
         try:
@@ -260,9 +261,6 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         df.rename(columns={'qts_dis_estimated': 'qts_dis'}, inplace=True)
 
         logger.info('Thermal storage discharge flow rate estimated successfully (qts_dis/q3wv_src).')
-
-
-
 
     try:
         df = calculate_aux_variables(df, cost_w=cost_w, cost_e=cost_e, sample_rate_numeric=sample_rate_numeric)

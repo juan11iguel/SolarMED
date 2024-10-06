@@ -8,21 +8,23 @@ from enum import Enum
 from typing import Any, Literal
 import copy
 import pickle
-from pydantic import (
-    BaseModel,
-    Field,
-    ConfigDict,
-    field_validator,
-    computed_field,
-    ValidationInfo,
-    PositiveFloat,
-    PrivateAttr
-)
+from pydantic import (BaseModel,
+                      Field,
+                      ConfigDict,
+                      field_validator,
+                      computed_field,
+                      ValidationInfo,
+                      PositiveFloat,
+                      PrivateAttr)
 from pathlib import Path
 from simple_pid import PID
 
-from .data_validation import (rangeType, within_range_or_zero_or_max, within_range_or_min_or_max,
-                              conHotTemperatureType, check_value_single, conHotTemperatureType_upper_limit)
+from .data_validation import (rangeType, 
+                              within_range_or_zero_or_max, 
+                              within_range_or_min_or_max,
+                              conHotTemperatureType, 
+                              check_value_single, 
+                              conHotTemperatureType_upper_limit)
 from .solar_field import solar_field_model, solar_field_inverse_model
 from .heat_exchanger import heat_exchanger_model, calculate_heat_transfer_effectiveness
 from .thermal_storage import thermal_storage_two_tanks_model
