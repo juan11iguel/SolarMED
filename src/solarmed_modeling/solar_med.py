@@ -171,18 +171,7 @@ class SolarMED(BaseModel):
     actuators_consumptions: dict[str, dict[str, str | Actuator | dict]] = Field(default_actuators_consumptions_map, title="Actuators consumption object",
                                                                   json_schema_extra={"var_type": ModelVarType.PARAMETER},
                                                                   description="Map of process variables to actuator objects/ids", repr=False)
-    # Chapuza: Por favor, asegurarse de que aquí se definen en el mimso orden que se usan después al asociarle un caudal
-    # qmed_b, qmed_f, qmed_d, mmed_c, qmed_s
-    ## MED
-    # med_actuators: list[Actuator] | list[str] | list[dict] = Field(["med_brine_pump", "med_feed_pump",
-    #                                                    "med_distillate_pump", "med_cooling_pump",
-    #                                                    "med_heatsource_pump"],
-    #                                                   description="Actuators to estimate electricity consumption for the MED",
-    #                                                   title="MED actuators", repr=False, json_schema_extra={"var_type": ModelVarType.PARAMETER})
     ## Thermal storage
-    # ts_actuators: list[Actuator] | list[str] | list[dict] = Field(["ts_src_pump"], title="Thermal storage actuators", repr=False,
-    #                                                  json_schema_extra={"var_type": ModelVarType.PARAMETER},
-    #                                                  description="Actuators to estimate electricity consumption for the thermal storage")
     UAts_h: list[PositiveFloat] = Field([0.0069818, 0.00584034, 0.03041486], title="UAts,h",
                                         json_schema_extra={"units": "W/K", "var_type": ModelVarType.PARAMETER},
                                         description="Heat losses to the environment from the hot tank (W/K)",
@@ -199,10 +188,6 @@ class SolarMED(BaseModel):
                                        description="Volume of each control volume of the cold tank (m³)", repr=False)
 
     ## Solar field
-    # sf_actuators: list[Actuator] | list[str] | list[dict] = Field(["sf_pump"], title="Solar field actuators", repr=False,
-    #                                                  json_schema_extra={"var_type": ModelVarType.PARAMETER},
-    #                                                  description="Actuators to estimate electricity consumption for the solar field")
-
     beta_sf: float = Field(4.36396e-02, title="βsf", json_schema_extra={"units": "m", "var_type": ModelVarType.PARAMETER},
                            repr=False, description="Solar field. Gain coefficient", gt=0, le=1)
     H_sf: float = Field(13.676448551722462, title="Hsf", json_schema_extra={"units": "W/m2", "var_type": ModelVarType.PARAMETER},
@@ -423,7 +408,6 @@ class SolarMED(BaseModel):
     _sf_ts_fsm: SolarFieldWithThermalStorage_FSM = PrivateAttr(None) # Finite State Machine object for the Solar Field with Thermal Storage system. Should not be accessed/manipulated directly
     # _created_at: datetime = PrivateAttr(default_factory=datetime.datetime.now) # Should not be accessed/manipulated directly
 
-
     model_config = ConfigDict(
         validate_assignment=True,  # So that fields are validated, not only when created, but every time they are set
         arbitrary_types_allowed=True
@@ -464,30 +448,6 @@ class SolarMED(BaseModel):
                     f'Field {field} has no `json_schema_extra.var_type` set, it should be if it needs to be included in the exports')
 
         return fields
-
-    # @computed_field
-    # def consumption_fits(self) -> dict:
-    #     # Load electrical consumption fit curves
-    #     try:
-    #         with open(self.curve_fits_path, 'r') as file:
-    #             return json.load(file)
-    #
-    #     except FileNotFoundError:
-    #         raise ValidationError(f'Curve fits file not found in {self.curve_fits_path}')
-
-    # @field_validator("med_actuators", "sf_actuators", "ts_actuators", mode='before')
-    # @classmethod
-    # def generate_actuators(cls, actuator_ids: SupportedActuators | list[SupportedActuators]) -> list[Actuator]:
-    #     if isinstance(actuator_ids, str):
-    #         actuator_ids = [actuator_ids]
-    #
-    #     return [Actuator(id=actuator_id) for actuator_id in actuator_ids]
-
-    # @field_validator("Tts_h", "Tts_c")
-    # @classmethod
-    # def validate_Tts(cls, Tts: list[conHotTemperatureType] | np.ndarray[conHotTemperatureType], info: ValidationInfo) -> np.ndarray[conHotTemperatureType]:
-    #     # Just to make sure it's a numpy array
-    #     return np.array(Tts, dtype=float)
 
     @field_validator("qmed_s_sp", "qmed_f_sp", "qts_src_sp", "qsf", "qmed_c")
     @classmethod
@@ -588,25 +548,6 @@ class SolarMED(BaseModel):
             - Solar field actuators: {[actuator.id for actuator in self.actuators_consumptions['sf'].values()]}
             - Thermal storage actuators: {[actuator.id for actuator in self.actuators_consumptions['ts'].values()]}
         ''')
-
-    # def set_operating_state(self) -> None:
-    #
-    #     if self.med_active and self.sf_active and self.ts_active:
-    #         self.operating_state = SolarMED_states.SOLAR_FIELD_HEATING_THERMAL_STORAGE_MED
-    #     elif self.med_active and self.sf_active:
-    #         self.operating_state = SolarMED_states.SOLAR_FIELD_WARMUP_MED
-    #     elif self.med_active:
-    #         self.operating_state = SolarMED_states.THERMAL_STORAGE_DISCHARGE_MED
-    #     elif self.sf_active:
-    #         self.operating_state = SolarMED_states.SOLAR_FIELD_WARMUP
-    #     elif self.sf_active and self.ts_active:
-    #         self.operating_state = SolarMED_states.SOLAR_FIELD_HEATING_THERMAL_STORAGE
-    #     elif self.ts_active:
-    #         self.operating_state = SolarMED_states.THERMAL_STORAGE_RECIRCULATING
-    #     else:
-    #         self.operating_state = SolarMED_states.IDLE
-
-        # logger.debug(f"Operating state: {self.operating_state.name}")
 
     def step(
             self,
@@ -843,7 +784,6 @@ class SolarMED(BaseModel):
         # Total variables
         self.Jtotal = self.Jmed + self.Jts + self.Jsf
 
-
     def get_state(self, mode: Literal["default", "human_readable"] = 'default') -> SolarMED_State | str:
         # state_code = self.generate_state_code(self._sf_ts_fsm.state, self._med_fsm.state)
 
@@ -1032,7 +972,7 @@ class SolarMED(BaseModel):
         
         return Tsf_out
                        
-    def energy_generation_and_storage_subproblem(self, inputs) -> list[float]:
+    def heat_generation_and_storage_subproblem(self, inputs) -> list[float]:
         # TODO: Allow to provide water properties as inputs so they are calculated only once
 
         if len(inputs) == 2:
@@ -1115,7 +1055,7 @@ class SolarMED(BaseModel):
             initial_guess = [self.Tts_c[-1], self.qsf if self.qsf is not None else self.lims_qsf[0]]
             bounds = ((self.lims_T_hot[0], self.lims_qsf[0]), (self.lims_T_hot[1], self.lims_qsf[1]))
 
-            outputs = least_squares(self.energy_generation_and_storage_subproblem, initial_guess, bounds=bounds)
+            outputs = least_squares(self.heat_generation_and_storage_subproblem, initial_guess, bounds=bounds)
             Tts_c_b = outputs.x[0]
             qsf = outputs.x[1]
 
@@ -1285,7 +1225,6 @@ class SolarMED(BaseModel):
         )
         self.SEC_sf = self.Jsf / self.Psf if self.Psf > 0 else np.nan  # kWhe/kWth
         
-
     def calculate_hx_aux_outputs(self) -> None:
         
         if not self.use_models:
@@ -1341,7 +1280,6 @@ class SolarMED(BaseModel):
         Pmed = qmed_s_kgs * (self.Tmed_s_in - self.Tmed_s_out) * cp_s  # kWth
         self.STEC_med = Pmed / self.qmed_d  # kWhth/m³
         
-
     def evaluate_fitness_function(self,
                                   cost_w: float = None, cost_e: float = None,
                                   cost_type: Literal['economic', 'exergy'] = 'economic',
