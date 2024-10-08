@@ -1,6 +1,9 @@
+import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from loguru import logger
+
+highlight_color = "#FEAF16"
 
 def visualize_benchmark(results: list[dict[str, str | dict[str, float]]], output_unit: str = "", title: str = "Benchmark results", y_vars_config: list[dict[str, str]] = None, width: int = None) -> list[go.Figure]:
 
@@ -67,26 +70,75 @@ def visualize_benchmark(results: list[dict[str, str | dict[str, float]]], output
             # margin=dict(l=0, r=0, t=100, b=20),
             width = n_plots * 300 if width is None else width,
         )
-        fig.update_yaxes(title_text="", ticks="outside", linecolor="black", row=1, col=1)
+        fig.update_yaxes(title_text=y_label, ticks="outside", linecolor="black", row=1, col=1)
 
         domains = domains_calculator(gap=0.05, n_plot=n_plots)
 
         [fig.update_xaxes(title_text=f"<b>{test_id}</b>", domain=domains[idx], row=1, col=idx+1) for idx, test_id in enumerate(unique_test_ids)]
-        fig.update_yaxes(title_text=y_label, row=1, col=1)
+        [fig.update_yaxes(showgrid=True, gridcolor='lightgray', row=1, col=idx+1) for idx in range(len(unique_test_ids))]
+        
+        maximize = False
+        if y_var not in ["elapsed_time", "metrics.R2"]:
+            median_val = np.median(data["y"])
+            min_val = 0 # min(data["y"], default=0)
+            max_val = 1.2 * median_val # max(data["y"], default=1.2 * median_val)
+            fig.update_yaxes(range=[min_val, max_val])
+                        
+        if y_var == "metrics.R2":
+            fig.update_yaxes(range=[0,  1.05])
+            maximize = True
+            
+
+        # Highlight best value by turning the respective bar to `highlight_color`
+        
+        comp_operator: callable = np.max if maximize else np.min
+        comp_idx_operator: callable = np.argmax if maximize else np.argmin
+        data_plot = []
+        best_values = [-np.inf if maximize else np.inf] * n_plots
+        best_idxs = [None] * n_plots
+        for grp_idx in range(n_alt):
+            # For each alternative, gather its data in all plots
+            data_plot.append([])
+            data_plot[grp_idx].extend( [data.y for data in fig.data[grp_idx*n_plots:(grp_idx+1)*n_plots]] )
+            
+            for plt_idx, grp_plt_data in enumerate(data_plot[grp_idx]):
+                # For each alternative and plot, get its data to get the best value
+                best_value = -np.inf if maximize else np.inf
+                best_value = comp_operator(grp_plt_data)
+                best_idx = (grp_idx, plt_idx, int(comp_idx_operator(grp_plt_data)))
+                
+                diff = best_value - best_values[plt_idx]
+                if diff > 0 and maximize or diff < 0 and not maximize:
+                    best_values[plt_idx] = best_value
+                    best_idxs[plt_idx] = best_idx
+                    
+        # With best_idxs, now the colors can be updated
+        for best_idx in best_idxs:
+            grp_idx, plt_idx, bar_idx = best_idx
+            bar_group = fig.data[grp_idx*n_plots + plt_idx]
+            if isinstance(bar_group.marker.color, str):
+                color = [bar_group.marker.color] * len(bar_group.y)
+            color[bar_idx] = highlight_color
+            bar_group.marker.color = color
+                    
 
         # and to modify the gap between the subplots bars, you can modify their width
         fig.update_traces(width=0.3)
         
         return fig
     
-    unique_test_ids = list(set([d['test_id'] for d in  results]))
+    test_ids = [d['test_id'] for d in results]
+    unique_test_ids = list(set(test_ids))
     n_plots = len(unique_test_ids)
+    alternatives = [d["alternative"] for d in results]
+    unique_alternatives = list(set(alternatives))
+    n_alt = len(unique_alternatives)
     
     # Prepare data
     data = {
         'x': [f'Ts={d["sample_rate"]} s' for d in results],
-        'color': [d['alternative'] for d in results],
-        'facet_col': [d['test_id'] for d in results],
+        'color': alternatives,
+        'facet_col': test_ids,
     }
     
     if y_vars_config is not None:
@@ -115,7 +167,16 @@ def visualize_benchmark(results: list[dict[str, str | dict[str, float]]], output
             },
         ]
     
-    figs = [generate_plot(y_var=y_var_config["y_var"], y_label=y_var_config["y_label"]) for y_var_config in y_vars_config if get_nested_attr(results[0], y_var_config["y_var"]) is not None]
+    figs: list[go.Figure] = []
+    for y_var_config in y_vars_config:
+        if get_nested_attr(results[0], y_var_config["y_var"]) is None:
+            # In case we are using the default y_vars_config but the metric is not available
+            continue
+        # Else
+        figs.append(
+            generate_plot(y_var=y_var_config["y_var"], y_label=y_var_config["y_label"]) 
+        )
+    
     # Add title to the first subplot
     figs[0].update_layout(
         title=title

@@ -7,19 +7,23 @@ from loguru import logger
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
 from scipy.optimize import fsolve
 from scipy import signal
-from scipy.optimize import fsolve
 from solarmed_modeling.metrics import calculate_metrics
 
 b, a = signal.butter(3, 0.005)
 zi = signal.lfilter_zi(b, a)
 
-supported_eval_alternatives = ["standard", "no-delay", "constant-water-props"]
+supported_eval_alternatives: list[str] = ["standard", "no-delay", "constant-water-props"]
+""" 
+    - standard: Model with transport delay
+    - no-delay: Model without transport delay
+    - constant-water-props: Standard model but with constant water properties evaluated at some average temperature
+"""
 
 @dataclass
 class ModelParameters:
-    beta: float
-    H: float
-    gamma: float
+    beta: float  # Gain coefficient (-)
+    H: float  # Losses to the environment (W/m²)
+    gamma: float  # Artificial parameters to account for flow variations within the whole solar field"
     
 
 def calculate_total_pipe_length(q: float, n: int, sample_time:int = 10, equivalent_pipe_area:float = 7.85e-5) -> float:
@@ -315,14 +319,22 @@ def evaluate_model(
     log_iteration: bool = False,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
     
-    """_summary_
+    """
+    Evaluate the solar field model using different alternatives and calculate performance metrics.
+
+    Args:
+        df: DataFrame containing the input data for the model.
+        sample_rate: Sampling rate in seconds.
+        model_params: ModelParameters object containing the model parameters.
+        alternatives_to_eval: List of alternatives to evaluate. Supported alternatives are "standard", "no-delay", and "constant-water-props".
+        log_iteration: Boolean flag to log each iteration.
 
     Raises:
-        ValueError: _description_
+        ValueError: If an unsupported alternative is provided in alternatives_to_eval.
 
     Returns:
-        _type_: _description_
-    """    
+        tuple: A tuple containing a list of DataFrames with the model outputs and a list of dictionaries with the performance metrics.
+    """
     
     assert all([alt in supported_eval_alternatives for alt in alternatives_to_eval])
 
@@ -344,6 +356,9 @@ def evaluate_model(
         water_props: w_props = w_props(
             P=0.2, T=90 + 273.15
         )  # P=2 bar  -> 0.2MPa, T in K, average working solar field temperature
+        
+    if "no-delay" in alternatives_to_eval:
+        logger.warning("The 'no-delay' alternative has hardcoded parameters. Make sure to adjust them if needed.")
 
     # Initialize result vectors
     # q_sf_mod   = np.zeros(len(df), dtype=float)
@@ -360,8 +375,8 @@ def evaluate_model(
         for i in range(idx_start + 1, len(df)):
             ds = df.iloc[i]
             j = i - idx_start
-
             start_time = time.time()
+            
             if alt_id == "no-delay":
                 out[j] = solar_field_model(
                     Tin=ds["Tsf_in"],
@@ -371,14 +386,29 @@ def evaluate_model(
                     Tout_ant=out[j - 1],
                     sample_time=sample_rate,
                     consider_transport_delay=False,
-                    # Model parameters
-                    # beta=1.1578e-2, H=3.1260, gamma=0.0471
                     beta=1.1578e-2,
                     H=3.1260,
                     gamma=0.0471,
                 )
-
-            elif alt_id in ["standard", "constant-water-props"]:
+            elif alt_id == "standard":
+                out[j] = solar_field_model(
+                    Tin=df.iloc[i - span : i][
+                        "Tsf_in"
+                    ].values,  # From current value, up to idx_start samples before
+                    q=df.iloc[i - span : i][
+                        "qsf"
+                    ].values,  # From current value, up to idx_start samples before
+                    I=ds["I"],
+                    Tamb=ds["Tamb"],
+                    Tout_ant=out[j - 1],
+                    sample_time=sample_rate,
+                    consider_transport_delay=True,
+                    water_props=None,
+                    beta=model_params.beta,
+                    H=model_params.H,
+                    gamma=model_params.gamma,
+                )
+            elif alt_id == "constant-water-props":
                 out[j] = solar_field_model(
                     Tin=df.iloc[i - span : i][
                         "Tsf_in"
@@ -392,21 +422,16 @@ def evaluate_model(
                     sample_time=sample_rate,
                     consider_transport_delay=True,
                     water_props=water_props,
-                    # Model parameters
-                    # beta=1.1578e-2, H=3.1260, gamma=0.0471
                     beta=model_params.beta,
                     H=model_params.H,
                     gamma=model_params.gamma,
                 )
-
             else:
                 raise ValueError(
                     f"Unsupported alternative {alt_id}, options are: {supported_eval_alternatives}"
                 )
 
             elapsed_time = time.time() - start_time
-
-
             if log_iteration:
                 logger.info(
                     f"[{alt_id}] Iteration {i} / {len(df)}. Elapsed time: {elapsed_time:.5f} s. Error: {abs(out[j]-out_ref[j]):.2f}"
