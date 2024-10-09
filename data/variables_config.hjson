@@ -14,12 +14,16 @@
     # - flow_meter_EH_Proline_Promag_50P
 
     # Actuators with power consumption fit:
-    # mmed_s, mmed_f, mmed_b, mmed_c, mmed_d
+    # mmed_s, mmed_f, mmed_b, mmed_c, mmed_d, msf, mts_src
     # Actuators without power consumption fit:
-    # msf, mts_src
+    # 
 
     # NOTE: There are several variables that share the same signal,
     # for example, Tsf,out == Thx,p,out
+
+    # NOTE 2: On 202405 the power meter from the cooling water pump in the MED was
+    # moved so now measures the total power of the solar field and thermal storage
+    # (PK-MED-E03-pa)
 
     # Environment
     "Tamb": {
@@ -610,6 +614,19 @@
     },
 
     # Additional variables
+    "Jsf_ts": {
+        var_id: "Jsf_ts",
+        // signal_id: "JT-DES-004",
+        signal_id: "PK-MED-E03-pa",
+        units_scada: "W",
+        units_model: "kW",
+        instrument: "power_meter_Circutor_CEM31"
+        label_html: "J<sub>sf-ts</sub> (kW)",
+        label_latex: "$J_{sf-ts}\\:(kW)$",
+        range: [0, 10], // kW
+        description: "Solar field and thermal storage total power consumption",
+    },
+
     ## Solar field
     "qsf_l1": {
         "var_id": "qsf_l1",
