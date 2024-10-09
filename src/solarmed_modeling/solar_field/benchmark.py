@@ -1,6 +1,7 @@
 from pathlib import Path
-from . import evaluate_model, ModelParameters, supported_eval_alternatives
-from solarmed_modeling.utils import benchmark
+from . import ModelParameters, supported_eval_alternatives
+from .utils import evaluate_model
+from solarmed_modeling import benchmark
 
 model_id: str = 'solar_field'
 

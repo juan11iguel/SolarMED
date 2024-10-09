@@ -7,16 +7,15 @@ Created on Mon Jul  3 16:06:32 2023
 """
 
 # from utils.constants import vars_info
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from loguru import logger
-from pathlib import Path
+from iapws import IAPWS97 as w_props
+
 from solarmed_modeling import calculate_aux_variables, calculate_powers_solar_field, calculate_powers_thermal_storage
-from solarmed_modeling.heat_exchanger import estimate_flow_secondary
-from solarmed_modeling.three_way_valve import estimate_flow_ts_discharge
 from solarmed_modeling.power_consumption import actuator_coefficients # Weird structure I know, should be in utils probably
 from solarmed_modeling.curve_fitting import evaluate_fit
-
 
 from phd_visualizations.utils.units import unit_conversion
 from phd_visualizations.utils import rename_signal_ids_to_var_ids
@@ -27,7 +26,7 @@ from phd_visualizations.utils import rename_signal_ids_to_var_ids
 #         print(f"Some rows contain NaN values and were removed ({len(data) - len(data_temp)}).")
 #
 #     return data_temp
-
+default_pressure_MPa: float = 0.16
 
 def ensure_monotony(data: np.array, gap=0.01) -> np.array:
     """
@@ -160,19 +159,18 @@ def data_preprocessing(paths: list[str | Path] | str | Path, vars_config: dict, 
 
         df = pd.concat([df, df_aux], axis=1)
 
-    # Preprocessing
 
-    # Fill nans, first forward and then backward
+    # Preprocessing
+    ## Fill nans, first forward and then backward
     df = df.ffill().bfill()
 
-
-    # Rename columns from signal_id to var_id
+    ## Rename columns from signal_id to var_id
     df = rename_signal_ids_to_var_ids(df, vars_config)
 
-    # Convert units to model units
+    ## Convert units to model units
     df = unit_conversion(df, vars_config, input_unit_key='units_scada', output_unit_key='units_model')
 
-    # Filter out nans until first value in Tts
+    ## Filter out nans until first value in Tts
     logger.warning(f"Removing {df['Tts_h_t'].isna().sum()} NaNs from the dataframe")
     df = df[df['Tts_h_t'].notna()]
 
@@ -180,7 +178,7 @@ def data_preprocessing(paths: list[str | Path] | str | Path, vars_config: dict, 
 
 
 def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sample_rate_numeric:int=None,
-                      vars_config: dict = None, estimate_qhx_s: bool = True) -> pd.DataFrame:
+                      vars_config: dict = None, estimate_qhx_s: bool = True, fast: bool = True) -> pd.DataFrame:
 
     """
     This function conditions the data by:
@@ -204,9 +202,18 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
     if missing_columns:
         logger.warning(f'Skipping estimation of qhx_s, missing required columns: {missing_columns}')
     else:
+        from solarmed_modeling.heat_exchanger.utils import estimate_flow_secondary  # To avoid circular import errors
+        
         # Estimate `qhx_s` since the measurement cannot be trusted
+        water_props = None
+        if fast:
+            # Intialize water properties objects just once to increase performance, does not introduce much error
+            water_props: tuple[w_props, w_props] = (w_props(P=default_pressure_MPa, T=(df['Thx_p_in'].median() + df['Thx_p_out'].median()) / 2 + 273.15), 
+                                                    w_props(P=default_pressure_MPa, T=(df['Thx_s_in'].median() + df['Thx_s_out'].median()) / 2 + 273.15))
+        
         df["qhx_s_estimated"] = np.nan
-        df["qhx_s_estimated"] = df.apply(lambda row: estimate_flow_secondary(Tp_in=row['Thx_p_in'], Ts_in=row['Thx_s_in'], qp=row['qhx_p'], Tp_out=row['Thx_p_out'], Ts_out=row['Thx_s_out']), axis=1)
+        df["qhx_s_estimated"] = df.apply(lambda row: estimate_flow_secondary(Tp_in=row['Thx_p_in'], Ts_in=row['Thx_s_in'], qp=row['qhx_p'], 
+                                                                             Tp_out=row['Thx_p_out'], Ts_out=row['Thx_s_out'], water_props=water_props), axis=1)
 
         # Where the heat exchanger was not operating normally, the estimation cannot be applied and the curve fit is used as an alternative
         nan_idxs = df['qhx_s_estimated'].isna()
@@ -222,8 +229,8 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
             # Usar señal original, aunque no esté bien
             df.loc[nan_idxs, 'qhx_s_estimated'] = df.loc[nan_idxs, 'qhx_s']
 
-        # Make sure there are non-negative values
-        df.loc[df['qhx_s_estimated'] < 0, 'qhx_s_estimated'] = 0
+        # Ensure non-negative values for qhx_s_estimated
+        df['qhx_s_estimated'] = df['qhx_s_estimated'].clip(lower=0)
 
         # Rename qhx_s_estimated to qhx_s and copy it to qts_src, rename original signals to qhx_s_original and qts_src_original
         df.rename(columns={'qhx_s': 'qhx_s_original', 'qts_src': 'qts_src_original'}, inplace=True)
@@ -238,6 +245,8 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
     if missing_columns:
         logger.warning(f'Skipping estimation of qts_dis, missing required columns: {missing_columns}')
     else:
+        from solarmed_modeling.three_way_valve.utils import estimate_flow_ts_discharge # To avoid circular import errors
+        
         # if df['qts_dis'].mean() < 0.5:
         # De momento dar un warning si difieren mucho
         # logger.error('Measured flow rate from `qts,dis` is too low, probably flow sensor was not working properly. This will affect the outputs dependent on this variable (Pts,dis)')
@@ -249,8 +258,14 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         #     qts_dis_upper_limit = 54 # m³/h
         #     logger.warning(f'Error while finding upper limit for qmed_s: {e}, defaulting to {qts_dis_upper_limit} m³/h')
 
-        df["qts_dis_estimated"] = df.apply(
-            lambda row: estimate_flow_ts_discharge(qdis=row["q3wv_dis"], Tdis_in=row["T3wv_dis_in"], Tdis_out=row["T3wv_dis_out"], Tsrc=row["T3wv_src"], upper_limit_m3h=row["qmed_s"]), axis=1)
+        if fast:
+            df["qts_dis_estimated"] = df["q3wv_dis"] * (df["T3wv_dis_in"] - df["T3wv_dis_out"]) / (df["T3wv_src"] - df["T3wv_dis_out"])
+            df["qts_dis_estimated"] = df["qts_dis_estimated"].clip(lower=0)
+            df["qts_dis_estimated"] = df["qts_dis_estimated"].clip(upper=df["qmed_s"])
+
+        else:
+            df["qts_dis_estimated"] = df.apply(
+                lambda row: estimate_flow_ts_discharge(qdis=row["q3wv_dis"], Tdis_in=row["T3wv_dis_in"], Tdis_out=row["T3wv_dis_out"], Tsrc=row["T3wv_src"], upper_limit_m3h=row["qmed_s"]), axis=1)
 
         # Make nan to zeros
         df['qts_dis_estimated'] = df['qts_dis_estimated'].fillna(0)
@@ -270,14 +285,25 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         logger.info('Auxiliary variables calculated successfully.')
 
     try:
-        df = df.apply(calculate_powers_solar_field, args=(250, 0, False), axis=1)
+        if fast:
+            water_props = w_props(P=default_pressure_MPa, T=(df['Thx_s_in'].median() + df['Thx_s_out'].median()) / 2 + 273.15)
+            df = calculate_powers_solar_field(df, water_props = water_props)
+        else:
+            water_props = None
+            df = df.apply(calculate_powers_solar_field, args=(250, 0, False, water_props), axis=1)
     except Exception as e:
         logger.error(f'Error while calculating solar field power: {e}')
     else:
         logger.info('Solar field power calculated successfully.')
 
     try:
-        df = df.apply(calculate_powers_thermal_storage, axis=1)
+        if fast:
+            water_props = (w_props(P=default_pressure_MPa, T=(df['Thx_s_out'].median() + df['Thx_s_in'].median()) / 2 + 273.15),
+                           w_props(P=default_pressure_MPa, T=(df['Tts_h_out'].median() + df['Tts_c_in'].median()) / 2 + 273.15))
+            df = calculate_powers_thermal_storage(df, water_props = water_props)
+        else:
+            water_props = None
+            df = df.apply(calculate_powers_thermal_storage, args=(250, 0, water_props), axis=1)
     except Exception as e:
         logger.error(f'Error while calculating thermal storage power: {e}')
     else:
@@ -287,10 +313,8 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         # This should be in `calculate_aux_variables`
         df["Jmed"] = df['Jmed_b'] + df['Jmed_c'] + df['Jmed_d'] + df['Jmed_s_f'] # kW
         # TODO: Add electrical consumption of thermal storage and solar field and vacuum system
-        df["Jts"] = 0 # kW
-        df["Jsf"] = 0 # kW
 
-        df["Jtotal"] = df["Jmed"] + df["Jts"] + df["Jsf"] # kW
+        df["Jtotal"] = df["Jmed"] + df["Jsf_ts"] # kW
     except Exception as e:
         logger.error(f'Error while calculating total electricity power consumption: {e}')
     else:
@@ -309,7 +333,6 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         # Tmed,c,out should bot be smaller than 18ºC
         logger.info(f'Corrected {np.sum(df["Tmed_c_out"] < 18)} values of Tmed_c_out below minimum allowed temperature (18ºC) to 18ºC.')
         df.loc[df['Tmed_c_out'] < 18, 'Tmed_c_out'] = 18
-
     except Exception as e:
         logger.error(f'Error while conditioning MED variables: {e}')
 
@@ -335,6 +358,12 @@ def data_conditioning(df: pd.DataFrame, cost_w:float=None, cost_e:float=None, sa
         logger.error(f'Error while checking model inputs for NaN values: {e}')
 
     return df
+
+def resample_results(data: np.ndarray[float], current_index: pd.DatetimeIndex, new_index: pd.DatetimeIndex, reshape: bool = False) -> np.ndarray[float]:
+    """Resample results to a new index"""
+    values = pd.DataFrame(data, index=current_index).reindex(new_index, method='ffill').values
+    return np.array(values).reshape(-1) if reshape else values
+
 
 # %% Test environment variable generation
 

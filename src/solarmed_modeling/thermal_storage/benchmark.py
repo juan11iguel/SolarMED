@@ -1,6 +1,8 @@
 from pathlib import Path
-from . import evaluate_model, ModelParameters, supported_eval_alternatives
-from solarmed_modeling.utils import benchmark
+from solarmed_modeling import benchmark
+
+from . import ModelParameters, supported_eval_alternatives
+from .utils import evaluate_model
 
 model_id: str = 'thermal_storage'
 

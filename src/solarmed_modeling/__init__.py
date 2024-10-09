@@ -1,6 +1,7 @@
 from enum import Enum
 from loguru import logger
 from iapws.iapws97 import IAPWS97 as w_props
+import pandas as pd
 
 # States definition
 class SolarFieldState(Enum):
@@ -94,13 +95,14 @@ def calculate_aux_variables(df, cost_w, cost_e, sample_rate_numeric):
 
     return df
 
-def calculate_powers_solar_field(row, max_power: float = 250, min_power=0, calculate_per_loop: bool = True):
+def calculate_powers_solar_field(row: pd.Series | pd.DataFrame, max_power: float = 250, min_power=0, calculate_per_loop: bool = True, water_props: w_props = None):
     try:
         # Solar field
-        w_p = w_props(P=0.16, T=(row["Tsf_in"] + row["Tsf_out"]) / 2 + 273.15)  # MPa, K
+        w_p = w_props(P=0.16, T=(row["Tsf_in"] + row["Tsf_out"]) / 2 + 273.15) if water_props is None else water_props
+            
         row["Psf"] = row["qsf"] / 3600 * w_p.rho * w_p.cp * (row["Tsf_out"] - row["Tsf_in"])  # kW
-        row["Psf"] = min(row["Psf"], max_power)
-        row["Psf"] = max(row["Psf"], min_power)
+        row["Psf"].clip(min_power, max_power, inplace=True)
+        row["Psf"].clip(max_power, min_power, inplace=True)
         row["Phx_p"] = row["Psf"]
 
         # Solar field loops
@@ -108,8 +110,8 @@ def calculate_powers_solar_field(row, max_power: float = 250, min_power=0, calcu
             for loop_str in ['l2', 'l3', 'l4', 'l5']:
                 row[f"Psf_{loop_str}"] = row[f"qsf_{loop_str}"] / 3600 * w_p.rho * w_p.cp * (
                             row[f"Tsf_out_{loop_str}"] - row[f"Tsf_in_{loop_str}"])  # kW
-                row[f"Psf_{loop_str}"] = min(row[f"Psf_{loop_str}"], max_power)
-                row[f"Psf_{loop_str}"] = max(row[f"Psf_{loop_str}"], min_power)
+                row[f"Psf_{loop_str}"].clip(min_power, max_power, inplace=True)
+                row[f"Psf_{loop_str}"].clip(max_power, min_power, inplace=True)
 
     except Exception as e:
         logger.error(f'Error: {e}')
@@ -118,20 +120,20 @@ def calculate_powers_solar_field(row, max_power: float = 250, min_power=0, calcu
     return row
 
 
-def calculate_powers_thermal_storage(row, max_power: float = 250, min_power=0):
+def calculate_powers_thermal_storage(row: pd.Series | pd.DataFrame, max_power: float = 250, min_power=0, water_props: tuple[w_props, w_props] = None):
     try:
         # Thermal storage input power
-        w_p = w_props(P=0.16, T=(row["Thx_s_out"] + row["Thx_s_in"]) / 2 + 273.15)  # MPa, K
+        w_p = w_props(P=0.16, T=(row["Thx_s_out"] + row["Thx_s_in"]) / 2 + 273.15) if water_props is None else water_props[0]
         row["Pts_src"] = row["qts_src"] / 3600 * w_p.rho * w_p.cp * (row["Thx_s_out"] - row["Thx_s_in"])  # kW
-        row["Pts_src"] = min(row["Pts_src"], max_power)
-        row["Pts_src"] = max(row["Pts_src"], min_power)
+        row["Pts_src"].clip(min_power, max_power, inplace=True)
+        row["Pts_src"].clip(max_power, min_power, inplace=True)
         row["Phx_s"] = row["Pts_src"]
 
         # Thermal storage output power
-        w_p = w_props(P=0.16, T=(row["Tts_h_out"] + row["Tts_c_in"]) / 2 + 273.15)  # MPa, K
+        w_p = w_props(P=0.16, T=(row["Tts_h_out"] + row["Tts_c_in"]) / 2 + 273.15) if water_props is None else water_props[1]
         row["Pts_dis"] = row["qts_dis"] / 3600 * w_p.rho * w_p.cp * (row["Tts_h_out"] - row["Tts_c_in"])  # kW
-        row["Pts_dis"] = min(row["Pts_dis"], max_power)
-        row["Pts_dis"] = max(row["Pts_dis"], min_power)
+        row["Pts_dis"].clip(min_power, max_power, inplace=True)
+        row["Pts_dis"].clip(max_power, min_power, inplace=True)
 
 
     except Exception as e:
