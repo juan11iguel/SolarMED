@@ -1,9 +1,15 @@
 from pathlib import Path
+import datetime
 import json
 import hjson
-from solarmed_modeling.utils import data_preprocessing, data_conditioning
-import datetime
+import numpy as np
+import pandas as pd
 from loguru import logger
+from solarmed_modeling.utils import data_preprocessing, data_conditioning
+
+def resample_results(data: np.ndarray[float], current_index: pd.DatetimeIndex, new_index: pd.DatetimeIndex) -> np.ndarray[float]:
+    """Resample results to a new index"""
+    return pd.DataFrame(data, index=current_index).reindex(new_index, method='ffill').values
 
 def benchmark_model(
     model_params: dict[str, float],
@@ -76,12 +82,13 @@ def benchmark_model(
         dfs = [df.copy().resample(f"{ts}s").mean() for ts in sample_rates] 
 
         for df_, ts in zip(dfs, sample_rates):
-            out = evaluate_model_fn(df_, ts, model_params, alternatives_to_eval=alternatives_to_eval)
+            out = evaluate_model_fn(df_, ts, model_params, alternatives_to_eval=alternatives_to_eval, base_df=dfs[0])
             stats.extend(out[1])
             del out
                         
         # Match sample rates so they can be plot together
         # dfs_mod = [df_.reindex(df.index, method='ffill') for df_ in dfs_mod]
+        logger.info(f"Performance metrics are calculated by resampling results to the lowest sample rate ({sample_rates[0]}s)")
     
     return stats
 

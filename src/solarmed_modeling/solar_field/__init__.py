@@ -1,4 +1,4 @@
-from typing import Literal, Any
+from typing import Literal
 import time
 from dataclasses import dataclass
 import numpy as np
@@ -8,6 +8,7 @@ from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, 
 from scipy.optimize import fsolve
 from scipy import signal
 from solarmed_modeling.metrics import calculate_metrics
+from solarmed_modeling.utils.benchmark import resample_results
 
 b, a = signal.butter(3, 0.005)
 zi = signal.lfilter_zi(b, a)
@@ -316,7 +317,7 @@ def solar_field_model(
 def evaluate_model(
     df: pd.DataFrame, sample_rate: int, model_params: ModelParameters,
     alternatives_to_eval: list[Literal["standard", "no-delay", "constant-water-props"]] = supported_eval_alternatives,
-    log_iteration: bool = False,
+    log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
     
     """
@@ -328,6 +329,8 @@ def evaluate_model(
         model_params: ModelParameters object containing the model parameters.
         alternatives_to_eval: List of alternatives to evaluate. Supported alternatives are "standard", "no-delay", and "constant-water-props".
         log_iteration: Boolean flag to log each iteration.
+        base_df: Dataframe with a base sample rate. If provided, the model outputs will be resampled to its sample rate 
+        and used to calculate the metrics. Optional
 
     Raises:
         ValueError: If an unsupported alternative is provided in alternatives_to_eval.
@@ -440,11 +443,17 @@ def evaluate_model(
         
         elapsed_time = time.time() - start_time_alt
         
+        if base_df is None:
+            out_metrics = out
+        else:
+            # Resample out to base_df sample rate using ffill
+            out_metrics = resample_results(out, new_index=base_df.index, current_index=df.index[idx_start:])
+        
         # Calculate performance metrics
         stats.append({
             "test_id": df.index[0].strftime("%Y%m%d"),
             "alternative": alt_id,
-            "metrics": calculate_metrics(out, out_ref), 
+            "metrics": calculate_metrics(out_metrics, out_ref), 
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model_params.__dict__,

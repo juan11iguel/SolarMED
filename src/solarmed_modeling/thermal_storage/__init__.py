@@ -9,6 +9,7 @@ from loguru import logger
 
 from solarmed_modeling.curve_fitting.curves import sigmoid_interpolation
 from solarmed_modeling.metrics import calculate_metrics
+from solarmed_modeling.utils.benchmark import resample_results
 
 
 dot = np.multiply
@@ -318,7 +319,7 @@ def thermal_storage_two_tanks_model(
 def evaluate_model(
     df: pd.DataFrame, sample_rate: int, model_params: ModelParameters,
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
-    log_iteration: bool = False,
+    log_iteration: bool = False, base_df: pd.DataFrame = None,
     Th_labels: list[str] = ['Tts_h_t', 'Tts_h_m', 'Tts_h_b'],
     Tc_labels: list[str] = ['Tts_c_t', 'Tts_c_m', 'Tts_c_b']
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
@@ -332,6 +333,8 @@ def evaluate_model(
         model_params: ModelParameters object containing the model parameters.
         alternatives_to_eval: List of alternatives to evaluate. Supported alternatives are "standard", and "constant-water-props".
         log_iteration: Boolean flag to log each iteration.
+        base_df: Dataframe with a base sample rate. If provided, the model outputs will be resampled to its sample rate 
+        and used to calculate the metrics. Optional
 
     Raises:
         ValueError: If an unsupported alternative is provided in alternatives_to_eval.
@@ -345,10 +348,8 @@ def evaluate_model(
     idx_start = 0
     N = len(Th_labels)
 
-
     # Experimental (reference) outputs, used later in performance metrics evaluation
     out_ref = np.concatenate((df[Th_labels].values[idx_start:], df[Tc_labels].values[idx_start:]), axis=1)
-    # out_ref = np.concatenate((df[Th_labels].values[idx_start+1:], df[Tc_labels].values[idx_start+1:]), axis=1)
 
     # Initialize particular variables for earch alternative that requires it
     water_props = None
@@ -360,7 +361,6 @@ def evaluate_model(
 
     # Initialize result vectors
     outs_mod: list[np.ndarray[float]] = [np.zeros((len(df) - idx_start, N*2), dtype=float) for _ in alternatives_to_eval]
-
     stats = []
 
     for alt_idx, alt_id in enumerate(alternatives_to_eval):
@@ -418,19 +418,24 @@ def evaluate_model(
             out[j] = np.concatenate((out_h, out_c), axis=0)
             elapsed_time = time.time() - start_time
 
-
             if log_iteration:
                 logger.info(
                     f"[{alt_id}] Iteration {i} / {len(df)}. Elapsed time: {elapsed_time:.5f} s. Error: {abs(out[j]-out_ref[j]):.2f}"
                 )
         
         elapsed_time = time.time() - start_time_alt
+        
+        if base_df is None:
+            out_metrics = out
+        else:
+            # Resample out to base_df sample rate using ffill
+            out_metrics = resample_results(out, new_index=base_df.index, current_index=df.index[idx_start:])
                 
         # Calculate performance metrics
         stats.append({
             "test_id": df.index[0].strftime("%Y%m%d"),
             "alternative": alt_id,
-            "metrics": calculate_metrics(out, out_ref), 
+            "metrics": calculate_metrics(out_metrics, out_ref), 
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model_params.__dict__,
