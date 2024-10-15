@@ -478,82 +478,82 @@
           ]
         },
           
-        "temperatures_hot_med": {
-          "row_height": 0.33,
-          "title": "Temperature, Hot - medium",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-          "tight_vertical_spacing": True,
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_h_m", "mode": "lines", "color": "plotly_red", "width": 3,},
-          ]
-        },
-    
-        "temperatures_hot_bottom": {
-          "row_height": 0.33,
-          "title": "Temperature, Hot - bottom",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_h_b", "mode": "lines", "color": "plotly_red", "width": 3,},
-          ]
-        },
-          
-    
-        "temperatures_cold_top": {
-          "row_height": 0.33,
-          "title": "Temperature, Cold - top",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-          "tight_vertical_spacing": True,
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_c_t", "mode": "lines", "color": "plotly_blue", "width": 3,},
-          ]
-        },
-    
-        "temperatures_cold_med": {
-          "row_height": 0.33,
-          "title": "Temperature, Cold - Medium",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-          "tight_vertical_spacing": True,
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_c_m", "mode": "lines", "color": "plotly_blue", "width": 3,},
-          ]
-        },
-          
-        "temperatures_cold_bottom": {
-          "row_height": 0.33,
-          "title": "Temperature, Cold - bottom",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-    
-          "traces_left": [
-            {"var_id": "Tts_c_b", "mode": "lines", "color": "plotly_blue", "width": 3,},
-            # From MED
-            {"var_id": "Tts_c_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
-              "conditional":{ "var_id": "qmed_s", "operator": ">", "threshold_value": 1,}
-            },
-          ]
-        },
+      "temperatures_hot_med": {
+        "row_height": 0.33,
+        "title": "Temperature, Hot - medium",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+        "tight_vertical_spacing": True,
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_h_m", "mode": "lines", "color": "plotly_red", "width": 3,},
+        ]
+      },
+  
+      "temperatures_hot_bottom": {
+        "row_height": 0.33,
+        "title": "Temperature, Hot - bottom",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_h_b", "mode": "lines", "color": "plotly_red", "width": 3,},
+        ]
+      },
+        
+  
+      "temperatures_cold_top": {
+        "row_height": 0.33,
+        "title": "Temperature, Cold - top",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+        "tight_vertical_spacing": True,
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_c_t", "mode": "lines", "color": "plotly_blue", "width": 3,},
+        ]
+      },
+  
+      "temperatures_cold_med": {
+        "row_height": 0.33,
+        "title": "Temperature, Cold - Medium",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+        "tight_vertical_spacing": True,
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_c_m", "mode": "lines", "color": "plotly_blue", "width": 3,},
+        ]
+      },
+        
+      "temperatures_cold_bottom": {
+        "row_height": 0.33,
+        "title": "Temperature, Cold - bottom",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+  
+        "traces_left": [
+          {"var_id": "Tts_c_b", "mode": "lines", "color": "plotly_blue", "width": 3,},
+          # From MED
+          {"var_id": "Tts_c_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
+            "conditional":{ "var_id": "qmed_s", "operator": ">", "threshold_value": 1,}
+          },
+        ]
+      },
 
      three_way_valve: {
        title: "Three-way valve",
