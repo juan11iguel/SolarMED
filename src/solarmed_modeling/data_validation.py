@@ -3,14 +3,18 @@ from pydantic import Field, ValidationError
 from loguru import logger
 import numpy as np
 
+
 rangeType = Annotated[tuple[float, float], Field(..., min_items=2, max_items=2)]
 
 # Sometimes when using larger sample rates, the controller will produce great changes in the solar field outlet
 # temperature, which makes this validation to fail, that's why it's increased to 125 to give a bit more margin
 # A better alternative would be to give feedback to the controller when this happens, to re-evaluate the control action,
 # or maybe just modify the control action until the output is within limits
-conHotTemperatureType_upper_limit: float = 120.0
-conHotTemperatureType = Annotated[float, Field(..., ge=0, le=conHotTemperatureType_upper_limit)]
+conHotTemperatureType_upper_limit: float = 110.0
+conHotTemperatureType_lower_limit: float = 0.0
+conHotTemperatureType = Annotated[float, Field(..., 
+                                               ge=conHotTemperatureType_lower_limit, 
+                                               le=conHotTemperatureType_upper_limit)]
 
 def check_value_single(field_value, field_name):
 
