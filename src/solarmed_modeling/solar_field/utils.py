@@ -48,12 +48,13 @@ def evaluate_model(
         span = idx_start
 
     # Experimental (reference) outputs, used lated in performance metrics evaluation
-    idx_start_ref = None
     if base_df is None:
-        out_ref = df.iloc[idx_start:][out_var_id].values
+        idx_start_ref = idx_start
+        ref_df = df
     else:
         idx_start_ref = int(round(600 / base_df.index.freq.n, 0))
-        out_ref = base_df.iloc[idx_start_ref:][out_var_id].values
+        ref_df = base_df
+    out_ref = ref_df.iloc[idx_start_ref:][out_var_id].values
 
     # Initialize particular variables for earch alternative that requires it
     water_props = None

@@ -17,9 +17,9 @@ supported_eval_alternatives: list[str] = ["standard", "no-delay", "constant-wate
 
 @dataclass
 class ModelParameters:
-    beta: float  # Gain coefficient (-)
-    H: float  # Losses to the environment (W/m²)
-    gamma: float  # Artificial parameters to account for flow variations within the whole solar field"
+    beta: float = 4.36396e-02  # Gain coefficient (-)
+    H: float = 13.676448551722462  # Losses to the environment (W/m²)
+    gamma: float = 0.1  # Artificial parameters to account for flow variations within the whole solar field"
     
 
 def calculate_total_pipe_length(q: float, n: int, sample_time:int = 10, equivalent_pipe_area:float = 7.85e-5) -> float:

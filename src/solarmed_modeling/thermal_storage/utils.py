@@ -11,6 +11,10 @@ from solarmed_modeling.utils import resample_results
 from . import ModelParameters, supported_eval_alternatives
 from . import thermal_storage_two_tanks_model as model
 
+Th_labels: list[str] = ['Tts_h_t', 'Tts_h_m', 'Tts_h_b']
+Tc_labels: list[str] = ['Tts_c_t', 'Tts_c_m', 'Tts_c_b']
+T_labels: list[str] = Th_labels + Tc_labels
+
 def evaluate_model(
     df: pd.DataFrame, sample_rate: int, model_params: ModelParameters,
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
@@ -45,10 +49,13 @@ def evaluate_model(
 
     # Experimental (reference) outputs, used later in performance metrics evaluation
     
-    if base_df is None:
-        out_ref = np.concatenate((df[Th_labels].values[idx_start:], df[Tc_labels].values[idx_start:]), axis=1)
-    else:
-        out_ref = np.concatenate((base_df[Th_labels].values[idx_start:], base_df[Tc_labels].values[idx_start:]), axis=1)
+    # if base_df is None:
+    #     out_ref = np.concatenate((df[Th_labels].values[idx_start:], df[Tc_labels].values[idx_start:]), axis=1)
+    # else:
+    #     out_ref = np.concatenate((base_df[Th_labels].values[idx_start:], base_df[Tc_labels].values[idx_start:]), axis=1)
+        
+    ref_df = df if base_df is None else base_df
+    out_ref = ref_df.iloc[idx_start:][T_labels].values
         
     # Initialize particular variables for earch alternative that requires it
     water_props = None

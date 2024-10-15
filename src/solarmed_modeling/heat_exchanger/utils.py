@@ -10,7 +10,9 @@ from solarmed_modeling.utils import resample_results
 from . import ModelParameters, supported_eval_alternatives
 from . import heat_exchanger_model as model
 
-def estimate_flow_secondary(Tp_in: float, Ts_in: float, qp: float, Tp_out: float, Ts_out: float, water_props: tuple[w_props, w_props] = None) -> float:
+def estimate_flow_secondary(Tp_in: float | np.ndarray[float], Ts_in: float | np.ndarray[float], 
+                            qp: float | np.ndarray[float], Tp_out: float | np.ndarray[float], 
+                            Ts_out: float | np.ndarray[float], water_props: tuple[w_props, w_props] = None) -> float | np.ndarray[float]:
     """
     Estimate the secondary flow rate in a heat exchanger.
     
@@ -25,26 +27,39 @@ def estimate_flow_secondary(Tp_in: float, Ts_in: float, qp: float, Tp_out: float
     Returns:
     float: Estimated flow rate of the secondary fluid (kg/s). Returns NaN if the temperature difference between Ts_out and Ts_in is less than 1°C or if there are invalid temperature inputs.
     """
-    
-    if np.abs(Ts_out - Ts_in) < 1:
-        return np.nan
-
+    # Pre-processing
+    vectorized: bool = not isinstance(Tp_in, float)
     if water_props is not None:
         w_props_Tp_in, w_props_Ts_in = water_props
+    
+    if vectorized:
+        if water_props is None:
+            w_props_Tp_in = w_props(P=0.16, T=(Tp_in.mean() + Tp_out.mean()) / 2 + 273.15)
+            w_props_Ts_in = w_props(P=0.16, T=(Ts_in.mean() + Ts_out.mean()) / 2 + 273.15)
     else:
+        if np.abs(Ts_out - Ts_in) < 1:
+            return np.nan
         try:
-            w_props_Tp_in = w_props(P=0.16, T=(Tp_in + Tp_out) / 2 + 273.15)
-            w_props_Ts_in = w_props(P=0.16, T=(Ts_in + Ts_out) / 2 + 273.15)
+            if water_props is None:
+                w_props_Tp_in = w_props(P=0.16, T=(Tp_in + Tp_out) / 2 + 273.15)
+                w_props_Ts_in = w_props(P=0.16, T=(Ts_in + Ts_out) / 2 + 273.15)
         except Exception as e:
             logger.warning(f'Invalid temperature input values: Tp_in={Tp_in}, Ts_in={Ts_in}, Tp_out={Tp_out}, Ts_out={Ts_out} (ºC), returning NaN')
             return np.nan
 
+    # Calculate secondary flow rate
     cp_Tp_in = w_props_Tp_in.cp * 1e3  # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
     cp_Ts_in = w_props_Ts_in.cp * 1e3  # P=1 bar->0.1 MPa C, cp [KJ/kg·K] -> [J/kg·K]
-
     qs = qp * (cp_Tp_in * (Tp_in - Tp_out)) / (cp_Ts_in * (Ts_out - Ts_in))
-
-    return np.max([qs, 0])
+    
+    # Post-processing
+    if vectorized:
+        qs[ np.abs(Ts_out - Ts_in) < 1 ] = np.nan
+        qs[ qs < 0 ] = 0
+    else:
+        qs = np.max([qs, 0])
+        
+    return qs
 
 
 def evaluate_model(

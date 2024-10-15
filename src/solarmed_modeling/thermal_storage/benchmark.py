@@ -13,7 +13,7 @@ def benchmark_model(
     data_path: Path = Path("../../../data"), 
     datasets_path: Path = None,
     filenames_data: list[str] = None,
-    sample_rates: list[int] = [5, 30, 60, 300, 600, 1000],
+    sample_rates: list[int] = [5, 30, 60, 300, 600, 3600],
     default_files_suffix: str = "_solarMED",
 ) -> list[dict[str, str | dict[str, float]]]:
     

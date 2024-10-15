@@ -13,8 +13,8 @@ supported_eval_alternatives: list[str] = ["standard", "constant-water-props"]
 
 @dataclass
 class ModelParameters:
-    UA: float  # Heat transfer coefficient (W/K)
-    H: float  # Losses to the environment (W/m²)
+    UA: float = 13536.596 # Heat transfer coefficient (W/K)
+    H: float  = 0.0 # Losses to the environment (W/m²)
    
 
 def heat_exchanger_model(
@@ -88,6 +88,15 @@ def heat_exchanger_model(
     assert hex_type == 'counter_flow', 'Only counter-flow heat exchangers are supported'
     inverted_hex: bool = False
 
+    # HEX not really exchanging heat, bypass model
+    if qp < 0.1 or qs < 0.1:
+        Tp_out = Tp_in - H * (Tp_in - Tamb)
+        Ts_out = Ts_in - H * (Ts_in - Tamb)
+
+        if return_epsilon:
+            return Tp_out, Ts_out, 0
+        else:
+            return Tp_out, Ts_out
 
     if water_props is not None:
         w_props_Tp_in, w_props_Ts_in = water_props
@@ -110,29 +119,6 @@ def heat_exchanger_model(
     Cmin = np.min([Cp, Cs])
     Cmax = np.max([Cp, Cs])
 
-    if qp < 0.1:
-        Tp_out = Tp_in - H * (Tp_in - Tamb)  # Just losses to the environment
-        if qs < 0.1:
-            Ts_out = Ts_in - H * (Ts_in - Tamb)  # Just losses to the environment
-        else:
-            Ts_out = Ts_in
-
-        if return_epsilon:
-            return Tp_out, Ts_out, 0
-        else:
-            return Tp_out, Ts_out
-
-    if qs < 0.1:
-        Ts_out = Ts_in - H * (Ts_in - Tamb)  # Just losses to the environment
-        if qp < 0.1:
-            Tp_out = Tp_in - H * (Tp_in - Tamb)  # Just losses to the environment
-        else:
-            Tp_out = Tp_in
-
-        if return_epsilon:
-            return Tp_out, Ts_out, 0
-        else:
-            return Tp_out, Ts_out
 
     if Tp_in < Ts_in:
         inverted_hex = True

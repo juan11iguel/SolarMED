@@ -23,10 +23,10 @@ supported_eval_alternatives: list[str] = ["standard", "constant-water-props"]
 
 @dataclass
 class ModelParameters:
-    UA_h: list[float] | np.ndarray[float]  # Heat losses to the environment from the hot tank (W/K)
-    V_h: list[float] | np.ndarray[float]  # Volume of each control volume of the hot tank (m³)
-    UA_c: list[float] | np.ndarray[float]  # Heat losses to the environment from the cold tank (W/K)
-    V_c: list[float] | np.ndarray[float]  # Volume of each control volume of the cold tank (m³)
+    UA_h: tuple[float] | np.ndarray[float] = (0.0069818 , 0.00584034, 0.03041486) # Heat losses to the environment from the hot tank (W/K)
+    V_h: tuple[float] | np.ndarray[float]  = (5.94771006, 4.87661781, 2.19737023) # Volume of each control volume of the hot tank (m³)
+    UA_c: tuple[float] | np.ndarray[float] = (0.01396848, 0.0001    , 0.02286885) # Heat losses to the environment from the cold tank (W/K)
+    V_c: tuple[float] | np.ndarray[float]  = (5.33410037, 7.56470594, 0.90547187) # Volume of each control volume of the cold tank (m³)
 
 
 def calculate_stored_energy(Ti: np.ndarray[float], V_i: np.ndarray[float], Tmin: float) -> float:

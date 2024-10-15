@@ -3,6 +3,8 @@ import datetime
 import hjson
 from loguru import logger
 
+default_sample_rates: list[int] = [5, 30, 60, 300, 500]
+
 def benchmark_model(
     model_params: dict[str, float],
     evaluate_model_fn: callable,
@@ -11,7 +13,7 @@ def benchmark_model(
     data_path: Path = Path("../../data"), 
     datasets_path: Path = None,
     filenames_data: list[str] = None,
-    sample_rates: list[int] = [5, 30, 60, 300, 600, 1000],
+    sample_rates: list[int] = default_sample_rates,
     default_files_suffix: str = "_solarMED",
 ) -> list[dict[str, str | dict[str, float]]]:
     """Benchmark a model by evaluating it on different datasets and sample rates.
@@ -35,6 +37,8 @@ def benchmark_model(
     """
     
     from solarmed_modeling.utils import data_preprocessing, data_conditioning # To avoid circular import errors
+    
+    sample_rates = default_sample_rates if sample_rates is None else sample_rates
     
     with open(data_path / "variables_config.hjson") as f:
         vars_config = hjson.load(f)
@@ -70,7 +74,7 @@ def benchmark_model(
             sample_rate_key=f"{sample_rates[0]}s",
         )
         # Condition data
-        df = data_conditioning(df, sample_rate_numeric=sample_rates[0])
+        df = data_conditioning(df, sample_rate_numeric=sample_rates[0], vars_config=vars_config)
         
         # Resample data to each sample rate
         dfs = [df.copy().resample(f"{ts}s").mean() for ts in sample_rates] 
