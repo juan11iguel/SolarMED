@@ -1,5 +1,6 @@
-from typing import Literal
-from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Literal, Type
+from enum import Enum
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -13,16 +14,42 @@ from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PrivateAttr
 from solarmed_modeling import (
     MedVacuumState,
     MedState,
-    SF_TS_State,
-    SolarMED_State,
+    SfTsState,
+    SolarMedState,
     SolarFieldState,
     ThermalStorageState,
 )
 from solarmed_modeling.data_validation import rangeType, conHotTemperatureType
 from solarmed_modeling.power_consumption import Actuator, SupportedActuators
 
+@dataclass
+class FsmStartupConditions:
+    """
+    Startup conditions for the Finite State Machines (FSM)
+    """ 
+    qmed_s: float = 10 * 3.6, # Heat source flow rate (m³/h)
+    qmed_f: float = 5.0  # Feed water flow rate (m³/h)
+    qmed_b: float = 5.0  # Brine extraction flow rate (m³/h)
+    
+@dataclass
+class FsmShutdownConditions:
+    """
+    Shutdown conditions for the Finite State Machines (FSM)
+    """ 
+    qmed_b: float = 5.0  # Brine extraction flow rate (m³/h)
 
-def ensure_type(expected_type):
+@dataclass
+class FsmParameters:
+    vacuum_duration_time: int = 30 * 60  # Time to generate vacuum in the MED system (seconds)
+    brine_emptying_time: int = 60 * 60  # Time to extract brine from MED plant (seconds)
+    startup_duration_time: int = 30 * 60  # Time to start up the MED plant (seconds)
+    # deactivate_cooldown
+    # activate_cooldown
+    startup_conditions: FsmStartupConditions = FsmStartupConditions()
+    shutdown_conditions: FsmShutdownConditions = FsmShutdownConditions()
+
+
+def ensure_type(expected_type: Type) -> callable:
     def decorator(func):
         def wrapper(self, value):
             if not isinstance(value, expected_type):
@@ -31,23 +58,25 @@ def ensure_type(expected_type):
             return func(self, value)
         return wrapper
 
-class Base_FSM:
+class BaseFsm:
 
     """
     Base class for Finite State Machines (FSM)
 
     Some conventions:
     - Every input that needs to be provided in the `step` method (to move the state machine one step forward), needs to
-    be gettable from the get_inputs method, either as a numpy array or a dictionary. For consistency during comparison to
-    check whether values have changed or not, every input needs to be convertable to a **float**.
+    be gettable from the get_inputs method, either as a numpy array or a dictionary. 
+    
+    For consistency during comparison to check whether values have changed or not, every input needs to be convertable 
+    to a **float**.
     """
 
     current_sample: int = 0
     warn_different_inputs_but_no_state_change: bool = False
 
-    _state_type = None  # To be defined in the child class, type of the FSM state, should be an Enum like class
+    _state_type: Enum = None  # To be defined in the child class, type of the FSM state, should be an Enum like class
 
-    def __init__(self, name, initial_state, sample_time:int):
+    def __init__(self, name: str, initial_state: str | Enum, sample_time: int):
 
         self.name = name
         self.sample_time = sample_time
@@ -56,13 +85,13 @@ class Base_FSM:
             initial_state = getattr(self._state_type, initial_state)
 
         # State machine initialization
-        self.machine = Machine(
+        self.machine: Machine = Machine(
             model=self, initial=initial_state, auto_transitions=False, show_conditions=True, show_state_attributes=True,
             ignore_invalid_triggers=False, queued=True, send_event=True, # finalize_event=''
             before_state_change='inform_exit_state', after_state_change='inform_enter_state',
         )
 
-    def get_state(self):
+    def get_state(self) -> Enum:
         return self.state if isinstance(self.state, self._state_type) else getattr(self._state_type, self.state)
 
     # @property
@@ -74,11 +103,16 @@ class Base_FSM:
     # def state(self, value):
     #     self._state = value
 
-    def get_inputs(self):
+    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> None:
         """
+        This base method can be used to perform validation of format, 
+        but the logic to get the inputs should be implemented in the child class.
+        
         Example implementation:
 
         def get_inputs(self, format: Literal['array', 'dict'] = 'array'):
+        
+        super().get_inputs(format=format) # Just to check if the format is valid
 
         if format == 'array':
             # When the array format is used, all variables necessarily need to be parsed as floats
@@ -98,10 +132,10 @@ class Base_FSM:
             }
         :return:
         """
+        if format not in ["array", "dict"]:
+            raise ValueError(f"Format should be either 'array' or 'dict', not {format}")
 
-        raise NotImplementedError("This method should be implemented in the child class")
-
-    def update_inputs_array(self):
+    def update_inputs_array(self) -> np.ndarray[float]:
 
         # self.inputs_array = self.get_inputs(format='array')
         # return self.inputs_array
@@ -109,7 +143,7 @@ class Base_FSM:
         raise NotImplementedError("This method should be implemented in the child class")
 
 
-    def customize_fsm_style(self):
+    def customize_fsm_style(self) -> None:
         # Custom styling of state machine graph
         self.machine.machine_attributes['ratio'] = '0.2'
         # self.machine.machine_attributes['rankdir'] = 'TB'
@@ -124,11 +158,11 @@ class Base_FSM:
         #     self.machine.model_graphs[model_].set_node_style(s, 'steady')
 
     # State machine actions - callbacks of states and transitions
-    def inform_wasteful_operation(self, *args):
+    def inform_wasteful_operation(self, *args) -> None:
         """ This is supposed to be implemented by the child class"""
         pass
 
-    def inform_enter_state(self, *args):
+    def inform_enter_state(self, *args) -> None:
         event = args[0]
 
         # Inform of not invalid but wasteful operations
@@ -136,11 +170,11 @@ class Base_FSM:
 
         logger.debug(f"[{self.name} - sample {self.current_sample}] Entered state {event.state.name}")
 
-    def inform_exit_state(self, *args):
+    def inform_exit_state(self, *args) -> None:
         event = args[0]
         logger.debug(f"[{self.name} - sample {self.current_sample}] Left state {event.state.name}")
 
-    def get_next_valid_transition(self, prior_inputs: np.ndarray, current_inputs: np.ndarray) -> Callable | None:
+    def get_next_valid_transition(self, prior_inputs: np.ndarray, current_inputs: np.ndarray) -> callable | None:
         # Check every transition possible from the current state
         # There could be several
         candidate_transitions = self.machine.get_triggers(self.state)
@@ -171,18 +205,18 @@ class Base_FSM:
         return getattr(self, transition_trigger_id)
 
     # Auxiliary methods (to calculate associated costs depending on the state)
-    def generate_graph(self, fmt :Literal['png', 'svg'] = 'svg', output_path :Path = None):
-        if output_path is not None:
+    def generate_graph(self, fmt :Literal['png', 'svg'] = 'svg', output_path: Path = None) -> str:
+        if output_path is None:
+            return self.machine.get_graph().draw(None, format=fmt, prog='dot')
+        else:
             # Create output directory if it doesn't exist
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             with open(output_path, 'bw') as f:
                 return self.machine.get_graph().draw(f, format=fmt, prog='dot')
-        else:
-            return self.machine.get_graph().draw(None, format=fmt, prog='dot')
 
 
-class SolarFieldWithThermalStorage_FSM(Base_FSM):
+class SolarFieldWithThermalStorageFsm(BaseFsm):
 
     """
     Finite State Machine for the Solar Field with Thermal Storage (SF-TS) unit.
@@ -192,27 +226,26 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
     # current_sample = 0
 
     # State type
-    _state_type = SF_TS_State
+    _state_type: SfTsState = SfTsState
 
 
     def __init__(
             self,
-            sample_time: int, name :str = "SF-TS_FSM", initial_state: SF_TS_State = SF_TS_State.IDLE,
+            sample_time: int, name: str = "SF-TS_FSM", initial_state: SfTsState = SfTsState.IDLE,
 
             # Inputs / Decision variables (Optional)
-            Tsf_out: float = None, qts_src: float = None, qsf: float = None
-    ):
+            qts_src: float = None, qsf: float = None
+    ) -> None:
 
         # Call parent constructor
         super().__init__(name, initial_state, sample_time)
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.Tsf_out = Tsf_out
-        self.qts_src = qts_src
-        self.qsf = qsf
+        self.qts_src: float = qts_src
+        self.qsf: float = qsf
 
-        inputs_array = self.update_inputs_array()
-        self.inputs_array_prior = inputs_array
+        inputs_array: np.ndarray[float] = self.update_inputs_array()
+        self.inputs_array_prior: np.ndarray[float] = inputs_array
 
         # States
         st = self._state_type # alias
@@ -237,37 +270,38 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
         # Additional
         self.customize_fsm_style()
 
-    def get_inputs(self, format: Literal['array', 'dict'] = 'array'):
+    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> np.ndarary[float] | dict:
+
+        super().get_inputs(format=format) # Just to check if the format is valid
 
         if format == 'array':
             # When the array format is used, all variables necessarily need to be parsed as floats
 
-            return np.array([self.Tsf_out, self.qts_src, self.qsf], dtype=float)
+            return np.array([self.qts_src, self.qsf], dtype=float)
 
         elif format == 'dict':
             # In the dict format, each variable  can have its own type
-
             return {
-                'Tsf_out': self.Tsf_out,
                 'qts_src': self.qts_src,
                 'qsf': self.qsf,
             }
 
-    def update_inputs_array(self):
+    def update_inputs_array(self) -> np.ndarray[float]:
         self.inputs_array = self.get_inputs(format='array')
 
         return self.inputs_array
 
-
     # State machine actions - callbacks of states and transitions
-    def stop_pump_ts(self, *args):
+    def stop_pump_ts(self, *args) -> None:
+        """ Stop the pump for the thermal storage """
         self.qts_src = 0
 
-    def stop_pump_sf(self, *args):
-        self.Tsf_out = 0
+    def stop_pump_sf(self, *args) -> None:
+        """ Stop the pump for the solar field """
         self.qsf = 0
 
-    def stop_pumps(self, *args):
+    def stop_pumps(self, *args) -> None:
+        """ Stop both pumps """
         logger.info(f"[{self.name}] Stopping pumps")
         self.stop_pump_ts()
         self.stop_pump_sf()
@@ -275,25 +309,27 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
     # State machine transition conditions
     # Solar field
     def is_pump_sf_on(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
+        """ Check if the pump for the solar field is on """
 
         if return_valid_inputs:
-            return dict(Tsf_out = 1.0)
+            return dict(qsf = 1.0)
         elif return_invalid_inputs:
-            return dict(Tsf_out = 0.0, qsf = 0.0)
+            return dict(qsf = 0.0)
 
-        output = False
-        if self.Tsf_out is not None:
-            output = self.Tsf_out > 0
+        output: bool = False
+        if self.qsf is not None:
+            output = self.qsf > 0
 
         # Prioritize Tsf_out, but if it has no valid value, check qsf
-        if output == False and self.qsf is not None:
-            output = self.qsf > 0
+        # if output == False and self.qsf is not None:
+        #     output = self.qsf > 0
 
         return output
 
 
     # Thermal storage
     def is_pump_ts_on(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
+        """ Check if the pump for the thermal storage is on """
 
         if return_valid_inputs:
             return dict(qts_src = 1.0)
@@ -303,14 +339,14 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
         return self.qts_src > 0 if self.qts_src is not None else False
 
 
-    def step(self, Tsf_out: float, qts_src: float, qsf: float = None):
+    def step(self, qsf: float, qts_src: float) -> None:
+        """ Move the state machine one step forward """
 
         self.current_sample += 1
 
         # Inputs validation (would be done by Pydantic), here just update the values
-        self.Tsf_out = Tsf_out
-        self.qts_src = qts_src
         self.qsf = qsf
+        self.qts_src = qts_src
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
         self.update_inputs_array()
@@ -322,11 +358,8 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
 
         # Save prior inputs
         self.inputs_array_prior = self.inputs_array
-        # self.Tsf_out_prior = Tsf_out
-        # self.qts_src_prior = qts_src
-        # self.inputs_array_prior = np.array([self.Tsf_out_prior, self.qts_src_prior])
 
-    def to_dataframe(self, df: pd.DataFrame = None):
+    def to_dataframe(self, df: pd.DataFrame = None) -> pd.DataFrame:
         # Return some of the internal variables as a dataframe
         # the state as en Enum?str?, the inputs, the consumptions
 
@@ -343,7 +376,7 @@ class SolarFieldWithThermalStorage_FSM(Base_FSM):
 
         return df
 
-class MedFSM(Base_FSM):
+class MedFSM(BaseFsm):
 
     """
     Finite State Machine for the Multi-Effect Distillation (MED) unit.
@@ -355,18 +388,18 @@ class MedFSM(Base_FSM):
     # Vacuum
     generating_vacuum: bool = False
     vacuum_generated: bool = False
-    vacuum_started_sample = 0
+    vacuum_started_sample: int = 0
 
     # Shutdown
-    brine_empty = True
-    brine_emptying_started_sample = 0
+    brine_empty: bool = True
+    brine_emptying_started_sample: bool = 0
 
     # Startup
     startup_done: bool = False
-    startup_started_sample = 0
+    startup_started_sample: int = 0
 
     # State type
-    _state_type = MedState
+    _state_type: MedState = MedState
 
 
     def __init__(
@@ -383,7 +416,7 @@ class MedFSM(Base_FSM):
             Tmed_s_in: float = None,
             Tmed_c_out: float = None,
             med_vacuum_state: MedVacuumState = None,
-     ):
+     ) -> None:
 
         # Call parent constructor
         super().__init__(name, initial_state, sample_time)
@@ -453,14 +486,12 @@ class MedFSM(Base_FSM):
 
         self.customize_fsm_style()
 
-    def customize_fsm_style(self):
-        # # Custom styling of state machine graph
-        # self.machine.machine_attributes['rankdir'] = 'TB'
-        # self.machine.style_attributes['node']['transient'] = {'fillcolor': '#FBD385'}
-        # self.machine.style_attributes['node']['steady'] = {'fillcolor': '#E0E8F1'}
+    def customize_fsm_style(self) -> None:
+        """ Custom styling of state machine graph """
+        
         super(self.__class__, self).customize_fsm_style()
+        
         self.machine.machine_attributes['ratio'] = '0.05'
-
         # customize node styling
         model_ = list(self.machine.model_graphs.keys())[0]  # lavin
         for s in [MedState.GENERATING_VACUUM, MedState.STARTING_UP, MedState.SHUTTING_DOWN]:
@@ -470,9 +501,11 @@ class MedFSM(Base_FSM):
 
     # State machine actions - callbacks of states and transitions
 
-    def inform_wasteful_operation(self, *args):
-
-        """ This is supposed to be called from parent class"""
+    def inform_wasteful_operation(self, *args) -> None:
+        """
+        Inform of not invalid but wasteful operations 
+        This is supposed to be called from parent class
+        """
 
         event = args[0]
 
@@ -484,7 +517,7 @@ class MedFSM(Base_FSM):
         if event.state in [MedState.SHUTTING_DOWN, MedState.IDLE, MedState.OFF] and self.are_inputs_valid():
             logger.warning(f"[{self.name}] MED is not operating, there is no point in having its inputs active")
 
-    def reset_fsm(self, *args):
+    def reset_fsm(self, *args) -> None:
         logger.info(f"[{self.name}] Resetting FSM")
         self.set_vacuum_reset()
         # self.set_brine_empty()
@@ -492,7 +525,9 @@ class MedFSM(Base_FSM):
         # Anything else?
 
     # Vacuum
-    def set_vacuum_start(self, *args):
+    def set_vacuum_start(self, *args) -> None:
+        """ Set the start of the vacuum generation """
+        
         if self.generating_vacuum:
             logger.warning(f"[{self.name}] Already generating vacuum, no need to start again")
             return
@@ -501,7 +536,8 @@ class MedFSM(Base_FSM):
         self.vacuum_started_sample = self.current_sample
         logger.info(f"[{self.name}] Started generating vacuum, it will take {self.vacuum_duration_samples} samples to complete")
 
-    def set_vacuum_reset(self, *args):
+    def set_vacuum_reset(self, *args) -> None:
+        """ Reset the vacuum generation """
         self.vacuum_started_sample = None
         logger.info(f"[{self.name}] Cancelled vacuum generation")
 
@@ -510,7 +546,9 @@ class MedFSM(Base_FSM):
         logger.info(f"[{self.name}] Vacuum generated")
 
     # Shutdown
-    def set_brine_emptying_start(self, *args):
+    def set_brine_emptying_start(self, *args) -> None:
+        """ Start emptying the brine """
+        
         if self.brine_empty:
             logger.warning(f"[{self.name}] Brine is already empty, no need to start emptying again")
             return
@@ -518,17 +556,23 @@ class MedFSM(Base_FSM):
         self.brine_emptying_started_sample = self.current_sample
         logger.info(f"[{self.name}] Started emptying brine, it will take {self.brine_emptying_samples} samples to complete")
 
-    def set_brine_empty(self, *args):
+    def set_brine_empty(self, *args) -> None:
+        """ Set the brine as empty """
+        
         self.brine_empty = True
         self.brine_emptying_started_sample = None
         logger.info(f"[{self.name}] Brine emptied")
 
-    def set_brine_non_empty(self, *args):
+    def set_brine_non_empty(self, *args) -> None:
+        """ Set the brine as non-empty """
+        
         self.brine_empty = False
         logger.info(f"[{self.name}] Brine non-empty")
 
     # Startup
-    def set_startup_start(self, *args):
+    def set_startup_start(self, *args) -> None:
+        """ Start the MED plant """
+        
         if self.startup_done:
             logger.warning(f"[{self.name}] Startup already done, no need to start again")
             return
@@ -536,7 +580,9 @@ class MedFSM(Base_FSM):
         self.startup_started_sample = self.current_sample
         logger.info(f"[{self.name}] Started starting up, it will take {self.startup_duration_samples} samples to complete")
 
-    def set_startup_done(self, *args):
+    def set_startup_done(self, *args) -> None:
+        """ Set the MED plant as started up """
+        
         self.startup_done = True
         logger.info(f"[{self.name}] Startup done")
 
@@ -548,6 +594,7 @@ class MedFSM(Base_FSM):
     # State machine transition conditions
     # Vacuum
     def is_high_vacuum(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:  # , raise_error: bool = False):
+        """ Check if the vacuum is high """
         
         if return_valid_inputs:
             return dict(med_vacuum_state = MedVacuumState.HIGH)
@@ -558,6 +605,7 @@ class MedFSM(Base_FSM):
         
 
     def is_low_vacuum(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
+        """ Check if the vacuum is low """
         
         if return_valid_inputs:
             return dict(med_vacuum_state = MedVacuumState.LOW)
@@ -569,7 +617,8 @@ class MedFSM(Base_FSM):
 
 
     def is_off_vacuum(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
-        
+        """ Check if the vacuum is off """
+
         if return_valid_inputs:
             return dict(med_vacuum_state = MedVacuumState.OFF)
         elif return_invalid_inputs:
@@ -577,7 +626,9 @@ class MedFSM(Base_FSM):
         
         return self.med_vacuum_state == MedVacuumState.OFF
 
-    def is_vacuum_done(self, *args):
+    def is_vacuum_done(self, *args) -> bool:
+        """ Check if the vacuum generation is done """
+        
         if self.vacuum_generated:
             return True
 
@@ -588,8 +639,8 @@ class MedFSM(Base_FSM):
                 f"[{self.name}] Still generating vacuum, {self.current_sample - self.vacuum_started_sample}/{self.vacuum_duration_samples} samples completed")
             return False
 
-    # Startup
-    def is_startup_done(self, *args):
+    def is_startup_done(self, *args) -> bool:
+        """ Check if the MED plant has started up """
         if self.startup_done:
             return True
 
@@ -600,8 +651,9 @@ class MedFSM(Base_FSM):
                 f"[{self.name}] Still starting up, {self.current_sample - self.startup_started_sample}/{self.startup_duration_samples} samples completed")
             return False
 
-    # Shutdown
-    def is_brine_empty(self, *args):
+    def is_brine_empty(self, *args) -> bool:
+        """ Check if the brine is empty """
+        
         if self.brine_empty:
             return True
 
@@ -612,8 +664,8 @@ class MedFSM(Base_FSM):
                 f"[{self.name}] Still emptying brine, {self.current_sample - self.brine_emptying_started_sample}/{self.brine_emptying_samples} samples completed")
             return False
 
-    def are_inputs_active(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:  # inputs: list[float] | np.ndarray = np.array([0])
-        # Checks if all variables required for MED to active are valid (greater than zero and vacuum active)
+    def are_inputs_active(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
+        """ Checks if all variables required for MED to active are valid (greater than zero and vacuum active) """
 
         if return_valid_inputs:
             inputs = self.are_inputs_valid(return_valid_inputs=True)
@@ -630,7 +682,7 @@ class MedFSM(Base_FSM):
         return self.are_inputs_valid() and self.med_vacuum_state != MedVacuumState.OFF
 
     def are_inputs_valid(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
-        # Just check if the inputs are greater than zero, not the vacuum
+        """ Just check if the inputs are greater than zero, not the vacuum """
         
         if return_valid_inputs:
             return dict(
@@ -650,7 +702,9 @@ class MedFSM(Base_FSM):
         return np.all(self.inputs_array > 0)
 
 
-    def get_inputs(self, format: Literal['array', 'dict'] = 'array'):
+    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> np.ndarray[float] | dict:
+        
+        super().get_inputs(format=format) # Just to check if the format is valid
 
         if format == 'array':
             """ When the array format is used, all variables necessarily need to be parsed as floats """
@@ -669,13 +723,15 @@ class MedFSM(Base_FSM):
                 'med_vacuum_state': self.med_vacuum_state,
             }
 
-    def update_inputs_array(self):
+    def update_inputs_array(self) -> np.ndarray[float]:
+        """ Update the inputs array """
         self.inputs_array = self.get_inputs(format='array')
 
         return self.inputs_array
 
     def step(self, qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float,
-             med_vacuum_state: int | MedVacuumState):
+             med_vacuum_state: int | MedVacuumState) -> None:
+        """ Move the state machine one step forward """
 
         self.current_sample += 1
 
@@ -695,7 +751,6 @@ class MedFSM(Base_FSM):
         if transition is not None:
             transition()
 
-
         # Save prior inputs
 
         # self.qmed_s_prior = self.qmed_s
@@ -705,7 +760,7 @@ class MedFSM(Base_FSM):
         self.inputs_array_prior = self.inputs_array
 
 
-    def to_dataframe(self, df: pd.DataFrame = None):
+    def to_dataframe(self, df: pd.DataFrame = None) -> pd.DataFrame:
         # Return some of the internal variables as a dataframe
         # the state as en Enum?str?, the inputs, the consumptions
 
@@ -727,14 +782,16 @@ class MedFSM(Base_FSM):
 
 class SolarMED(BaseModel):
     """
-    DONE: Copy code from solarMED-optimization to solarMED-modeling and make it work after refactoring (this repo)
-    DONE: Integrate with Pydanctic
-    TODO: Make FSM evaluation optional
-    TODO: make it possible to only evaluate FSMs but not the model themselves
-    This class is a template for the one in solarMED_modeling.
-    It should act like a wrapper around the two individual finite state machines (fsm), and depending on the inputs given to the step method, call the correct events in the individual fsms. It should also provide utility methods like getting the current state of the system, information like the number of complete cycles, etc.
-
+    This class is a simplified copy for the one in solarMED_modeling.
+    It is used to test the FSMs integration without dealing with the whole model complexity before adding changes to the
+    main model class.
+    It's signature might be outdated from the current version in the main package.
+    
+    It should act like a wrapper around the two individual finite state machines (fsm), and depending on the inputs 
+    given to the step method, call the correct events in the individual fsms. It should also provide utility methods 
+    like getting the current state of the system, information like the number of complete cycles, etc.
     """
+    
     # Limits
     # Important to define first, so that they are available for validation
     ## Flows. Need to be defined separately to validate using `within_range_or_zero_or_max`
@@ -982,13 +1039,13 @@ class SolarMED(BaseModel):
                                      description="Input/Output. Solar field state. It can be used to define the Solar Field initial state, after it's always an output")
     ts_state: ThermalStorageState = Field(ThermalStorageState.IDLE, title="TS,state", json_schema_extra={"units": "-"},
                                             description="Input/Output. Thermal storage state. It can be used to define the Thermal Storage initial state, after it's always an output")
-    sf_ts_state: SF_TS_State = Field(SF_TS_State.IDLE, title="SF_TS,state", json_schema_extra={"units": "-"},
+    sf_ts_state: SfTsState = Field(SfTsState.IDLE, title="SF_TS,state", json_schema_extra={"units": "-"},
                                         description="Output. Solar field with thermal storage state")
-    current_state: SolarMED_State = Field(None, title="state", json_schema_extra={"units": "-"},
+    current_state: SolarMedState = Field(None, title="state", json_schema_extra={"units": "-"},
                                             description="Output. Current state of the SolarMED system")
 
     _med_fsm: MedFSM = PrivateAttr(None)
-    _sf_ts_state: SF_TS_State = PrivateAttr(None)
+    _sf_ts_state: SfTsState = PrivateAttr(None)
     _created_at: datetime = PrivateAttr(default_factory=datetime.datetime.now)
 
     model_config = ConfigDict(
@@ -999,10 +1056,10 @@ class SolarMED(BaseModel):
 
     def model_post_init(self, ctx):
 
-        initial_sf_ts = SF_TS_State(str(self.sf_state.value) + str(self.ts_state.value))
-        self.current_state = SolarMED_State(initial_sf_ts.value + str(self.med_state.value))
+        initial_sf_ts = SfTsState(str(self.sf_state.value) + str(self.ts_state.value))
+        self.current_state = SolarMedState(initial_sf_ts.value + str(self.med_state.value))
 
-        self._sf_ts_fsm: SolarFieldWithThermalStorage_FSM = SolarFieldWithThermalStorage_FSM(
+        self._sf_ts_fsm: SolarFieldWithThermalStorageFsm = SolarFieldWithThermalStorageFsm(
             name='SolarFieldWithThermalStorage_FSM', initial_state=initial_sf_ts, sample_time=self.sample_time)
         self._med_fsm: MedFSM = MedFSM(
             name='MED_FSM', initial_state=self.med_state,
@@ -1043,23 +1100,15 @@ class SolarMED(BaseModel):
 
         self.update_current_state()
         logger.info(f"SolarMED current state: {self.current_state}")
+        
 
-    # def generate_state_code(self, sf_ts_state: SF_TS_State, med_state: MedState):
-    #     # Make sure our states are of the correct type
-    #     if not isinstance(sf_ts_state, SF_TS_State):
-    #         sf_ts_state = getattr(SF_TS_State, str(sf_ts_state))
-    #     if not isinstance(med_state, MedState):
-    #         med_state = getattr(MedState, str(med_state))
-    #
-    #     return f"{sf_ts_state.value}{med_state.value}"
-
-    def get_state(self, mode: Literal["default", "human_readable"] = 'default') -> SolarMED_State:
+    def get_state(self, mode: Literal["default", "human_readable"] = 'default') -> SolarMedState:
         # state_code = self.generate_state_code(self._sf_ts_fsm.state, self._med_fsm.state)
 
         state_code = str(self.sf_state.value) + str(self.ts_state.value) + str(self.med_state.value)
 
         if mode == 'human_readable':
-            state_str = SolarMED_State(state_code).name
+            state_str = SolarMedState(state_code).name
             # Replace _ by space and make everything minusculas
             state_str =  state_str.replace('_', ' ').lower()
             # Replace ts to TS, sf to SF and med to MED
@@ -1068,11 +1117,11 @@ class SolarMED(BaseModel):
             return state_str
 
         else:
-            return SolarMED_State(state_code)
+            return SolarMedState(state_code)
 
     def update_internal_states(self) -> None:
         self.med_state = self._med_fsm.get_state()
-        self.sf_ts_state: SF_TS_State = self._sf_ts_fsm.get_state()
+        self.sf_ts_state: SfTsState = self._sf_ts_fsm.get_state()
         self.sf_state = SolarFieldState(int(self.sf_ts_state.value[0]))
         self.ts_state = ThermalStorageState(int(self.sf_ts_state.value[1]))
 
@@ -1111,4 +1160,4 @@ class SolarMED(BaseModel):
 
 
 
-SupportedFSMTypes = Base_FSM | SolarFieldWithThermalStorage_FSM | MedFSM
+SupportedFSMTypes = BaseFsm | SolarFieldWithThermalStorageFsm | MedFSM
