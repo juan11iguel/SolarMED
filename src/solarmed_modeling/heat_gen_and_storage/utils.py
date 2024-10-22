@@ -11,13 +11,14 @@ from solarmed_modeling.utils import resample_results
 
 from solarmed_modeling.thermal_storage.utils import Th_labels, Tc_labels
 
-from . import supported_eval_alternatives, ModelParameters
+from . import supported_eval_alternatives, ModelParameters, FixedModelParameters
 from . import heat_generation_and_storage_subproblem as model
 
 out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Tts_h_in", *Th_labels, *Tc_labels]
 
 def evaluate_model(
-    df: pd.DataFrame, sample_rate: int, model_params: ModelParameters,
+    df: pd.DataFrame, sample_rate: int, 
+    model_params: ModelParameters, fixed_model_params: FixedModelParameters = FixedModelParameters(),
     alternatives_to_eval: list[Literal["standard", ]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
@@ -32,6 +33,9 @@ def evaluate_model(
         idx_start_ref = idx_start
         ref_df = df
     else:
+        if base_df.index.freq.n > df.index.freq.n:
+            raise ValueError(f"Base dataframe can't have a lower sample rate than the input dataframe: base df rate ({base_df.index.freq.n}) < evaluting df rate({df.index.freq.n})")
+        
         idx_start_ref = int(round(600 / base_df.index.freq.n, 0))
         ref_df = base_df
     out_ref = ref_df.iloc[idx_start_ref:][out_var_ids].values
@@ -100,7 +104,7 @@ def evaluate_model(
                     
                     # Parameters
                     model_params=model_params,
-                    # model_params= model_params, 
+                    fixed_model_params=fixed_model_params,
                     sample_time = sample_rate,
                     water_props = water_props,
                     problem_type = "1p2x",

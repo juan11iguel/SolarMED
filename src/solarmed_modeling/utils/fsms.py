@@ -3,8 +3,8 @@ from pathlib import Path
 import pandas as pd
 # import time
 
-from solarmed_modeling.fsms import MedFSM, SolarFieldWithThermalStorage_FSM
-from solarmed_modeling import MedState, SF_TS_State, MedVacuumState
+from solarmed_modeling.fsms import MedFSM, SolarFieldWithThermalStorageFsm
+from solarmed_modeling import MedState, SfTsState, MedVacuumState
 from phd_visualizations import save_figure
 from solarmed_modeling.visualization import state_evolution_plot
 
@@ -14,8 +14,8 @@ from solarmed_modeling.fsms import SolarMED
 valid_input: float = 1.0
 invalid_input: float = 0.0
 
-SupportedStateTypes = MedState | SF_TS_State
-SupportedFMSs = MedFSM | SolarFieldWithThermalStorage_FSM | SolarMED
+SupportedStateTypes = MedState | SfTsState
+SupportedFMSs = MedFSM | SolarFieldWithThermalStorageFsm | SolarMED
 
 def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMSs = None, model: SupportedFMSs = None, current_state:SupportedStateTypes | str = None) -> None:
 
@@ -95,18 +95,18 @@ def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int
         (invalid_input, invalid_input)
     ]
 
-    expected_sf_ts_states: list[SF_TS_State] = [
+    expected_sf_ts_states: list[SfTsState] = [
         # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
 
-        SF_TS_State.IDLE,
-        SF_TS_State.HEATING_UP_SF,
-        SF_TS_State.SF_HEATING_TS,
-        SF_TS_State.SF_HEATING_TS,
-        SF_TS_State.SF_HEATING_TS,
-        SF_TS_State.SF_HEATING_TS,
-        SF_TS_State.IDLE,
-        SF_TS_State.HEATING_UP_SF,
-        SF_TS_State.IDLE
+        SfTsState.IDLE,
+        SfTsState.HEATING_UP_SF,
+        SfTsState.SF_HEATING_TS,
+        SfTsState.SF_HEATING_TS,
+        SfTsState.SF_HEATING_TS,
+        SfTsState.SF_HEATING_TS,
+        SfTsState.IDLE,
+        SfTsState.HEATING_UP_SF,
+        SfTsState.IDLE
     ]
 
     med_inputs = [

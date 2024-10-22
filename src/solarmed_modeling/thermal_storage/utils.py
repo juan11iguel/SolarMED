@@ -16,7 +16,8 @@ Tc_labels: list[str] = ['Tts_c_t', 'Tts_c_m', 'Tts_c_b']
 T_labels: list[str] = Th_labels + Tc_labels
 
 def evaluate_model(
-    df: pd.DataFrame, sample_rate: int, model_params: ModelParameters,
+    df: pd.DataFrame, sample_rate: int, 
+    model_params: ModelParameters, fixed_model_params: None = None,
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
     Th_labels: list[str] = ['Tts_h_t', 'Tts_h_m', 'Tts_h_b'],
@@ -92,10 +93,7 @@ def evaluate_model(
                     qsrc=ds["qts_src"],  # m³/h
                     qdis=ds["qts_dis"],  # m³/h
 
-                    UA_h=model_params.UA_h,  # W/K
-                    UA_c=model_params.UA_c,  # W/K
-                    Vi_h=model_params.V_h,  # m³
-                    Vi_c=model_params.V_c,  # m³
+                    model_params=model_params,
                     ts=sample_rate, Tmin=60,  # seg, ºC
                     water_props=None,
                 )
@@ -109,10 +107,7 @@ def evaluate_model(
                     qsrc=ds["qts_src"],  # m³/h
                     qdis=ds["qts_dis"],  # m³/h
 
-                    UA_h=model_params.UA_h,  # W/K
-                    UA_c=model_params.UA_c,  # W/K
-                    Vi_h=model_params.V_h,  # m³
-                    Vi_c=model_params.V_c,  # m³
+                    model_params=model_params,
                     ts=sample_rate, Tmin=60,  # seg, ºC
                     water_props=water_props,
                 )

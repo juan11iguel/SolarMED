@@ -1,5 +1,5 @@
 from pathlib import Path
-from . import ModelParameters, supported_eval_alternatives
+from . import ModelParameters, supported_eval_alternatives, FixedModelParameters
 from .utils import evaluate_model
 from solarmed_modeling import benchmark
 
@@ -7,6 +7,7 @@ model_id: str = 'solar_field'
 
 def benchmark_model(
     model_params: ModelParameters, 
+    fixed_model_params: FixedModelParameters = FixedModelParameters(),
     alternatives_to_eval: list[str] = ["standard", "constant-water-props"],
     test_ids: list[str] = None, 
     data_path: Path = Path("../../../data"), 
@@ -20,6 +21,7 @@ def benchmark_model(
     
     return benchmark.benchmark_model(
         model_params=model_params,
+        fixed_model_params=fixed_model_params,
         evaluate_model_fn=evaluate_model,
         alternatives_to_eval=alternatives_to_eval,
         test_ids=test_ids,

@@ -64,6 +64,7 @@ def estimate_flow_secondary(Tp_in: float | np.ndarray[float], Ts_in: float | np.
 
 def evaluate_model(
     df: pd.DataFrame, sample_rate: int, model_params: ModelParameters,
+    fixed_model_params: None = None,
     alternatives_to_eval: list[Literal["standard", "no-delay", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
@@ -100,6 +101,9 @@ def evaluate_model(
     if base_df is None:
         out_ref = np.concatenate([df[out_var_ids].values[idx_start:]], axis=1)
     else:
+        if base_df.index.freq.n > df.index.freq.n:
+            raise ValueError(f"Base dataframe can't have a lower sample rate than the input dataframe: base df rate ({base_df.index.freq.n}) < evaluting df rate({df.index.freq.n})")
+        
         out_ref = np.concatenate([base_df[out_var_ids].values[idx_start:]], axis=1)
 
     # Initialize particular variables for earch alternative that requires it
@@ -133,7 +137,7 @@ def evaluate_model(
                     qp=ds['qhx_p'], 
                     qs=ds['qhx_s'], 
                     Tamb=ds['Tamb'], 
-                    UA=model_params.UA, H=model_params.H,
+                    model_params=model_params,
                     water_props=None
                 )
             elif alt_id == "constant-water-props":
@@ -143,7 +147,7 @@ def evaluate_model(
                     qp=ds['qhx_p'], 
                     qs=ds['qhx_s'], 
                     Tamb=ds['Tamb'], 
-                    UA=model_params.UA, H=model_params.H,
+                    model_params=model_params,
                     water_props=water_props
                 )
             else:

@@ -2,11 +2,15 @@ from dataclasses import dataclass
 import numpy as np
 from loguru import logger
 from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, P Mpa no bar
-from scipy.optimize import fsolve
-from scipy import signal
+import scipy
+import warnings
 
-b, a = signal.butter(3, 0.005)
-zi = signal.lfilter_zi(b, a)
+# TODO: Refactor models to make use of ModelParameter dataclass directly
+# TODO: Refactor models to replace fixed parameters with FixedModelParameters dataclass
+# TODO: Deprecate older models
+
+b, a = scipy.signal.butter(3, 0.005)
+zi = scipy.signal.lfilter_zi(b, a)
 
 supported_eval_alternatives: list[str] = ["standard", "no-delay", "constant-water-props"]
 """ 
@@ -20,7 +24,19 @@ class ModelParameters:
     beta: float = 4.36396e-02  # Gain coefficient (-)
     H: float = 13.676448551722462  # Losses to the environment (W/m²)
     gamma: float = 0.1  # Artificial parameters to account for flow variations within the whole solar field"
-    
+
+@dataclass
+class FixedModelParameters:
+    nt: int = 1 # Number of tubes in parallel per collector
+    npar: int = 7 * 5 # Number of collectors in parallel per loop. Defaults to 7 packages * 5 compartments
+    ns: int = 2 # Number of loops in series
+    Lt: float = 1.15 * 20 # Collector individual tube length [m]
+    Acs: float = 7.85e-5 # Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
+    Tmax: float = 110  # Maximum temperature of the solar field [ºC]
+    Tmin: float = 10 # Minimum temperature of the solar field [ºC]
+    qsf_min: float = 0.372 # Minimum (operating) flow rate [m³/h]. Taken from [20240925-20240927 aquasol-librescada]
+    qsf_max: float = 8.928 # Maximum flow rate [m³/h]. Taken from [20240925-20240927 aquasol-librescada]
+
 
 def calculate_total_pipe_length(q: float, n: int, sample_time:int = 10, equivalent_pipe_area:float = 7.85e-5) -> float:
     """
@@ -37,7 +53,6 @@ def calculate_total_pipe_length(q: float, n: int, sample_time:int = 10, equivale
     q_avg = sum(q[:n]) / n
     l = q_avg * sample_time * n / equivalent_pipe_area
     return l
-
 
 def find_delay_samples(q: float, sample_time: int = 1, total_pipe_length: float = 5e7, equivalent_pipe_area: float = 7.85e-5, log: bool = True) -> int:
     """
@@ -82,7 +97,6 @@ def find_delay_samples(q: float, sample_time: int = 1, total_pipe_length: float 
 
     return n_samples
 
-
 def solar_field_inverse_model2(
         Tout_ant: float, Tin: float | np.ndarray[float], Tout: float,
         I: float, Tamb: float,
@@ -114,6 +128,8 @@ def solar_field_inverse_model2(
         Tout: (float): Solar field outlet temperature [ºC]
 
     """
+    
+    warnings.warn('This model is deprecated, use the ones available in the `solar_field_inverse` module')
 
     qmin = 5
     qmax = 10  # TODO: Check
@@ -128,10 +144,9 @@ def solar_field_inverse_model2(
 
     # Solve for q
     initial_guess = q_ant.take(-1)
-    q = fsolve(wrapped_model, initial_guess)
+    q = scipy.optimize.fsolve(wrapped_model, initial_guess)
 
     return q
-
 
 def solar_field_inverse_model(
         Tout_ant: float, Tin: float | np.ndarray[float], Tout: float,
@@ -165,6 +180,8 @@ def solar_field_inverse_model(
         Tout: (float): Solar field outlet temperature [ºC]
 
     """
+    
+    warnings.warn('This model is deprecated, use the ones available in the `solar_field_inverse` module')
 
     qmin = 5
     qmax = 10  # TODO: Check
@@ -212,24 +229,17 @@ def solar_field_inverse_model(
 
     return q
 
-
 def solar_field_model(
     Tout_ant: float,
-    Tin: float | np.ndarray,
-    q: float | np.ndarray,
+    Tin: float | np.ndarray[float],
+    q: float | np.ndarray[float],
     I: float,
     Tamb: float,
-    beta: float = 0.0975,
-    gamma: float = 1.0,
-    H: float = 2.2,
-    sample_time=1,
+    model_params: ModelParameters = ModelParameters(),
+    fixed_model_params: FixedModelParameters = FixedModelParameters(),
+    sample_time: int = 1,
     consider_transport_delay: bool = False,
     water_props: w_props = None,
-    nt=1,
-    npar=7 * 5,
-    ns=2,
-    Lt=1.15 * 20,
-    Acs: float = 7.85e-5,
     log: bool = False,
 ) -> float:
     """
@@ -254,16 +264,15 @@ def solar_field_model(
         Tout: (float): Solar field outlet temperature [ºC]
 
     """
+    
+    mp = model_params
+    fmp = fixed_model_params
 
     Tin = np.array(Tin)
     q = np.array(q)
 
-    Leq = ns * Lt
-    cf = npar * nt
-
-    if Tout_ant > 120:
-        # Above 110ºC, the model is not valid
-        return 9999
+    Leq = fmp.ns * fmp.Lt
+    cf = fmp.npar * fmp.nt
 
     Tavg = (Tin.take(-1) + Tout_ant) / 2  # ºC
     if water_props is None:
@@ -271,10 +280,10 @@ def solar_field_model(
     rho = water_props.rho  # [kg/m³]
     cp = water_props.cp * 1e3  # [kJ/kg·K] -> [J/kg·K]
 
-    K1 = beta / (rho * cp * Acs)  # m / (kg/m3 * J/kg·K) = K·m²/J
-    K2 = H / (Leq * Acs * rho * cp)  # J/sK / (m · m² · kg/m3 · J/kg·K) = 1/s
+    K1 = mp.beta / (rho * cp * fmp.Acs)  # m / (kg/m3 * J/kg·K) = K·m²/J
+    K2 = mp.H / (Leq * fmp.Acs * rho * cp)  # J/sK / (m · m² · kg/m3 · J/kg·K) = 1/s
     K3 = (
-        gamma / (Leq * Acs * cf) * (1 / 3600)
+        mp.gamma / (Leq * fmp.Acs * cf) * (1 / 3600)
     )  # 1/(m · m² · -) * (1 / 3600s) = h/(3600·m³·s)
 
     # deltaTout_m = m [m3/h * kg/m3*1h/3600s] * deltaT [K] * K3 [1/(m * * m2 * kg/m3 * -)]
@@ -307,4 +316,4 @@ def solar_field_model(
 
     out = Tout_ant + deltaTout * sample_time
 
-    return out
+    return np.min([out, fmp.Tmax])

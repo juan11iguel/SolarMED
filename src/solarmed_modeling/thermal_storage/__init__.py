@@ -1,16 +1,10 @@
 from dataclasses import dataclass
-from typing import Literal
-import time
 import numpy as np
-import pandas as pd
 from scipy.optimize import fsolve
 from iapws import IAPWS97 as w_props
 from loguru import logger
 
 from solarmed_modeling.curve_fitting.curves import sigmoid_interpolation
-from solarmed_modeling.metrics import calculate_metrics
-from solarmed_modeling.utils import resample_results
-
 
 dot = np.multiply
 ts_pressure: float = 0.16  # MPa
@@ -27,7 +21,11 @@ class ModelParameters:
     V_h: tuple[float] | np.ndarray[float]  = (5.94771006, 4.87661781, 2.19737023) # Volume of each control volume of the hot tank (m³)
     UA_c: tuple[float] | np.ndarray[float] = (0.01396848, 0.0001    , 0.02286885) # Heat losses to the environment from the cold tank (W/K)
     V_c: tuple[float] | np.ndarray[float]  = (5.33410037, 7.56470594, 0.90547187) # Volume of each control volume of the cold tank (m³)
-
+    
+@dataclass
+class FixedModelParameters:
+    qts_src_min: float = 0.95  # Minimum flow rate [m³/h]
+    qts_src_max: float = 20    # Maximum flow rate [m³/h]
 
 def calculate_stored_energy(Ti: np.ndarray[float], V_i: np.ndarray[float], Tmin: float) -> float:
     # T in ºC, V_i in m³ 
@@ -223,10 +221,7 @@ def thermal_storage_two_tanks_model(
     Tamb: float,
     qsrc: float,
     qdis: float,
-    UA_h: np.ndarray,
-    UA_c: np.ndarray,
-    Vi_c: np.ndarray,
-    Vi_h: np.ndarray,
+    model_params: ModelParameters,
     ts: int, Tmin: float = 60, V=30,
     water_props: tuple[w_props, w_props] = None,
     calculate_energy=False
@@ -264,6 +259,8 @@ def thermal_storage_two_tanks_model(
             cold tank (above reference Tmin) [kWh]
 
     """
+    mp = model_params
+    
     w_props_h, w_props_c = water_props if water_props is not None else (w_props(P=ts_pressure, T=Tt_in+273.15), 
                                                                         w_props(P=ts_pressure, T=Tb_in+273.15))
     
@@ -277,16 +274,16 @@ def thermal_storage_two_tanks_model(
         Ti_c = thermal_storage_model_single_tank(
             Ti_ant_c, Tt_in=0, Tb_in=Tb_in, Tamb=Tamb,
             mt_in=0, mb_in=mdis, mt_out=mdis - msrc, mb_out=msrc,
-            UA=UA_c, V_i=Vi_c, N=3, ts=ts, calculate_energy=False,
+            UA=mp.UA_c, V_i=mp.V_c, N=3, ts=ts, calculate_energy=False,
             water_props=w_props_c
         )  # ºC
 
         Ti_h = thermal_storage_model_single_tank(
             Ti_ant_h, Tt_in=Tt_in, Tb_in=Ti_c[-1], Tamb=Tamb,
             mt_in=msrc, mb_in=mdis - msrc, mt_out=mdis, mb_out=0,
-            UA=UA_h, V_i=Vi_h, N=3, ts=ts, calculate_energy=False,
+            UA=mp.UA_h, V_i=mp.V_h, N=3, ts=ts, calculate_energy=False,
             water_props=w_props_h
-        )  # ºC!!
+        )  # ºC!
 
     else:
         # Recirculation from hot to cold
@@ -294,21 +291,21 @@ def thermal_storage_two_tanks_model(
         Ti_h = thermal_storage_model_single_tank(
             Ti_ant_h, Tt_in=Tt_in, Tb_in=0, Tamb=Tamb,
             mt_in=msrc, mb_in=0, mt_out=mdis, mb_out=msrc - mdis,
-            UA=UA_h, V_i=Vi_h, N=3, ts=ts, calculate_energy=False,
+            UA=mp.UA_h, V_i=mp.V_h, N=3, ts=ts, calculate_energy=False,
             water_props=w_props_h
         )  # ºC!!
 
         Ti_c = thermal_storage_model_single_tank(
             Ti_ant_c, Tt_in=Ti_h[-1], Tb_in=Tb_in, Tamb=Tamb,
             mt_in=msrc - mdis, mb_in=mdis, mt_out=0, mb_out=msrc,
-            UA=UA_c, V_i=Vi_c, N=3, ts=ts, calculate_energy=False,
+            UA=mp.UA_c, V_i=mp.V_c, N=3, ts=ts, calculate_energy=False,
             water_props=w_props_c
-        )  # ºC!!
+        )  # ºC!!!
 
 
     if calculate_energy:    
-        E_avail_h = calculate_stored_energy(Ti_h, Vi_h, Tmin)
-        E_avail_c = calculate_stored_energy(Ti_c, Vi_c, Tmin)
+        E_avail_h = calculate_stored_energy(Ti_h, mp.V_h, Tmin)
+        E_avail_c = calculate_stored_energy(Ti_c, mp.V_c, Tmin)
 
         return Ti_h, Ti_c, E_avail_h, E_avail_c
 

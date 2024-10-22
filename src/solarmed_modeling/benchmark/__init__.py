@@ -9,6 +9,7 @@ def benchmark_model(
     model_params: dict[str, float],
     evaluate_model_fn: callable,
     alternatives_to_eval: list[str],
+    fixed_model_params: dict[str, float] = None,
     test_ids: list[str] = None, 
     data_path: Path = Path("../../data"), 
     datasets_path: Path = None,
@@ -80,7 +81,12 @@ def benchmark_model(
         dfs = [df.copy().resample(f"{ts}s").mean() for ts in sample_rates] 
 
         for df_, ts in zip(dfs, sample_rates):
-            out = evaluate_model_fn(df_, ts, model_params, alternatives_to_eval=alternatives_to_eval, base_df=dfs[0])
+            out = evaluate_model_fn(
+                df_, ts, model_params, 
+                fixed_model_params=fixed_model_params, 
+                alternatives_to_eval=alternatives_to_eval, 
+                base_df=dfs[0]
+            )
             stats.extend(out[1])
             del out
                         

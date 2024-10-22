@@ -19,10 +19,12 @@ class ModelParameters:
 
 def heat_exchanger_model(
     Tp_in: float, Ts_in: float, qp: float, qs: float, Tamb: float, 
-    UA: float = 13536.596, H: float = 0, log: bool = True, 
+    model_params: ModelParameters,
     hex_type: Literal['counter_flow',] = 'counter_flow',
-    water_props: tuple[w_props, w_props] = None, return_epsilon: bool = False, 
-    epsilon: float = None
+    water_props: tuple[w_props, w_props] = None, 
+    return_epsilon: bool = False, 
+    epsilon: float = None,
+    log: bool = True, 
 ) -> tuple[float, float] | tuple[float, float, float]:
 
     """Counter-flow heat exchanger steady state model.
@@ -84,14 +86,14 @@ def heat_exchanger_model(
         Tp_out: Primary circuit outlet temperature [C]
         Ts_out: Secondary circuit outlet temperature [C]
     """
-
+    
     assert hex_type == 'counter_flow', 'Only counter-flow heat exchangers are supported'
     inverted_hex: bool = False
 
     # HEX not really exchanging heat, bypass model
     if qp < 0.1 or qs < 0.1:
-        Tp_out = Tp_in - H * (Tp_in - Tamb)
-        Ts_out = Ts_in - H * (Ts_in - Tamb)
+        Tp_out = Tp_in - model_params.H * (Tp_in - Tamb)
+        Ts_out = Ts_in - model_params.H * (Ts_in - Tamb)
 
         if return_epsilon:
             return Tp_out, Ts_out, 0
@@ -140,7 +142,7 @@ def heat_exchanger_model(
     # Calculate the effectiveness
     if epsilon is None:
         C = Cmin / Cmax
-        NTU = UA / Cmin
+        NTU = model_params.UA / Cmin
         epsilon = (1 - math.e ** (-NTU * (1 - C))) / (1 - C * math.e ** (-NTU * (1 - C)))
 
     # Calculate the heat transfer rate

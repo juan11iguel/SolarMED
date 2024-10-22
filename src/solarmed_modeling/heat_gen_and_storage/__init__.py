@@ -6,11 +6,15 @@ import scipy
 from optimparallel import minimize_parallel
 from iapws import IAPWS97 as w_props
 
-from solarmed_modeling.data_validation import conHotTemperatureType_upper_limit as Tmax
-from solarmed_modeling.data_validation import conHotTemperatureType_lower_limit as Tmin
-from solarmed_modeling.solar_field import solar_field_model, ModelParameters as SfModParams
-from solarmed_modeling.heat_exchanger import heat_exchanger_model, ModelParameters as HexModParams 
-from solarmed_modeling.thermal_storage import thermal_storage_two_tanks_model, ModelParameters as TsModParams
+# from solarmed_modeling.data_validation import conHotTemperatureType_upper_limit as Tmax
+# from solarmed_modeling.data_validation import conHotTemperatureType_lower_limit as Tmin
+from solarmed_modeling.solar_field import (solar_field_model, 
+                                           ModelParameters as SfModParams, 
+                                           FixedModelParameters as SfFixedModParams)
+from solarmed_modeling.heat_exchanger import (heat_exchanger_model,
+                                              ModelParameters as HexModParams)
+from solarmed_modeling.thermal_storage import (thermal_storage_two_tanks_model, 
+                                               ModelParameters as TsModParams)
 
 supported_eval_alternatives: list[str] = ["standard", ]
 """ 
@@ -24,6 +28,10 @@ class ModelParameters:
     sf: SfModParams   = field(default_factory=lambda: SfModParams())
     ts: TsModParams   = field(default_factory=lambda: TsModParams())
     hex: HexModParams = field(default_factory=lambda: HexModParams())
+    
+@dataclass
+class FixedModelParameters:
+    sf: SfFixedModParams = field(default_factory=lambda: SfFixedModParams())
 
 
 def heat_generation_and_storage_subproblem(
@@ -33,6 +41,7 @@ def heat_generation_and_storage_subproblem(
     Tamb: float, I: float,  
     model_params: ModelParameters,
     sample_time: int,
+    fixed_model_params: FixedModelParameters = FixedModelParameters(),
     water_props: tuple[w_props, w_props] = None,
     problem_type: Literal["1p2x", "2p1x"] = "1p2x",
     solver: Literal["scipy", "optimparallel"] = "optimparallel",
@@ -83,7 +92,7 @@ def heat_generation_and_storage_subproblem(
         thermal storage tank inlet temperature, hot tank temperatures, and cold tank temperatures.
     """    
 
-    def inner_function(x, return_states: bool = False):
+    def inner_function(x, return_states: bool = False) ->  np.ndarray | tuple[float, float, float, np.ndarray[float], np.ndarray[float]]:
         """
         Variables that end with an underscore are the ones calculated in the 
         inner function, to avoid overwriting the outer scope variables.
@@ -117,12 +126,11 @@ def heat_generation_and_storage_subproblem(
             Tsf_in_, Tts_t_in_ = heat_exchanger_model(
                 Tp_in=Tsf_out,  # Solar field outlet temperature (decision variable, ºC)
                 Ts_in=Tts_c_b,  # Cold tank bottom temperature (ºC)
-                qp=qsf[-1],  # Solar field flow rate (m³/h)
+                qp=qhx_p,  # Solar field flow rate (m³/h)
                 qs=qts_src,  # Thermal storage charge flow rate (decision variable, m³/h)
                 Tamb=Tamb,
                 
-                UA=model_params.hex.UA,
-                H=model_params.hex.H,
+                model_params=model_params.hex,
                 water_props=water_props,
             )
 
@@ -136,9 +144,8 @@ def heat_generation_and_storage_subproblem(
             Tamb=Tamb,
             Tout_ant=Tsf_out_ant,
             
-            beta=model_params.sf.beta,
-            H=model_params.sf.H,
-            gamma=model_params.sf.gamma,
+            model_params=model_params.sf,
+            fixed_model_params=fixed_model_params.sf,
             water_props = water_props[0],
             sample_time=sample_time,
             consider_transport_delay=True,
@@ -153,10 +160,7 @@ def heat_generation_and_storage_subproblem(
             qsrc=qts_src,  # m³/h
             qdis=qts_dis,  # m³/h
             
-            UA_h=model_params.ts.UA_h,  # W/K
-            UA_c=model_params.ts.UA_c,  # W/K
-            Vi_h=model_params.ts.V_h,  # m³
-            Vi_c=model_params.ts.V_c,  # m³
+            model_params=model_params.ts,
             water_props=water_props,
             ts=sample_time, # seg 
             Tmin=Tmin  # ºC
@@ -173,6 +177,8 @@ def heat_generation_and_storage_subproblem(
             raise ValueError("Invalid number of decision variables")
     # End of inner function ---------------------------------------------------
            
+    Tmin: float = fixed_model_params.sf.Tmin
+    Tmax: float = fixed_model_params.sf.Tmax
 
     if problem_type != "1p2x":
         raise NotImplementedError("Currently, only `1p2x` alternative is implemented")

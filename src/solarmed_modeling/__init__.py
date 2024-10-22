@@ -13,7 +13,7 @@ class ThermalStorageState(Enum):
     IDLE = 0
     ACTIVE = 1
 
-class SF_TS_State(Enum):
+class SfTsState(Enum):
     """First digit: Solar Field, Second digit: Thermal Storage"""
     IDLE = '00'
     RECIRCULATING_TS = '01'
@@ -22,7 +22,7 @@ class SF_TS_State(Enum):
 
 SfTsState_with_value = Enum('SfTsState_with_value', {
     f'{state.name}': i
-    for i, state in enumerate(SF_TS_State)
+    for i, state in enumerate(SfTsState)
 })
 
 class MedVacuumState(Enum):
@@ -43,7 +43,7 @@ class MedState(Enum):
 # More descriptive manually typed names
 
 
-SolarMED_State = Enum('SolarMED_State', {
+SolarMedState = Enum('SolarMedState', {
     f'sf_{sf_state.name}_ts_{ts_state.name}_med_{med_state.name}': f'{sf_state.value}{ts_state.value}{med_state.value}'
     for sf_state in SolarFieldState
     for ts_state in ThermalStorageState
@@ -52,7 +52,7 @@ SolarMED_State = Enum('SolarMED_State', {
 
 SolarMedState_with_value = Enum('SolarMedState_with_value', {
     f'{state.name}': i
-    for i, state in enumerate(SolarMED_State)
+    for i, state in enumerate(SolarMedState)
 })
 
-SupportedStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMED_State | SF_TS_State
+SupportedStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMedState | SfTsState

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11, <3.12"
 dependencies = [
     "hjson>=3.1.0",
+    "kaleido==0.2.1",
     "loguru>=0.7.2",
     "matplotlib>=3.9.2",
     "med-model-r2023b",

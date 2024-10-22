@@ -7,6 +7,7 @@ model_id: str = 'heat_exchanger'
 
 def benchmark_model(
     model_params: ModelParameters, 
+    fixed_model_params: None = None,
     alternatives_to_eval: list[str] = ["standard", "constant-water-props"],
     test_ids: list[str] = None, 
     data_path: Path = Path("../../../data"), 

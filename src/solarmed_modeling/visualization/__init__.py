@@ -2,7 +2,7 @@ import plotly.graph_objs as go
 import pandas as pd
 import plotly
 
-from solarmed_modeling import MedState, SF_TS_State
+from solarmed_modeling import MedState, SfTsState
 
 # plotly.colors.qualitative
 
@@ -26,7 +26,7 @@ def state_evolution_plot(df, iteration: int = None):
     if 'state_med' not in df.columns:
         raise ValueError("Column 'state_med' not found in the DataFrame")
 
-    if not isinstance(df["state_sf_ts"][0], SF_TS_State):
+    if not isinstance(df["state_sf_ts"][0], SfTsState):
         raise ValueError("The column 'state_sf_ts' must be of type SF_TS_State")
 
     if not isinstance(df["state_med"][0], MedState):
@@ -36,10 +36,10 @@ def state_evolution_plot(df, iteration: int = None):
     # sf_active = True and ts_active = False -> 6
     # sf_active = True and ts_active = True -> 11
 
-    df["sf_ts_value"] = (1.5 *  (df["state_sf_ts"] == SF_TS_State.IDLE) +
-                         1.5 *  (df["state_sf_ts"] == SF_TS_State.RECIRCULATING_TS) +
-                         6.5 *  (df["state_sf_ts"] == SF_TS_State.HEATING_UP_SF) +
-                         11.5 * (df["state_sf_ts"] == SF_TS_State.SF_HEATING_TS))
+    df["sf_ts_value"] = (1.5 *  (df["state_sf_ts"] == SfTsState.IDLE) +
+                         1.5 *  (df["state_sf_ts"] == SfTsState.RECIRCULATING_TS) +
+                         6.5 *  (df["state_sf_ts"] == SfTsState.HEATING_UP_SF) +
+                         11.5 * (df["state_sf_ts"] == SfTsState.SF_HEATING_TS))
 
     # Assign the following labels to the states:
     # 1 -> "S̲F̲ T̲S̲"
