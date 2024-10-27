@@ -16,7 +16,7 @@
         0.85
     ],
     "arrow_xrel_pos": 60,
-    "plots": {
+    "plots": {    	
         "heat_exchanger_flows": {
             "title": "<b>Flows</b>",
             "row_height": 1,

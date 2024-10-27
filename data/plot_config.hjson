@@ -150,7 +150,7 @@
       
 
           {
-            var_id: "B",
+            var_id: "benefit",
             name: "B (u.m.)",
             mode: "lines",
             color: "dc_green", # gray
@@ -221,8 +221,8 @@
       // traces_right: [
       //   // Experimental
       //   {
-      //     var_id: "Psf",
-      //     name: "P<sub>sf</sub> (kW<sub>th</sub>)",
+      //     var_id: "Pth_sf",
+      //     name: "P<sub>th,sf</sub> (kW<sub>th</sub>)",
       //     mode: "lines",
       //     color: "plotly_yellow",
       //     dash: "dash",
@@ -408,20 +408,20 @@
           "traces_left": [
             # Make this a filled trace between source and discharge, where the color is red when there is more discharge than recharge, and green otherwise
             {
-              "var_id": "Pts_src",
-              "name": "P<sub>ts,src</sub>",
+              "var_id": "Pth_ts_src",
+              "name": "P<sub>th,ts,src</sub>",
               "mode": "lines",
               "color": "plotly_yellow",
               "width": 3,
-              "fill_between": "Pts_dis", # Traces to plot fill between need to be defined next to each other
+              "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
             },
             {
-              "var_id": "Pts_dis",
-              "name": "P<sub>ts,dis</sub>",
+              "var_id": "Pth_ts_dis",
+              "name": "P<sub>th,ts,dis</sub>",
               "mode": "lines",
               "color": "wct_purple",
               "width": 3,
-              "fill_between": "Pts_src", # Traces to plot fill between need to be defined next to each other
+              "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
             },
           ]
         },

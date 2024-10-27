@@ -150,7 +150,7 @@
       
 
           {
-            var_id: "B",
+            var_id: "benefit",
             name: "B (u.m.)",
             mode: "lines",
             color: "dc_green", # gray
@@ -311,20 +311,20 @@
     
         traces_left: [
             {
-            var_id: "Phx_p",
-            name: "P<sub>hx,p</sub>",
+            var_id: "Pth_hx_p",
+            name: "P<sub>th,hx,p</sub>",
             mode: "lines",
             color: "plotly_red",
             width: 3,
-            fill_between: "Phx_s", # Traces to plot fill between need to be defined next to each other
+            fill_between: "Pth_hx_s", # Traces to plot fill between need to be defined next to each other
             },
             {
-            var_id: "Phx_s",
-            name: "P<sub>hx,s</sub>",
+            var_id: "Pth_hx_s",
+            name: "P<sub>th,hx,s</sub>",
             mode: "lines",
             color: "plotly_blue", # Should never be greater than Phx_p, but define a color anyway
             width: 3,
-            fill_between: "Phx_p", # Traces to plot fill between need to be defined next to each other
+            fill_between: "Pth_hx_p", # Traces to plot fill between need to be defined next to each other
             },
         ]
     },
@@ -435,20 +435,20 @@
           "traces_left": [
             # Make this a filled trace between source and discharge, where the color is red when there is more discharge than recharge, and green otherwise
             {
-              "var_id": "Pts_src",
-              "name": "P<sub>ts,src</sub>",
+              "var_id": "Pth_ts_src",
+              "name": "P<sub>th,ts,src</sub>",
               "mode": "lines",
               "color": "plotly_yellow",
               "width": 3,
-              "fill_between": "Pts_dis", # Traces to plot fill between need to be defined next to each other
+              "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
             },
             {
-              "var_id": "Pts_dis",
+              "var_id": "Pth_ts_dis",
               "name": "P<sub>ts,dis</sub>",
               "mode": "lines",
               "color": "wct_purple",
               "width": 3,
-              "fill_between": "Pts_src", # Traces to plot fill between need to be defined next to each other
+              "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
             },
           ]
         },
