@@ -24,6 +24,7 @@ def heat_exchanger_model(
     water_props: tuple[w_props, w_props] = None, 
     return_epsilon: bool = False, 
     epsilon: float = None,
+    Tmin: float = 5,
     log: bool = True, 
 ) -> tuple[float, float] | tuple[float, float, float]:
 
@@ -95,6 +96,9 @@ def heat_exchanger_model(
         Tp_out = Tp_in - model_params.H * (Tp_in - Tamb)
         Ts_out = Ts_in - model_params.H * (Ts_in - Tamb)
 
+        Tp_out = np.max([Tp_out, Tmin])
+        Ts_out = np.max([Ts_out, Tmin])
+
         if return_epsilon:
             return Tp_out, Ts_out, 0
         else:
@@ -165,6 +169,9 @@ def heat_exchanger_model(
 
     if inverted_hex and Tp_out < Tp_in:
         raise ValueError(f'If heat exchanger is inverted, we should be obtaining hotter temperatures at the outlet of the primary, not Tp,in {Tp_in:.2f} > Tp,out {Tp_out:.2f}')
+
+    Tp_out = np.max([Tp_out, Tmin])
+    Ts_out = np.max([Ts_out, Tmin])
 
     if return_epsilon:
         return Tp_out, Ts_out, epsilon

@@ -94,7 +94,7 @@ def evaluate_model(
                     qdis=ds["qts_dis"],  # m³/h
 
                     model_params=model_params,
-                    ts=sample_rate, Tmin=60,  # seg, ºC
+                    sample_time=sample_rate, Tmin=60,  # seg, ºC
                     water_props=None,
                 )
             elif alt_id == "constant-water-props":
@@ -108,7 +108,7 @@ def evaluate_model(
                     qdis=ds["qts_dis"],  # m³/h
 
                     model_params=model_params,
-                    ts=sample_rate, Tmin=60,  # seg, ºC
+                    sample_time=sample_rate, Tmin=60,  # seg, ºC
                     water_props=water_props,
                 )
             else:

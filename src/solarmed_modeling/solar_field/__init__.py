@@ -315,5 +315,7 @@ def solar_field_model(
         #     logger.warning(f'Solar field cant cooldown below inlet temperature. New {deltaTout:.4f}ºC')
 
     out = Tout_ant + deltaTout * sample_time
+    out = np.min([out, fmp.Tmax]) # Upper limit
+    out = np.max([out, fmp.Tmin]) # Lower limit
 
-    return np.min([out, fmp.Tmax])
+    return out

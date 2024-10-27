@@ -167,7 +167,7 @@ def inverse_heat_generation_and_storage_subproblem(
             
             model_params=model_params.ts,
             water_props=water_props,
-            ts=sample_time, # seg 
+            sample_time=sample_time, # seg 
             Tmin=Tmin  # ºC
         )
         Tts_c_b_ = Tts_c_[-1]

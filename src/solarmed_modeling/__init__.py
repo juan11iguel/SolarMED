@@ -1,13 +1,12 @@
 from enum import Enum
 from loguru import logger
-from iapws.iapws97 import IAPWS97 as w_props
-import pandas as pd
+
+logger.disable(__name__)
 
 # States definition
 class SolarFieldState(Enum):
     IDLE = 0
     ACTIVE = 1
-
 
 class ThermalStorageState(Enum):
     IDLE = 0
@@ -30,7 +29,6 @@ class MedVacuumState(Enum):
     LOW = 1
     HIGH = 2
 
-
 class MedState(Enum):
     OFF = 0
     GENERATING_VACUUM = 1
@@ -38,9 +36,6 @@ class MedState(Enum):
     STARTING_UP = 3
     SHUTTING_DOWN = 4
     ACTIVE = 5
-
-
-# More descriptive manually typed names
 
 
 SolarMedState = Enum('SolarMedState', {

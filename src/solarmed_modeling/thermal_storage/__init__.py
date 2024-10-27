@@ -26,6 +26,9 @@ class ModelParameters:
 class FixedModelParameters:
     qts_src_min: float = 0.95  # Minimum flow rate [m³/h]
     qts_src_max: float = 20    # Maximum flow rate [m³/h]
+    Tmin: float = 10 # Minimum temperature [ºC]
+    Tmax: float = 120 # Maximum temperature [ºC]
+    
 
 def calculate_stored_energy(Ti: np.ndarray[float], V_i: np.ndarray[float], Tmin: float) -> float:
     # T in ºC, V_i in m³ 
@@ -202,7 +205,8 @@ def thermal_storage_model_single_tank(
     #
     #     print(f"{debug_result:.2f}: {external_input:.2f} + {inner_circ:.2f} + {env_losses:.2f}") # Print the upper volume equation evaluation result
 
-    Ti: np.ndarray = fsolve(model_function, initial_guess) - 273.15  # K -> ºC
+    Ti: np.ndarray[float] = fsolve(model_function, initial_guess) - 273.15  # K -> ºC
+    Ti = np.maximum(Ti, Tmin) # Saturate in lower limit
 
     # Tt = ( Tamb*( UA**2+UA*cp_Tbin*(msrc+2*mdis) ) + Tt_in*(msrc*cp_Ttin*(UA+cp_Tbin*(msrc+mdis))) + Tb_in*(mdis**2*cp_Tbin**2) )/ \
     #      ( UA**2+UA*(msrc+mdis)*(cp_Tbin+cp_Ttin)+(msrc+mdis)**2*cp_Ttin*cp_Tbin - msrc*mdis*cp_Ttin*cp_Tbin ) # ºC
@@ -215,16 +219,17 @@ def thermal_storage_model_single_tank(
     return Ti
 
 def thermal_storage_two_tanks_model(
-    Ti_ant_h: np.ndarray, Ti_ant_c: np.ndarray,
+    Ti_ant_h: np.ndarray[float], Ti_ant_c: np.ndarray[float],
     Tt_in: float | list[float],
     Tb_in: float | list[float],
     Tamb: float,
     qsrc: float,
     qdis: float,
-    model_params: ModelParameters,
-    ts: int, Tmin: float = 60, V=30,
+    model_params: ModelParameters = ModelParameters(),
+    fixed_model_params: FixedModelParameters = FixedModelParameters(),
+    sample_time: int = 300,
     water_props: tuple[w_props, w_props] = None,
-    calculate_energy=False
+    calculate_energy: bool = False
 ) -> tuple[np.ndarray[float], np.ndarray[float]] | tuple[np.ndarray[float], np.ndarray[float], float, float]:
     """
     Thermal storage steady state model
@@ -260,6 +265,10 @@ def thermal_storage_two_tanks_model(
 
     """
     mp = model_params
+    fmp = fixed_model_params
+    
+    Nc: int = len(Ti_ant_c) # Number of cold tank discrete volumes
+    Nh: int = len(Ti_ant_h) # Number of hot tank discrete volumes
     
     w_props_h, w_props_c = water_props if water_props is not None else (w_props(P=ts_pressure, T=Tt_in+273.15), 
                                                                         w_props(P=ts_pressure, T=Tb_in+273.15))
@@ -274,15 +283,15 @@ def thermal_storage_two_tanks_model(
         Ti_c = thermal_storage_model_single_tank(
             Ti_ant_c, Tt_in=0, Tb_in=Tb_in, Tamb=Tamb,
             mt_in=0, mb_in=mdis, mt_out=mdis - msrc, mb_out=msrc,
-            UA=mp.UA_c, V_i=mp.V_c, N=3, ts=ts, calculate_energy=False,
-            water_props=w_props_c
+            UA=mp.UA_c, V_i=mp.V_c, N=Nc, ts=sample_time, calculate_energy=False,
+            water_props=w_props_c, Tmin=fmp.Tmin
         )  # ºC
 
         Ti_h = thermal_storage_model_single_tank(
             Ti_ant_h, Tt_in=Tt_in, Tb_in=Ti_c[-1], Tamb=Tamb,
             mt_in=msrc, mb_in=mdis - msrc, mt_out=mdis, mb_out=0,
-            UA=mp.UA_h, V_i=mp.V_h, N=3, ts=ts, calculate_energy=False,
-            water_props=w_props_h
+            UA=mp.UA_h, V_i=mp.V_h, N=Nh, ts=sample_time, calculate_energy=False,
+            water_props=w_props_h, Tmin=fmp.Tmin
         )  # ºC!
 
     else:
@@ -291,21 +300,21 @@ def thermal_storage_two_tanks_model(
         Ti_h = thermal_storage_model_single_tank(
             Ti_ant_h, Tt_in=Tt_in, Tb_in=0, Tamb=Tamb,
             mt_in=msrc, mb_in=0, mt_out=mdis, mb_out=msrc - mdis,
-            UA=mp.UA_h, V_i=mp.V_h, N=3, ts=ts, calculate_energy=False,
-            water_props=w_props_h
+            UA=mp.UA_h, V_i=mp.V_h, N=Nh, ts=sample_time, calculate_energy=False,
+            water_props=w_props_h, Tmin=fmp.Tmin
         )  # ºC!!
 
         Ti_c = thermal_storage_model_single_tank(
             Ti_ant_c, Tt_in=Ti_h[-1], Tb_in=Tb_in, Tamb=Tamb,
             mt_in=msrc - mdis, mb_in=mdis, mt_out=0, mb_out=msrc,
-            UA=mp.UA_c, V_i=mp.V_c, N=3, ts=ts, calculate_energy=False,
-            water_props=w_props_c
+            UA=mp.UA_c, V_i=mp.V_c, N=Nc, ts=sample_time, calculate_energy=False,
+            water_props=w_props_c, Tmin=fmp.Tmin
         )  # ºC!!!
 
 
     if calculate_energy:    
-        E_avail_h = calculate_stored_energy(Ti_h, mp.V_h, Tmin)
-        E_avail_c = calculate_stored_energy(Ti_c, mp.V_c, Tmin)
+        E_avail_h = calculate_stored_energy(Ti_h, mp.V_h, fmp.Tmin)
+        E_avail_c = calculate_stored_energy(Ti_c, mp.V_c, fmp.Tmin)
 
         return Ti_h, Ti_c, E_avail_h, E_avail_c
 

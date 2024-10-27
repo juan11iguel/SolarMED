@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Literal, Type
+from dataclasses import dataclass, field
+from typing import Callable, Literal, Type
 from enum import Enum
 from pathlib import Path
 import pandas as pd
@@ -20,23 +20,47 @@ from solarmed_modeling import (
     ThermalStorageState,
 )
 from solarmed_modeling.data_validation import rangeType, conHotTemperatureType
-from solarmed_modeling.power_consumption import Actuator, SupportedActuators
+from solarmed_modeling.power_consumption import Actuator
+from solarmed_modeling.solar_field import FixedModelParameters as SfFixedModParams
+from solarmed_modeling.med import FixedModelParameters as MedFixedModParams
+from solarmed_modeling.thermal_storage import FixedModelParameters as TsFixedModParams
 
 @dataclass
 class FsmStartupConditions:
     """
     Startup conditions for the Finite State Machines (FSM)
     """ 
-    qmed_s: float = 10 * 3.6, # Heat source flow rate (m³/h)
-    qmed_f: float = 5.0  # Feed water flow rate (m³/h)
-    qmed_b: float = 5.0  # Brine extraction flow rate (m³/h)
+    # MED
+    qmed_s: float = MedFixedModParams().qmed_s_min # Heat source flow rate (m³/h)
+    qmed_f: float = MedFixedModParams().qmed_f_min # Feed water flow rate (m³/h)
+    qmed_b: float = MedFixedModParams().qmed_f_min  # Brine extraction flow rate (m³/h)
+    qmed_c: float = 0.0  # Cooling water flow rate (m³/h)
+    Tmed_s_in: float = MedFixedModParams().Tmed_s_min # Heat source inlet temperature (ºC)
+    
+    # Solar field
+    qsf: float = SfFixedModParams().qsf_min  # Solar field flow rate (m³/h)
+    
+    # Thermal storage
+    qts_src: float = TsFixedModParams().qts_src_min  # Thermal storage flow rate (m³/h)
     
 @dataclass
 class FsmShutdownConditions:
     """
     Shutdown conditions for the Finite State Machines (FSM)
     """ 
+    # MED
+    qmed_s: float = 0.0 # Heat source flow rate (m³/h)
+    qmed_f: float = 0.0  # Feed water flow rate (m³/h)
     qmed_b: float = 5.0  # Brine extraction flow rate (m³/h)
+    qmed_c: float = 0.0  # Cooling water flow rate (m³/h)
+    Tmed_s_in: float = 0.0 # Heat source inlet temperature (ºC)
+    
+    # Solar field
+    qsf: float = 0.0 # Solar field flow rate (m³/h)
+    
+    # Thermal storage
+    qts_src: float = 0.0 # Thermal storage flow rate (m³/h)
+        
 
 @dataclass
 class FsmParameters:
@@ -45,8 +69,9 @@ class FsmParameters:
     startup_duration_time: int = 30 * 60  # Time to start up the MED plant (seconds)
     # deactivate_cooldown
     # activate_cooldown
-    startup_conditions: FsmStartupConditions = FsmStartupConditions()
-    shutdown_conditions: FsmShutdownConditions = FsmShutdownConditions()
+    
+    startup_conditions: FsmStartupConditions = field(default_factory=lambda: FsmStartupConditions())
+    shutdown_conditions: FsmShutdownConditions = field(default_factory=lambda: FsmShutdownConditions())
 
 
 def ensure_type(expected_type: Type) -> callable:
@@ -174,7 +199,7 @@ class BaseFsm:
         event = args[0]
         logger.debug(f"[{self.name} - sample {self.current_sample}] Left state {event.state.name}")
 
-    def get_next_valid_transition(self, prior_inputs: np.ndarray, current_inputs: np.ndarray) -> callable | None:
+    def get_next_valid_transition(self, prior_inputs: np.ndarray, current_inputs: np.ndarray) -> Callable | None:
         # Check every transition possible from the current state
         # There could be several
         candidate_transitions = self.machine.get_triggers(self.state)
@@ -270,7 +295,7 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         # Additional
         self.customize_fsm_style()
 
-    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> np.ndarary[float] | dict:
+    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> np.ndarray[float] | dict:
 
         super().get_inputs(format=format) # Just to check if the format is valid
 

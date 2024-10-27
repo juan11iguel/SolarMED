@@ -14,7 +14,8 @@ from solarmed_modeling.solar_field import (solar_field_model,
 from solarmed_modeling.heat_exchanger import (heat_exchanger_model,
                                               ModelParameters as HexModParams)
 from solarmed_modeling.thermal_storage import (thermal_storage_two_tanks_model, 
-                                               ModelParameters as TsModParams)
+                                               ModelParameters as TsModParams,
+                                               FixedModelParameters as TsFixedModParams)
 
 supported_eval_alternatives: list[str] = ["standard", ]
 """ 
@@ -32,6 +33,7 @@ class ModelParameters:
 @dataclass
 class FixedModelParameters:
     sf: SfFixedModParams = field(default_factory=lambda: SfFixedModParams())
+    ts: TsFixedModParams = field(default_factory=lambda: TsFixedModParams())
 
 
 def heat_generation_and_storage_subproblem(
@@ -132,6 +134,7 @@ def heat_generation_and_storage_subproblem(
                 
                 model_params=model_params.hex,
                 water_props=water_props,
+                Tmin=fixed_model_params.sf.Tmin,
             )
 
         # Solar field
@@ -161,9 +164,10 @@ def heat_generation_and_storage_subproblem(
             qdis=qts_dis,  # m³/h
             
             model_params=model_params.ts,
+            fixed_model_params=fixed_model_params.ts,
             water_props=water_props,
-            ts=sample_time, # seg 
-            Tmin=Tmin  # ºC
+            sample_time=sample_time, # seg 
+            # Tmin=Tmin  # ºC
         )
         Tts_c_b_ = Tts_c_[-1]
 

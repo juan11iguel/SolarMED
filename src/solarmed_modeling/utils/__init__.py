@@ -394,7 +394,7 @@ def calculate_costs(df: pd.DataFrame, cost_w: float, cost_e: float,
     """
     # df = calculate_costs(df)
 
-    df["B"] = (cost_w * df["qmed_d"] - cost_e * df["Jotal"]) * sample_rate_numeric / 3600  # u.m.
+    df["benefit"] = (cost_w * df["qmed_d"] - cost_e * df["Jtotal"]) * sample_rate_numeric / 3600  # u.m.
 
     return df
 
@@ -425,25 +425,28 @@ def calculate_powers_solar_field(row: pd.Series | pd.DataFrame, max_power: float
         _type_: _description_
     """
     
+    # Solar field
     try:
-        # Solar field
         w_p = w_props(P=0.16, T=(row["Tsf_in"] + row["Tsf_out"]) / 2 + 273.15) if water_props is None else water_props
             
-        row["Psf"] = row["qsf"] / 3600 * w_p.rho * w_p.cp * (row["Tsf_out"] - row["Tsf_in"])  # kW
-        row["Psf"] = row["Psf"].clip(lower=min_power, upper=max_power)
-        row["Phx_p"] = row["Psf"]
+        row["Pth_sf"] = row["qsf"] / 3600 * w_p.rho * w_p.cp * (row["Tsf_out"] - row["Tsf_in"])  # kW
+        row["Pth_sf"] = row["Pth_sf"].clip(lower=min_power, upper=max_power)
+        row["Pth_hx_p"] = row["Pth_sf"]
+    except Exception as e:
+        logger.error(f'Error estimated solar field main loop power: missing {e} in data')
 
-        # Solar field loops
-        if calculate_per_loop:
+    # Solar field loops
+    if calculate_per_loop:
+        try:
             for loop_str in ['l2', 'l3', 'l4', 'l5']:
                 loop_id = f"Psf_{loop_str}"
                 row[loop_id] = row[f"qsf_{loop_str}"] / 3600 * w_p.rho * w_p.cp * (
                             row[f"Tsf_out_{loop_str}"] - row[f"Tsf_in_{loop_str}"])  # kW
                 row[loop_id] = row[loop_id].clip(lower=min_power, upper=max_power)
 
-    except Exception as e:
-        logger.error(f'Error: {e}')
-        # row["Psf"] = np.nan
+        # row["Pth_sf"] = np.nan
+        except Exception as e:
+            logger.error(f'Error estimated solar field individual loops power: missing {e} in data')
 
     return row
 
@@ -466,21 +469,21 @@ def calculate_powers_thermal_storage(row: pd.Series | pd.DataFrame, max_power: f
     try:
         # Thermal storage input powerdf.loc[df["qsf"] < qsf_min, "qsf"] = 0
         w_p = w_props(P=0.16, T=(row["Thx_s_out"] + row["Thx_s_in"]) / 2 + 273.15) if water_props is None else water_props[0]
-        row["Pts_src"] = row["qts_src"] / 3600 * w_p.rho * w_p.cp * (row["Thx_s_out"] - row["Thx_s_in"])  # kW
-        row["Pts_src"] = row["Pts_src"].clip(lower=min_power, upper=max_power)
-        row["Phx_s"] = row["Pts_src"]
+        row["Pth_ts_src"] = row["qts_src"] / 3600 * w_p.rho * w_p.cp * (row["Thx_s_out"] - row["Thx_s_in"])  # kW
+        row["Pth_ts_src"] = row["Pth_ts_src"].clip(lower=min_power, upper=max_power)
+        row["Pth_hx_s"] = row["Pth_ts_src"]
 
         # Thermal storage output power
         w_p = w_props(P=0.16, T=(row["Tts_h_out"] + row["Tts_c_in"]) / 2 + 273.15) if water_props is None else water_props[1]
-        row["Pts_dis"] = row["qts_dis"] / 3600 * w_p.rho * w_p.cp * (row["Tts_h_out"] - row["Tts_c_in"])  # kW
-        row["Pts_dis"] = row["Pts_dis"].clip(lower=min_power, upper=max_power)
+        row["Pth_ts_dis"] = row["qts_dis"] / 3600 * w_p.rho * w_p.cp * (row["Tts_h_out"] - row["Tts_c_in"])  # kW
+        row["Pth_ts_dis"] = row["Pth_ts_dis"].clip(lower=min_power, upper=max_power)
 
 
     except Exception as e:
-        logger.error(f'Error: {e}')
-        # row["Pts_src"] = np.nan
-        # row["Pts_dis"] = np.nan
-        # row["Psf"] = np.nan
+        logger.error(f'Error calculate thermal storage thermal power (source/discharge): missing {e} in data')
+        # row["Pth_ts_src"] = np.nan
+        # row["Pth_ts_dis"] = np.nan
+        # row["Pth_sf"] = np.nan
 
     return row
 
@@ -502,7 +505,21 @@ def calculate_aux_variables(df: pd.DataFrame, sample_rate_numeric: int, vars_con
     """
     try:
         df["Jmed"] = df['Jmed_b'] + df['Jmed_c'] + df['Jmed_d'] + df['Jmed_s_f'] # kW
-        df["Jtotal"] = df["Jmed"] + df["Jsf_ts"] # kW
+    except Exception as e:
+        logger.error(f'Error while calculating MED electricity power consumption: {e}')
+    else:
+        logger.info('MED electricity power consumption calculated successfully.')
+    try:
+        Jtotal = 0
+        if 'Jsf_ts' in df:
+            Jtotal += df["Jsf_ts"]
+        else:
+            logger.warning('Solar field and thermal storage power consumption not found, total electricity power consumption will be calculated without it.')
+        if 'Jmed' in df:
+            Jtotal += df["Jmed"]
+        else:
+            logger.warning('MED power consumption not found, total electricity power consumption will be calculated without it.')
+        df["Jtotal"] = Jtotal
     except Exception as e:
         logger.error(f'Error while calculating total electricity power consumption: {e}')
     else:
@@ -526,9 +543,9 @@ def calculate_aux_variables(df: pd.DataFrame, sample_rate_numeric: int, vars_con
             water_props = None
             df = df.apply(calculate_powers_solar_field, args=(250, 0, False, water_props), axis=1)
     except Exception as e:
-        logger.error(f'Error while calculating solar field power: {e}')
+        logger.error(f'Error while calculating solar field thermal power: {e}')
     else:
-        logger.info('Solar field power calculated successfully.')
+        logger.info('Solar field thermal power calculated successfully.')
 
     try:
         if fast:
@@ -539,9 +556,9 @@ def calculate_aux_variables(df: pd.DataFrame, sample_rate_numeric: int, vars_con
             water_props = None
             df = df.apply(calculate_powers_thermal_storage, args=(250, 0, water_props), axis=1)
     except Exception as e:
-        logger.error(f'Error while calculating thermal storage power: {e}')
+        logger.error(f'Error while calculating thermal storage thermal power: {e}')
     else:
-        logger.info('Thermal storage power calculated successfully.')
+        logger.info('Thermal storage thermal power calculated successfully.')
         
     try:
         df = estimate_states(df, vars_config)
