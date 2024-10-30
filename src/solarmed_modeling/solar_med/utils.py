@@ -24,7 +24,7 @@ def evaluate_model(
     log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
     
-    assert all([alt in supported_eval_alternatives for alt in alternatives_to_eval])
+    assert all([alt in supported_eval_alternatives for alt in alternatives_to_eval]), f"Invalid `alternatives_to_eval`: {alternatives_to_eval}, should be a list with any of these elements: {supported_eval_alternatives}"
     
     span = math.ceil(600 / sample_rate) # 600 s
     idx_start = np.max([span, 2]) # idx_start-1 should at least be one 
@@ -55,6 +55,8 @@ def evaluate_model(
             resolution_mode=alt_id,
             use_models=True,
             use_finite_state_machine=True,
+            model_params=model_params,
+            fixed_model_params=fixed_model_params,
             
             sample_time=sample_rate,
             
