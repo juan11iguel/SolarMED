@@ -138,7 +138,7 @@ class SolarMED(BaseModel):
     # Important to define first, so that they are available for validation
     fixed_model_params: FixedModelParameters = Field(FixedModelParameters(), titile="Fixed model parameters",
                                                      description="Fixed model parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
-    model_params: FixedModelParameters = Field(ModelParameters(), titile="Model parameters",
+    model_params: ModelParameters = Field(ModelParameters(), titile="Model parameters",
                                                 description="Component models parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     fsms_params: FsmParameters = Field(FsmParameters(), titile="FSM parameters",
                                             description="Finite State Machine parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
