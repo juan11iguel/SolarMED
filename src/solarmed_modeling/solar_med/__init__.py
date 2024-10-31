@@ -530,6 +530,8 @@ class SolarMED(BaseModel):
                 w_props(P=0.2, T=65 + 273.15)  # P=2 bar  -> 0.2MPa, T in K, average working temperature of cold tank
             )
 
+        # TODO: Add information about the parameters
+        # model_params, fixed_model_params, fsm_params
         logger.info(f'''
         SolarMED model initialized with: 
             - Evaluating models: {self.use_models}

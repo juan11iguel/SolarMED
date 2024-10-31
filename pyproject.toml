@@ -5,9 +5,11 @@ description = "Repository with source code of a variety of models of a solar fie
 readme = "README.md"
 requires-python = ">=3.11, <3.12"
 dependencies = [
+    "cairosvg>=2.7.1",
     "hjson>=3.1.0",
     "kaleido==0.2.1",
     "loguru>=0.7.2",
+    "lxml>=5.3.0",
     "matplotlib>=3.9.2",
     "med-model-r2023b",
     "optimparallel>=0.1.3",
