@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 # import time
 
-from solarmed_modeling.fsms import MedFSM, SolarFieldWithThermalStorageFsm
+from solarmed_modeling.fsms import MedFsm, SolarFieldWithThermalStorageFsm
 from solarmed_modeling import MedState, SfTsState, MedVacuumState
 from phd_visualizations import save_figure
 from solarmed_modeling.visualization import state_evolution_plot
@@ -15,7 +15,7 @@ valid_input: float = 1.0
 invalid_input: float = 0.0
 
 SupportedStateTypes = MedState | SfTsState
-SupportedFMSs = MedFSM | SolarFieldWithThermalStorageFsm | SolarMED
+SupportedFMSs = MedFsm | SolarFieldWithThermalStorageFsm | SolarMED
 
 def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMSs = None, model: SupportedFMSs = None, current_state:SupportedStateTypes | str = None) -> None:
 

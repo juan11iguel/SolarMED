@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from lxml import etree
 
-
 # Either use the ones from the code above or import them from visualizations module
 from phd_visualizations.diagrams import (find_object,
                                          change_bg_color,

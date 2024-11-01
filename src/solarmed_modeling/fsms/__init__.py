@@ -401,7 +401,7 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
 
         return df
 
-class MedFSM(BaseFsm):
+class MedFsm(BaseFsm):
 
     """
     Finite State Machine for the Multi-Effect Distillation (MED) unit.
@@ -1069,7 +1069,7 @@ class SolarMED(BaseModel):
     current_state: SolarMedState = Field(None, title="state", json_schema_extra={"units": "-"},
                                             description="Output. Current state of the SolarMED system")
 
-    _med_fsm: MedFSM = PrivateAttr(None)
+    _med_fsm: MedFsm = PrivateAttr(None)
     _sf_ts_state: SfTsState = PrivateAttr(None)
     _created_at: datetime = PrivateAttr(default_factory=datetime.datetime.now)
 
@@ -1086,7 +1086,7 @@ class SolarMED(BaseModel):
 
         self._sf_ts_fsm: SolarFieldWithThermalStorageFsm = SolarFieldWithThermalStorageFsm(
             name='SolarFieldWithThermalStorage_FSM', initial_state=initial_sf_ts, sample_time=self.sample_time)
-        self._med_fsm: MedFSM = MedFSM(
+        self._med_fsm: MedFsm = MedFsm(
             name='MED_FSM', initial_state=self.med_state,
             sample_time=self.sample_time, vacuum_duration_time=self.vacuum_duration_time,
             brine_emptying_time=self.brine_emptying_time, startup_duration_time=self.startup_duration_time
@@ -1185,4 +1185,4 @@ class SolarMED(BaseModel):
 
 
 
-SupportedFSMTypes = BaseFsm | SolarFieldWithThermalStorageFsm | MedFSM
+SupportedFSMTypes = BaseFsm | SolarFieldWithThermalStorageFsm | MedFsm

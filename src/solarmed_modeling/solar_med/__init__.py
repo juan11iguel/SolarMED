@@ -40,7 +40,7 @@ from solarmed_modeling import (MedState, MedVacuumState,
                                ThermalStorageState, 
                                SolarFieldState, 
                                SolarMedState)
-from solarmed_modeling.fsms import (MedFSM, 
+from solarmed_modeling.fsms import (MedFsm, 
                                     SolarFieldWithThermalStorageFsm,
                                     FsmParameters)
 """
@@ -353,7 +353,7 @@ class SolarMED(BaseModel):
     # Private attributes
     _water_props: tuple[w_props, w_props] = PrivateAttr(None) # Water properties objects used accross the model
     _MED_model: Any = PrivateAttr(None) #= Field(None, repr=False, description="MATLAB MED model instance")
-    _med_fsm: MedFSM = PrivateAttr(None) # Finite State Machine object for the MED system. Should not be accessed/manipulated directly
+    _med_fsm: MedFsm = PrivateAttr(None) # Finite State Machine object for the MED system. Should not be accessed/manipulated directly
     _sf_ts_fsm: SolarFieldWithThermalStorageFsm = PrivateAttr(None) # Finite State Machine object for the Solar Field with Thermal Storage system. Should not be accessed/manipulated directly
     _fmp: FixedModelParameters = PrivateAttr(None)  # Just a short alias for fixed_model_params
     _mp: FixedModelParameters = PrivateAttr(None)  # Just a short alias for model_params
@@ -515,7 +515,7 @@ class SolarMED(BaseModel):
                 initial_state=initial_sf_ts, 
                 sample_time=self.sample_time
             )
-            self._med_fsm: MedFSM = MedFSM(
+            self._med_fsm: MedFsm = MedFsm(
                 name='MED', 
                 initial_state=self.med_state,
                 sample_time=self.sample_time, 

@@ -1,12 +1,22 @@
+
 from typing import Literal
 import pandas as pd
 from pydantic import BaseModel, ConfigDict
 
-from solarmed_modeling import MedState, SfTsState, SolarMedState, SolarMedState_with_value, SfTsState_with_value
-from . import SolarFieldWithThermalStorageFsm, MedFSM
+from solarmed_modeling import (MedState, 
+                               SfTsState, 
+                               SolarMedState, 
+                               SolarMedState_with_value, 
+                               SfTsState_with_value,
+                               SupportedStatesType)
+from solarmed_modeling.fsms import SolarFieldWithThermalStorageFsm, MedFsm
+
 
 SupportedStates = MedState | SfTsState | SolarMedState
-SupportedFSMs = MedFSM | SolarFieldWithThermalStorageFsm
+SupportedFSMs = MedFsm | SolarFieldWithThermalStorageFsm
+
+def convert_to_state(state: str, state_cls: SupportedStatesType = MedState) -> SupportedStatesType:
+    return getattr(state_cls, state)
 
 class Node(BaseModel):
     """
@@ -93,7 +103,7 @@ def generate_edges(result_list: list[dict], step_idx: int, system: Literal['MED'
 
     elif system.lower() == 'med':
         states = [state for state in MedState]
-        machine_cls = MedFSM
+        machine_cls = MedFsm
         state_cls = MedState
 
         # TODO: This can't be hardcoded
