@@ -50,4 +50,4 @@ SolarMedState_with_value = Enum('SolarMedState_with_value', {
     for i, state in enumerate(SolarMedState)
 })
 
-SupportedStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMedState | SfTsState
+SupportedSystemsStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMedState | SfTsState

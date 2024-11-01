@@ -4,7 +4,7 @@ import pandas as pd
 # import time
 
 from solarmed_modeling.fsms import MedFsm, SolarFieldWithThermalStorageFsm
-from solarmed_modeling import MedState, SfTsState, MedVacuumState
+from solarmed_modeling import MedState, SfTsState, MedVacuumState, SupportedSystemsStatesType
 from phd_visualizations import save_figure
 from solarmed_modeling.visualization import state_evolution_plot
 
@@ -16,6 +16,9 @@ invalid_input: float = 0.0
 
 SupportedStateTypes = MedState | SfTsState
 SupportedFMSs = MedFsm | SolarFieldWithThermalStorageFsm | SolarMED
+
+def convert_to_state(state: str, state_cls: SupportedSystemsStatesType) -> SupportedSystemsStatesType:
+    return getattr(state_cls, state)
 
 def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMSs = None, model: SupportedFMSs = None, current_state:SupportedStateTypes | str = None) -> None:
 

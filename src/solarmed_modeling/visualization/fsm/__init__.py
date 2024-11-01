@@ -7,16 +7,13 @@ from solarmed_modeling import (MedState,
                                SfTsState, 
                                SolarMedState, 
                                SolarMedState_with_value, 
-                               SfTsState_with_value,
-                               SupportedStatesType)
+                               SfTsState_with_value,)
 from solarmed_modeling.fsms import SolarFieldWithThermalStorageFsm, MedFsm
 
 
 SupportedStates = MedState | SfTsState | SolarMedState
 SupportedFSMs = MedFsm | SolarFieldWithThermalStorageFsm
 
-def convert_to_state(state: str, state_cls: SupportedStatesType = MedState) -> SupportedStatesType:
-    return getattr(state_cls, state)
 
 class Node(BaseModel):
     """

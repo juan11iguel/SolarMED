@@ -6,7 +6,12 @@ from loguru import logger
 
 import plotly.graph_objs as go
 
-from solarmed_modeling import SupportedStatesType, MedState, SfTsState, SolarMedState, SolarMedState_with_value, SfTsState_with_value
+from solarmed_modeling import (SupportedSystemsStatesType, 
+                               MedState, 
+                               SfTsState, 
+                               SolarMedState, 
+                               SolarMedState_with_value, 
+                               SfTsState_with_value)
 from . import Node, generate_edges, generate_edges_dataframe
 
 
@@ -381,7 +386,7 @@ def get_coordinates_edge(src_node_id: str, dst_node_id: str, nodes_df: pd.DataFr
     )
 
 
-def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: SupportedStatesType, show_edges: bool = False,
+def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: SupportedSystemsStatesType, show_edges: bool = False,
                                  highligth_step: int = None, width: int = None, height: int = None) -> go.Figure | go.FigureWidget:
 
     Np = len(df)
