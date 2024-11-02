@@ -13,11 +13,10 @@ class ThermalStorageState(Enum):
     ACTIVE = 1
 
 class SfTsState(Enum):
-    """First digit: Solar Field, Second digit: Thermal Storage"""
-    IDLE = '00'
-    RECIRCULATING_TS = '01'
-    HEATING_UP_SF = '10'
-    SF_HEATING_TS = '11'
+    IDLE = 0
+    HEATING_UP_SF = 1
+    SF_HEATING_TS = 2
+    RECIRCULATING_TS = 3
 
 SfTsState_with_value = Enum('SfTsState_with_value', {
     f'{state.name}': i
