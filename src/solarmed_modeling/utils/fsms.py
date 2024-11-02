@@ -1,5 +1,7 @@
 from loguru import logger
 from pathlib import Path
+from typing import Literal
+from enum import Enum
 import pandas as pd
 # import time
 
@@ -17,8 +19,27 @@ invalid_input: float = 0.0
 SupportedStateTypes = MedState | SfTsState
 SupportedFMSs = MedFsm | SolarFieldWithThermalStorageFsm | SolarMED
 
-def convert_to_state(state: str, state_cls: SupportedSystemsStatesType) -> SupportedSystemsStatesType:
-    return getattr(state_cls, state)
+def convert_to_state(
+    state: str | int, state_cls: SupportedSystemsStatesType, 
+    return_format: Literal["enum", "name", "value"] = "enum"
+) -> Enum | str | int:
+    
+    if isinstance(state, str):
+        output = getattr(state_cls, state) 
+    elif isinstance(state, int):
+        output = state_cls(state)
+    else:
+        raise ValueError(f"`state` should be either a str or an int, not {type(state)}")
+    
+    if return_format == "enum":
+        return output
+    elif return_format == "name":
+        return output.name
+    elif return_format == "value":
+        return output.value
+    else:
+        raise ValueError(f"`return_format` should be one of enum, str or int. Not {return_format}")
+
 
 def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMSs = None, model: SupportedFMSs = None, current_state:SupportedStateTypes | str = None) -> None:
 
