@@ -45,6 +45,15 @@ class FsmParameters:
     startup_conditions: FsmStartupConditions = field(default_factory=lambda: FsmStartupConditions())
     shutdown_conditions: FsmShutdownConditions = field(default_factory=lambda: FsmShutdownConditions())
 
+@dataclass
+class FsmInitialStates:
+    vacuum_generated: bool = False
+    vacuum_started_sample: int = 0
+    brine_empty: bool = True
+    brine_emptying_started_sample: bool = 0
+    startup_done: bool = False
+    startup_started_sample: int = 0
+
 class MedFsm(BaseFsm):
 
     """
@@ -53,6 +62,8 @@ class MedFsm(BaseFsm):
 
     # sample_rate: int = 1  # seconds
     # current_sample = 0
+    # fsm_params: FsmParameters = FsmParameters(),
+    # fsm_initial_states: FsmInitialStates = FsmInitialStates(),
 
     # Vacuum
     generating_vacuum: bool = False
@@ -73,6 +84,9 @@ class MedFsm(BaseFsm):
 
     def __init__(
             self, sample_time: int,
+            # After refactor should be
+            # fsm_params: FsmParameters = FsmParameters(),
+            # fsm_initial_states: FsmInitialStates = FsmInitialStates(),
             vacuum_duration_time: int,  # seconds
             brine_emptying_time: int,  # seconds
             startup_duration_time: int,  # seconds

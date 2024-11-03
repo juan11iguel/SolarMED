@@ -1,4 +1,5 @@
 
+from enum import Enum
 from typing import Literal
 import pandas as pd
 from pydantic import BaseModel, ConfigDict
@@ -233,6 +234,16 @@ def generate_edges_coordinates(nodes_df: pd.DataFrame, edges_df: pd.DataFrame) -
         edges_df.loc[idx, 'x_pos_dst'] = dst_node['x_pos'] - 0.1  # So the arrow is not on top of the node circle
         edges_df.loc[idx, 'y_pos_src'] = src_node['y_pos'] + increment
         edges_df.loc[idx, 'y_pos_dst'] = dst_node['y_pos'] + increment
+        
+
+def generate_nodes_df(n_horizon: int, system: SupportedSubsystemsLiteral) -> pd.DataFrame:
+    states_enum: Enum = getattr(SupportedSubsystemsStatesMapping, system).value
+    
+    nodes_df = pd.DataFrame([
+        Node(step_idx=step_idx, state=state).model_dump()
+        for step_idx in range(n_horizon) for state in [state for state in states_enum]
+    ])
+    return nodes_df
         
         
 def get_coordinates(node_id: str, edges_df: pd.DataFrame, type: Literal['src', 'dst']) -> tuple[list[float], list[float]]:
