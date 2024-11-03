@@ -1,18 +1,17 @@
-from typing import Literal
 import numpy as np
 import pandas as pd
 import math
+from enum import Enum
 from loguru import logger
-
 import plotly.graph_objs as go
 
-from solarmed_modeling import (SupportedSystemsStatesType, 
-                               MedState, 
-                               SfTsState, 
-                               SolarMedState, 
-                               SolarMedState_with_value, 
-                               SfTsState_with_value)
-from . import Node, generate_edges, generate_edges_dataframe
+from solarmed_modeling.fsms import (SupportedSystemsStatesType, 
+                                    MedState, 
+                                    SfTsState, 
+                                    SolarMedState)
+from solarmed_modeling.fsms.utils import (SupportedSystemsLiteral,
+                                          SupportedSystemsStatesMapping)
+from . import Node, generate_edges, generate_edges_dataframe, get_coordinates_edge
 
 
 node_colors = {
@@ -22,7 +21,7 @@ node_colors = {
 }
 
 
-def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Literal['MED', 'SFTS', 'SolarMED'], Np: int,
+def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, system_title: str = None,
                      edges_df: pd.DataFrame | list[pd.DataFrame] = None, width=1400, height=500,
                      title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30,
                      highligth_step: int = None) -> go.FigureWidget:
@@ -34,27 +33,27 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
     :param edges_df:
     :return:
     """
+    # Validation
+    if edges_df is not None:
+        assert type(nodes_df) is type(edges_df), "nodes_df and edges_df should both be lists (with same number of elements) or dataframes"
+    
+    # state_cls = getattr(SupportedSystemsStatesMapping, system).value
 
-
-    if system == 'MED' and isinstance(nodes_df, pd.DataFrame):
-        state_cls = MedState
-        state_cls_with_value = state_cls
-    elif system == 'SFTS' and isinstance(nodes_df, pd.DataFrame):
-        state_cls = SfTsState
-        state_cls_with_value = SfTsState_with_value
-    elif system == 'SolarMED':
-        state_cls = SolarMedState
-        state_cls_with_value = SolarMedState_with_value
-    else:
-        raise ValueError(f"System {system} and nodes_df {type(nodes_df)} not supported")
+    # TODO: This is not generic, should be improved
+    # if system == 'MED' and isinstance(nodes_df, pd.DataFrame):
+    #     state_cls = MedState
+    #     state_cls_with_value = state_cls
+    # elif system == 'SFTS' and isinstance(nodes_df, pd.DataFrame):
+    #     state_cls = SfTsState
+    #     state_cls_with_value = SfTsState_with_value
+    # elif system == 'SolarMED':
+    #     state_cls = SolarMedState
+    #     state_cls_with_value = SolarMedState_with_value
+    # else:
+    #     raise ValueError(f"System {system} and nodes_df {type(nodes_df)} not supported")
 
     if title is None:
-        title = f"Directed graph of the operating modes evolution in the {state_cls.__name__} system"
-
-
-    if (isinstance(nodes_df, pd.DataFrame) and isinstance(edges_df, list) or
-            isinstance(nodes_df, list) and isinstance(edges_df, pd.DataFrame)):
-        raise ValueError("If nodes_df is a list, then edges_df should be a list too and viceversa")
+        title = f"Directed graph of the operating modes evolution. {system_title}"
 
     # Work with lists of both nodes_df and edges_df
     if not isinstance(nodes_df, list):
@@ -63,7 +62,9 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
         edges_df = [edges_df]
 
     # Step size given max_samples
-    step_size = max(1, math.ceil(len(results_df) / max_samples))
+    step_size = 1
+    if results_df is not None:
+        step_size = max(step_size, math.ceil(len(results_df) / max_samples))
 
     if step_size > 1:
         logger.warning(f'There are more samples than the maximum specified ({max_samples}), states will be shown every {step_size} samples. Aliasing may occur')
@@ -102,17 +103,25 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
     Ye_dash = []
     for system_idx, n_df in enumerate(nodes_df):
 
-        if type(n_df['state'][0]) == SolarMedState:
-            system_types.append(SolarMedState)
-            system_types_with_value.append(SolarMedState_with_value)
-        elif type(n_df['state'][0]) == MedState:
-            system_types.append(MedState)
-            system_types_with_value.append(MedState)
-        elif type(n_df['state'][0]) == SfTsState:
-            system_types.append(SfTsState)
-            system_types_with_value.append(SfTsState_with_value)
-        else:
-            raise ValueError(f"State {n_df['state'][0]} not supported")
+        # TODO: This is not generic, should be improved
+        # if type(n_df['state'][0]) == SolarMedState:
+        #     system_types.append(SolarMedState)
+        #     system_types_with_value.append(SolarMedState_with_value)
+        # elif type(n_df['state'][0]) == MedState:
+        #     system_types.append(MedState)
+        #     system_types_with_value.append(MedState)
+        # elif type(n_df['state'][0]) == SfTsState:
+        #     system_types.append(SfTsState)
+        #     system_types_with_value.append(SfTsState_with_value)
+        # else:
+        #     raise ValueError(f"State {n_df['state'][0]} not supported")
+        state_cls_ = type(n_df['state'][0])
+        system_types.append( state_cls_ )
+        state_cls_with_value = Enum('state_with_value', {
+            f'{state.name}': i
+            for i, state in enumerate(state_cls_)
+        })
+        system_types_with_value.append(state_cls_with_value)
 
 
         if results_df is not None:
@@ -348,44 +357,6 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], system: Litera
     return fig
 
 
-# nodes_scatter.on_click(highlight_node_paths)
-
-def get_coordinates(node_id: str, edges_df: pd.DataFrame, type: Literal['src', 'dst']) -> tuple[list[float], list[float]]:
-
-    node_type = "dst" if type == "dst" else "src"
-
-    edges = edges_df[edges_df[f'{node_type}_node_name'] == node_id]
-
-    x_src_aux = edges['x_pos_src'].values
-    x_dst_aux = edges['x_pos_dst'].values
-    y_src_aux = edges['y_pos_src'].values
-    y_dst_aux = edges['y_pos_dst'].values
-
-    x = []
-    y = []
-    for xsrc, xdst, ysrc, ydst in zip(x_src_aux, x_dst_aux, y_src_aux, y_dst_aux):
-        x += [xsrc, xdst, None]
-        y += [ysrc, ydst, None]
-
-    return x, y
-
-
-def get_coordinates_edge(src_node_id: str, dst_node_id: str, nodes_df: pd.DataFrame, y_shift=0) -> tuple[list[float], list[float]]:
-
-    src_node = nodes_df[nodes_df['node_id'] == src_node_id]
-    dst_node = nodes_df[nodes_df['node_id'] == dst_node_id]
-
-    if len(src_node) > 1 or len(dst_node) > 1:
-        raise RuntimeError(f"Multiple nodes with the same name {src_node_id} / {dst_node_id} found")
-    elif len(src_node) == 0 or len(dst_node) == 0:
-        raise RuntimeError(f"No nodes with the name {src_node_id} / {dst_node_id} found")
-
-    return (
-        [src_node['x_pos'].values[0], dst_node['x_pos'].values[0], None],
-        [src_node['y_pos'].values[0] + y_shift, dst_node['y_pos'].values[0]  + y_shift, None]
-    )
-
-
 def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: SupportedSystemsStatesType, show_edges: bool = False,
                                  highligth_step: int = None, width: int = None, height: int = None) -> go.Figure | go.FigureWidget:
 
@@ -428,7 +399,7 @@ def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: Support
 
     fig = plot_state_graph(
         nodes_df=nodes_dfs,
-        system='SolarMED',
+        system_title='SolarMED',
         edges_df=edges_df,
         results_df=df,
         Np=Np,

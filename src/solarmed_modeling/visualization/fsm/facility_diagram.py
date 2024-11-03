@@ -6,10 +6,10 @@ from phd_visualizations.diagrams import (find_object,
                                          change_bg_color,
                                          change_line_width,
                                          change_line_color)
-from solarmed_modeling import SolarFieldState, ThermalStorageState, MedState
+from solarmed_modeling.fsms import SolarFieldState, ThermalStorageState, MedState
 
 
-color_palette: dict = {
+color_palette: dict[str, str] = {
     'gray': '#E6E6E6',
     'red': '#B85450',
     'blue': '#6C8EBF',

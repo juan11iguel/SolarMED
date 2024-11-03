@@ -5,22 +5,22 @@ from enum import Enum
 import pandas as pd
 # import time
 
-from solarmed_modeling.fsms import MedFsm, SolarFieldWithThermalStorageFsm
-from solarmed_modeling import MedState, SfTsState, MedVacuumState, SupportedSystemsStatesType
-from phd_visualizations import save_figure
-from solarmed_modeling.visualization import state_evolution_plot
+from solarmed_modeling.fsms import (MedState, SfTsState, MedVacuumState, 
+                                    SupportedSystemsStatesType)
+from solarmed_modeling.fsms.med import MedFsm
+from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm
+# from phd_visualizations import save_figure
+# from solarmed_modeling.visualization.fsm.state_evolution import state_evolution_plot
 
-# from solarmed_modeling.solar_med import SolarMED
-from solarmed_modeling.fsms import SolarMED
+from solarmed_modeling.solar_med import SolarMED
+# from solarmed_modeling.fsms import SolarMED
 
 valid_input: float = 1.0
 invalid_input: float = 0.0
 
-SupportedStateTypes = MedState | SfTsState
-SupportedFMSs = MedFsm | SolarFieldWithThermalStorageFsm | SolarMED
-
 def convert_to_state(
-    state: str | int, state_cls: SupportedSystemsStatesType, 
+    state: str | int, 
+    state_cls: SupportedSystemsStatesType, 
     return_format: Literal["enum", "name", "value"] = "enum"
 ) -> Enum | str | int:
     
@@ -41,6 +41,8 @@ def convert_to_state(
         raise ValueError(f"`return_format` should be one of enum, str or int. Not {return_format}")
 
 
+SupportedStateTypes = MedState | SfTsState
+SupportedFMSs = MedFsm | SolarFieldWithThermalStorageFsm | SolarMED
 def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMSs = None, model: SupportedFMSs = None, current_state:SupportedStateTypes | str = None) -> None:
 
     """
@@ -72,23 +74,23 @@ def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMS
     assert current_state == expected_st, f"Expected state {expected_st}, got {current_state}"
 
 
-def generate_results(model: SolarMED, df: pd.DataFrame, iteration_idx: int, output_path: Path = None) -> pd.DataFrame:
-    # Add iteration to results dataframe
-    df = model.to_dataframe(df)
+# def generate_results(model: SolarMED, df: pd.DataFrame, iteration_idx: int, output_path: Path = None) -> pd.DataFrame:
+#     # Add iteration to results dataframe
+#     df = model.to_dataframe(df)
 
-    # Generate FSM graph(s)
-    if output_path is not None:
-        model._med_fsm.generate_graph(output_path=Path(f"{output_path}_{model._med_fsm.name}_iteration_{iteration_idx}.svg"))
-        model._sf_ts_fsm.generate_graph(output_path=Path(f"{output_path}_{model._sf_ts_fsm.name}_iteration_{iteration_idx}.svg"))
+#     # Generate FSM graph(s)
+#     if output_path is not None:
+#         model._med_fsm.generate_graph(output_path=Path(f"{output_path}_{model._med_fsm.name}_iteration_{iteration_idx}.svg"))
+#         model._sf_ts_fsm.generate_graph(output_path=Path(f"{output_path}_{model._sf_ts_fsm.name}_iteration_{iteration_idx}.svg"))
 
-        logger.info(f"FSM graphs saved in {output_path}_....svg")
+#         logger.info(f"FSM graphs saved in {output_path}_....svg")
 
-        fig = state_evolution_plot(df, iteration=iteration_idx)
-        # Remove last parent from output_path
-        output_path = output_path.parent
-        save_figure(fig, f'state_evolution_iteration_{iteration_idx}', output_path, formats=['svg'], height=400, width=400)
+#         fig = state_evolution_plot(df, iteration=iteration_idx)
+#         # Remove last parent from output_path
+#         output_path = output_path.parent
+#         save_figure(fig, f'state_evolution_iteration_{iteration_idx}', output_path, formats=['svg'], height=400, width=400)
 
-    return df
+#     return df
 
 
 def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int = 3, episode_id: str = "test", loops: int = 1) -> pd.DataFrame:

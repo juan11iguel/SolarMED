@@ -2,11 +2,10 @@ from dataclasses import dataclass, field
 import re
 import numpy as np
 import pandas as pd
-from iapws import IAPWS97 as w_props  # Librería propiedades del agua, cuidado, P Mpa no bar
+from iapws import IAPWS97 as w_props
 from loguru import logger
 from enum import Enum
 from typing import Any, Literal, TypeVar, get_args
-# import copy
 import pickle
 from pydantic import (BaseModel,
                       Field,
@@ -35,20 +34,24 @@ from solarmed_modeling.three_way_valve import three_way_valve_model
 from solarmed_modeling.med import FixedModelParameters as MedFixedModParams
 from solarmed_modeling.heat_gen_and_storage import heat_generation_and_storage_subproblem
 from solarmed_modeling.power_consumption import Actuator
-from solarmed_modeling import (MedState, MedVacuumState, 
-                               SfTsState, 
-                               ThermalStorageState, 
-                               SolarFieldState, 
-                               SolarMedState)
-from solarmed_modeling.fsms import (MedFsm, 
-                                    SolarFieldWithThermalStorageFsm,
-                                    FsmParameters)
+from solarmed_modeling.fsms import (MedState, 
+                                    MedVacuumState, 
+                                    SfTsState, 
+                                    ThermalStorageState, 
+                                    SolarFieldState, 
+                                    SolarMedState)
+from solarmed_modeling.fsms.med import (MedFsm,
+                                        FsmParameters as MedFsmParams)
+from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm,
+                                         FsmParameters as SfTsFsmParams,
+                                         get_sfts_state,
+                                         get_sf_ts_individual_states)
 """
     TODO: 
-    - [ ] Integrate new models deprecating the inverse approach
+    - [x] Integrate new models deprecating the inverse approach
     - [x] Modify MED FSM to only use qsf instead of Tsf_out
     - [ ] Add cooldown times support to FSMs
-    - [ ] Implement logic for on limits violation policy
+    - [ ] Partial initialization of FSMs
 """
 
 # logger.disable(__name__)
@@ -83,6 +86,16 @@ class FixedModelParameters:
     med: MedFixedModParams = field(default_factory=lambda: MedFixedModParams())
     sf: MedFixedModParams = field(default_factory=lambda: SfFixedModParams())
     ts: MedFixedModParams = field(default_factory=lambda: TsFixedModParams())
+    
+@dataclass
+class FsmParameters:
+    med: MedFsmParams = field(default_factory=lambda: MedFsmParams())
+    sf_ts: SfTsFsmParams = field(default_factory=lambda: SfTsFsmParams())
+    
+@dataclass
+class EnvironmentParameters:
+    cost_w: float = 3 # Cost of water, €/m³ 
+    cost_e: float = 0.05 # Cost of electricity, €/kWhe
     
 @dataclass
 class ActuatorsMaping:
@@ -142,6 +155,8 @@ class SolarMED(BaseModel):
                                                 description="Component models parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     fsms_params: FsmParameters = Field(FsmParameters(), titile="FSM parameters",
                                             description="Finite State Machine parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
+    env_params: EnvironmentParameters = Field(EnvironmentParameters(), titile="Environment parameters",
+                                                description="Environment parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     ## General parameters
     use_models: bool = Field(True, title="use_models", json_schema_extra={"units": "-", "var_type": ModelVarType.PARAMETER},
                              description="Whether to evaluate the models for the components of the SolarMED system, if set to False, `use_finite_state_machines` must be set to True")
@@ -437,29 +452,7 @@ class SolarMED(BaseModel):
         return within_range_or_min_or_max(Tmed_c_out, range=(info.data["Tmed_c_in"], np.inf),
                                           var_name=info.field_name)
 
-    # @field_validator("Tsf_out_sp")
-    # @classmethod
-    # def validate_Tsf_out(cls, Tsf_out: float, info: ValidationInfo) -> float:
-        
-    #     fmp: FixedModelParameters = info.data["fixed_model_params"]
-        
-    #     # Lower limit set by greater value between pre-defined operational limit, and inlet temperature,
-    #     # if input value is lower -> 0 (deactivated)
-    #     lower_limit = np.max([fmp.sf.Tmin, info.data["Tsf_in"]] if info.data["Tsf_in"] is not None else fmp.sf.Tmin)
-    #     # Upper limit set by pre-defined operational limit
-    #     return within_range_or_zero_or_max(Tsf_out, range=(lower_limit, fmp.sf.Tmax),
-    #                                        var_name=info.field_name)
-    # @field_serializer('model_params')
-    # def serialize_model_params(self, model_params: ModelParameters, _info) -> dict[str, dict[str, Any]]:
-    #     """ Custom serializer for model_params which contains nested dataclasses.
-    #     I would hope pydantic would handle this but it does not
-    #     """
-    #     # Create a copy to avoid modifying the original object
-    #     model_params: ModelParameters = copy.deepcopy(model_params) 
-    #     model_params: dict[str, Any] = self.model_params.__dict__
-    #     for key in model_params:
-    #         model_params[key] = model_params[key].__dict__
-    #     return model_params
+
 
     def model_post_init(self, ctx) -> None:
         """ Post initialization method, called after the model is created """
@@ -505,11 +498,16 @@ class SolarMED(BaseModel):
         # Make a list of field names that are of type numeric (int, float, etc)
         # self.export_fields = [field for field in self.__fields__.keys() if isinstance(getattr(self, field), (int, float))]
 
+        # TODO: This needs to be improved to support partial initialization!!
         if self.use_finite_state_machine:
 
-            initial_sf_ts = SfTsState(str(self.sf_state.value) + str(self.ts_state.value))
-            self.current_state = SolarMedState(initial_sf_ts.value + str(self.med_state.value))
+            # initial_sf_ts = SfTsState(str(self.sf_state.value) + str(self.ts_state.value))
+            initial_sf_ts = get_sfts_state(sf_state = self.sf_state, 
+                                           ts_state = self.ts_state)
+            # self.current_state = SolarMedState(str(self.sf_state.value) + str(self.ts_state.value) + str(self.med_state.value))
+            self.current_state = self.get_state()
 
+            # TODO: Refactor once FSMs make use of FsmParameters
             self._sf_ts_fsm: SolarFieldWithThermalStorageFsm = SolarFieldWithThermalStorageFsm(
                 name='SF-TS', 
                 initial_state=initial_sf_ts, 
@@ -519,9 +517,9 @@ class SolarMED(BaseModel):
                 name='MED', 
                 initial_state=self.med_state,
                 sample_time=self.sample_time, 
-                vacuum_duration_time=self.fsms_params.vacuum_duration_time,
-                brine_emptying_time=self.fsms_params.brine_emptying_time, 
-                startup_duration_time=self.fsms_params.startup_duration_time
+                vacuum_duration_time=self.fsms_params.med.vacuum_duration_time,
+                brine_emptying_time=self.fsms_params.med.brine_emptying_time, 
+                startup_duration_time=self.fsms_params.med.startup_duration_time
             )
             
         if self.resolution_mode == 'constant-water-props':
@@ -530,8 +528,6 @@ class SolarMED(BaseModel):
                 w_props(P=0.2, T=65 + 273.15)  # P=2 bar  -> 0.2MPa, T in K, average working temperature of cold tank
             )
 
-        # TODO: Add information about the parameters
-        # model_params, fixed_model_params, fsm_params
         logger.info(f'''
         SolarMED model initialized with: 
             - Evaluating models: {self.use_models}
@@ -542,6 +538,10 @@ class SolarMED(BaseModel):
             - MED actuators: {[actuator.id for actuator in self.actuators_consumptions.med.values()]}
             - Solar field actuators: {[actuator.id for actuator in self.actuators_consumptions.sf.values()]}
             - Thermal storage actuators: {[actuator.id for actuator in self.actuators_consumptions.ts.values()]}
+            - Model parameters: {self.model_params}
+            - Fixed model parameters: {self.fixed_model_params}
+            - FSM parameters: {self.fsms_params}
+            - Environment parameters: {self.env_params}
         ''')
 
     def step(
@@ -737,10 +737,11 @@ class SolarMED(BaseModel):
         return SolarMedState(state_code)
 
     def update_internal_states(self) -> None:
-        self.med_state = self._med_fsm.get_state()
+        self.med_state: MedState = self._med_fsm.get_state()
         self.sf_ts_state: SfTsState = self._sf_ts_fsm.get_state()
-        self.sf_state = SolarFieldState(int(self.sf_ts_state.value[0]))
-        self.ts_state = ThermalStorageState(int(self.sf_ts_state.value[1]))
+        # self.sf_state = SolarFieldState(int(self.sf_ts_state.value[0]))
+        # self.ts_state = ThermalStorageState(int(self.sf_ts_state.value[1]))
+        self.sf_state, self.ts_state = get_sf_ts_individual_states(sfts_state=self.sf_ts_state)
 
     def update_current_state(self) -> None:
         self.update_internal_states()
@@ -795,10 +796,10 @@ class SolarMED(BaseModel):
                 # FSM overrides
                 st_cond = None
                 if self.med_state == MedState.STARTING_UP:
-                    st_cond = self.fsms_params.startup_conditions
+                    st_cond = self.fsms_params.med.startup_conditions
                     
                 elif self.med_state == MedState.SHUTTING_DOWN:
-                    st_cond = self.fsms_params.shutdown_conditions
+                    st_cond = self.fsms_params.med.shutdown_conditions
                     
                 if st_cond is not None:
                     qmed_s = st_cond.qmed_s
@@ -1262,9 +1263,9 @@ class SolarMED(BaseModel):
             raise NotImplementedError("Exergy cost evaluation is not yet implemented")
 
         if cost_w is None:
-            cost_w = self.cost_w
+            cost_w = self.env_params.cost_w
         if cost_e is None:
-            cost_e = self.cost_e
+            cost_e = self.env_params.cost_e
 
         # Economic cost
         self.total_cost = self.Jtotal * cost_e # kWhe * u.m./kWhe -> u.m./h

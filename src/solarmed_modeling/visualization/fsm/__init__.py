@@ -3,16 +3,13 @@ from typing import Literal
 import pandas as pd
 from pydantic import BaseModel, ConfigDict
 
-from solarmed_modeling import (MedState, 
-                               SfTsState, 
-                               SolarMedState, 
-                               SolarMedState_with_value, 
-                               SfTsState_with_value,)
-from solarmed_modeling.fsms import SolarFieldWithThermalStorageFsm, MedFsm
-
-
-SupportedStates = MedState | SfTsState | SolarMedState
-SupportedFSMs = MedFsm | SolarFieldWithThermalStorageFsm
+from solarmed_modeling.fsms import (MedState, 
+                                    SfTsState, 
+                                    SolarMedState, 
+                                    SolarMedState_with_value)
+from solarmed_modeling.fsms.utils import (SupportedSubsystemsStatesMapping,
+                                          SupportedSubsystemsFsmsMapping,
+                                          SupportedSubsystemsLiteral)
 
 
 class Node(BaseModel):
@@ -20,7 +17,7 @@ class Node(BaseModel):
     Node model. Barebones class just to validate the nodes are being generated correctly
     """
     step_idx: int
-    state: SupportedStates
+    state: MedState | SfTsState | SolarMedState
 
     # Derived fields
     node_id: str = None
@@ -41,8 +38,8 @@ class Node(BaseModel):
 
         if isinstance(self.state, SolarMedState):
             self.y_pos = getattr(SolarMedState_with_value, self.state.name).value
-        elif isinstance(self.state, SfTsState):
-            self.y_pos = getattr(SfTsState_with_value, self.state.name).value
+        # elif isinstance(self.state, SfTsState):
+        #     self.y_pos = getattr(SfTsState_with_value, self.state.name).value
         else:
             self.y_pos = float(self.state.value)
 
@@ -72,7 +69,7 @@ class Edge(BaseModel):
         self.line_type = self.line_type.lower()
 
 
-def generate_edges(result_list: list[dict], step_idx: int, system: Literal['MED', 'SFTS'], Np: int, ) -> list[dict]:
+def generate_edges(result_list: list[dict], step_idx: int, system: SupportedSubsystemsLiteral, Np: int, ) -> list[dict]:
 
     """
     Generate edges for the given FSM
@@ -90,29 +87,21 @@ def generate_edges(result_list: list[dict], step_idx: int, system: Literal['MED'
 
     machine_init_args = dict(
         sample_time = 1,
-
     )
 
-    if system.lower() == 'sfts':
-        states = [state for state in SfTsState]
-        machine_cls = SolarFieldWithThermalStorageFsm
-        state_cls = SfTsState
+    # Get state and machine classes and states for that machine
+    state_cls = getattr(SupportedSubsystemsStatesMapping, system).value
+    states = [state for state in state_cls]
+    machine_cls = getattr(SupportedSubsystemsFsmsMapping, system).value
 
-    elif system.lower() == 'med':
-        states = [state for state in MedState]
-        machine_cls = MedFsm
-        state_cls = MedState
-
+    if system == "MED":
         # TODO: This can't be hardcoded
         machine_init_args.update(
             vacuum_duration_time=5,
             brine_emptying_time=2,
             startup_duration_time=2
         )
-
-    else:
-        raise NotImplementedError(f'Unsupported subsystem {system}')
-
+        
     for state in states:
         model = machine_cls(**machine_init_args)
 
@@ -244,3 +233,39 @@ def generate_edges_coordinates(nodes_df: pd.DataFrame, edges_df: pd.DataFrame) -
         edges_df.loc[idx, 'x_pos_dst'] = dst_node['x_pos'] - 0.1  # So the arrow is not on top of the node circle
         edges_df.loc[idx, 'y_pos_src'] = src_node['y_pos'] + increment
         edges_df.loc[idx, 'y_pos_dst'] = dst_node['y_pos'] + increment
+        
+        
+def get_coordinates(node_id: str, edges_df: pd.DataFrame, type: Literal['src', 'dst']) -> tuple[list[float], list[float]]:
+
+    node_type = "dst" if type == "dst" else "src"
+
+    edges = edges_df[edges_df[f'{node_type}_node_name'] == node_id]
+
+    x_src_aux = edges['x_pos_src'].values
+    x_dst_aux = edges['x_pos_dst'].values
+    y_src_aux = edges['y_pos_src'].values
+    y_dst_aux = edges['y_pos_dst'].values
+
+    x = []
+    y = []
+    for xsrc, xdst, ysrc, ydst in zip(x_src_aux, x_dst_aux, y_src_aux, y_dst_aux):
+        x += [xsrc, xdst, None]
+        y += [ysrc, ydst, None]
+
+    return x, y
+
+
+def get_coordinates_edge(src_node_id: str, dst_node_id: str, nodes_df: pd.DataFrame, y_shift=0) -> tuple[list[float], list[float]]:
+
+    src_node = nodes_df[nodes_df['node_id'] == src_node_id]
+    dst_node = nodes_df[nodes_df['node_id'] == dst_node_id]
+
+    if len(src_node) > 1 or len(dst_node) > 1:
+        raise RuntimeError(f"Multiple nodes with the same name {src_node_id} / {dst_node_id} found")
+    elif len(src_node) == 0 or len(dst_node) == 0:
+        raise RuntimeError(f"No nodes with the name {src_node_id} / {dst_node_id} found")
+
+    return (
+        [src_node['x_pos'].values[0], dst_node['x_pos'].values[0], None],
+        [src_node['y_pos'].values[0] + y_shift, dst_node['y_pos'].values[0]  + y_shift, None]
+    )

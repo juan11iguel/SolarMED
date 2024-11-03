@@ -9,11 +9,12 @@ from iapws import IAPWS97 as w_props
 from solarmed_modeling.metrics import calculate_metrics
 from solarmed_modeling.utils import resample_results
 from solarmed_modeling.thermal_storage.utils import Th_labels, Tc_labels
-from solarmed_modeling.fsms import FsmParameters
 
 from . import (supported_eval_alternatives,
                ModelParameters, 
                FixedModelParameters,
+               FsmParameters,
+               EnvironmentParameters,
                SolarMED)
 
 out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Tts_h_in", *Th_labels, *Tc_labels]
@@ -23,6 +24,7 @@ def evaluate_model(
     model_params: ModelParameters, 
     fixed_model_params: FixedModelParameters = FixedModelParameters(),
     fsm_params: FsmParameters = FsmParameters(),
+    env_params: EnvironmentParameters = EnvironmentParameters(),
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
@@ -61,6 +63,7 @@ def evaluate_model(
             model_params=model_params,
             fixed_model_params=fixed_model_params,
             fsms_params=fsm_params,
+            env_params=env_params,
             sample_time=sample_rate,
             
             # Initial states
