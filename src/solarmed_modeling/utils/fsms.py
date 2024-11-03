@@ -18,8 +18,8 @@ from solarmed_modeling.solar_med import SolarMED
 valid_input: float = 1.0
 invalid_input: float = 0.0
 
-def convert_to_state(
-    state: str | int, 
+def convert_to(
+    state: str | int | Enum, 
     state_cls: SupportedSystemsStatesType, 
     return_format: Literal["enum", "name", "value"] = "enum"
 ) -> Enum | str | int:
@@ -28,6 +28,8 @@ def convert_to_state(
         output = getattr(state_cls, state) 
     elif isinstance(state, int):
         output = state_cls(state)
+    elif isinstance(state, Enum):
+        output = state
     else:
         raise ValueError(f"`state` should be either a str or an int, not {type(state)}")
     
@@ -93,137 +95,137 @@ def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMS
 #     return df
 
 
-def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int = 3, episode_id: str = "test", loops: int = 1) -> pd.DataFrame:
-    """
-    Test the SolarMED class by going through all the possible states of the individual FSMs.
+# def test_profile(model: SolarMED, attachments_path: Path = None, n_of_steps: int = 3, episode_id: str = "test", loops: int = 1) -> pd.DataFrame:
+#     """
+#     Test the SolarMED class by going through all the possible states of the individual FSMs.
 
-    Notes:
-        - For every step in the MED FSM, some steps are given in the SF-TS FSM
+#     Notes:
+#         - For every step in the MED FSM, some steps are given in the SF-TS FSM
 
-    :param model: SolarMED instance
-    :param attachments_path: Path to save the FSM graphs, if None, the graphs are not saved
-    :param n_of_steps: Number of steps to take in the SF-TS FSM
-    :param episode_id: Identifier for the test
-    :return DataFrame: with the results of the test
-    """
+#     :param model: SolarMED instance
+#     :param attachments_path: Path to save the FSM graphs, if None, the graphs are not saved
+#     :param n_of_steps: Number of steps to take in the SF-TS FSM
+#     :param episode_id: Identifier for the test
+#     :return DataFrame: with the results of the test
+#     """
 
-    sf_ts_inputs = [
-        # The order is important
-        # (Tsf_out: float, mts_src: float)
-        (invalid_input, invalid_input),
-        (valid_input, invalid_input),
-        (valid_input, valid_input),
-        (valid_input, valid_input),
-        (valid_input, valid_input),
-        (valid_input, valid_input),
-        (invalid_input, invalid_input),
-        (valid_input, valid_input),
-        (invalid_input, invalid_input)
-    ]
+#     sf_ts_inputs = [
+#         # The order is important
+#         # (Tsf_out: float, mts_src: float)
+#         (invalid_input, invalid_input),
+#         (valid_input, invalid_input),
+#         (valid_input, valid_input),
+#         (valid_input, valid_input),
+#         (valid_input, valid_input),
+#         (valid_input, valid_input),
+#         (invalid_input, invalid_input),
+#         (valid_input, valid_input),
+#         (invalid_input, invalid_input)
+#     ]
 
-    expected_sf_ts_states: list[SfTsState] = [
-        # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
+#     expected_sf_ts_states: list[SfTsState] = [
+#         # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
 
-        SfTsState.IDLE,
-        SfTsState.HEATING_UP_SF,
-        SfTsState.SF_HEATING_TS,
-        SfTsState.SF_HEATING_TS,
-        SfTsState.SF_HEATING_TS,
-        SfTsState.SF_HEATING_TS,
-        SfTsState.IDLE,
-        SfTsState.HEATING_UP_SF,
-        SfTsState.IDLE
-    ]
+#         SfTsState.IDLE,
+#         SfTsState.HEATING_UP_SF,
+#         SfTsState.SF_HEATING_TS,
+#         SfTsState.SF_HEATING_TS,
+#         SfTsState.SF_HEATING_TS,
+#         SfTsState.SF_HEATING_TS,
+#         SfTsState.IDLE,
+#         SfTsState.HEATING_UP_SF,
+#         SfTsState.IDLE
+#     ]
 
-    med_inputs = [
-        # The order is important
-        # (mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float, med_vacuum_state: MedVacuumState | int)
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.HIGH),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.OFF),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.HIGH),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
-        (invalid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
-        (valid_input, valid_input, valid_input, valid_input, MedVacuumState.OFF),
-    ]
+#     med_inputs = [
+#         # The order is important
+#         # (mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float, med_vacuum_state: MedVacuumState | int)
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.HIGH),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.OFF),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.HIGH),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+#         (invalid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.LOW),
+#         (valid_input, valid_input, valid_input, valid_input, MedVacuumState.OFF),
+#     ]
 
-    expected_med_states: list[MedState] = [
-        # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
-        MedState.GENERATING_VACUUM,
-        MedState.OFF,
-        MedState.GENERATING_VACUUM,
-        MedState.IDLE,
-        MedState.ACTIVE,
-        MedState.ACTIVE,
-        MedState.ACTIVE,
-        MedState.IDLE,
-        MedState.ACTIVE,
-        MedState.OFF
-    ]
+#     expected_med_states: list[MedState] = [
+#         # NOTE: Expected states need to be reachable with inputs from the same index, even if they take multiple iterations
+#         MedState.GENERATING_VACUUM,
+#         MedState.OFF,
+#         MedState.GENERATING_VACUUM,
+#         MedState.IDLE,
+#         MedState.ACTIVE,
+#         MedState.ACTIVE,
+#         MedState.ACTIVE,
+#         MedState.IDLE,
+#         MedState.ACTIVE,
+#         MedState.OFF
+#     ]
 
-    if len(sf_ts_inputs) != len(expected_sf_ts_states):
-        raise ValueError("The number of inputs and expected states for the SF-TS FSM must be the same")
-    if len(med_inputs) != len(expected_med_states):
-        raise ValueError("The number of inputs and expected states for the MED FSM must be the same")
+#     if len(sf_ts_inputs) != len(expected_sf_ts_states):
+#         raise ValueError("The number of inputs and expected states for the SF-TS FSM must be the same")
+#     if len(med_inputs) != len(expected_med_states):
+#         raise ValueError("The number of inputs and expected states for the MED FSM must be the same")
 
-    # Initialize some variables
-    df = pd.DataFrame()
-    output_path = attachments_path / episode_id if attachments_path else None
-    iteration_idx = 0
+#     # Initialize some variables
+#     df = pd.DataFrame()
+#     output_path = attachments_path / episode_id if attachments_path else None
+#     iteration_idx = 0
 
-    # Repeat the test for the number of loops
-    for _ in range(loops):
-        # Execute the steps
-        exit_flag = False
-        step_cnt = 0
-        while not exit_flag:
-            try:
-                sf_ts_idx = iteration_idx % len(sf_ts_inputs)
+#     # Repeat the test for the number of loops
+#     for _ in range(loops):
+#         # Execute the steps
+#         exit_flag = False
+#         step_cnt = 0
+#         while not exit_flag:
+#             try:
+#                 sf_ts_idx = iteration_idx % len(sf_ts_inputs)
 
-                logger.info(f"Evaluating step {step_cnt+1}/{len(expected_med_states)} in the MED cycle, {sf_ts_idx} in the SF-TS cycle, iteration {iteration_idx}")
+#                 logger.info(f"Evaluating step {step_cnt+1}/{len(expected_med_states)} in the MED cycle, {sf_ts_idx} in the SF-TS cycle, iteration {iteration_idx}")
 
-                # The order is important, keep it synchronized with the inputs
-                model.step(
-                    Tsf_out=sf_ts_inputs[sf_ts_idx][0],
-                    mts_src=sf_ts_inputs[sf_ts_idx][1],
-                    mmed_s=med_inputs[step_cnt][0],
-                    mmed_f=med_inputs[step_cnt][1],
-                    Tmed_s_in=med_inputs[step_cnt][2],
-                    Tmed_c_out=med_inputs[step_cnt][3],
-                    med_vacuum_state=med_inputs[step_cnt][4],
+#                 # The order is important, keep it synchronized with the inputs
+#                 model.step(
+#                     Tsf_out=sf_ts_inputs[sf_ts_idx][0],
+#                     mts_src=sf_ts_inputs[sf_ts_idx][1],
+#                     mmed_s=med_inputs[step_cnt][0],
+#                     mmed_f=med_inputs[step_cnt][1],
+#                     Tmed_s_in=med_inputs[step_cnt][2],
+#                     Tmed_c_out=med_inputs[step_cnt][3],
+#                     med_vacuum_state=med_inputs[step_cnt][4],
 
-                    Tmed_c_in=valid_input,
-                    I=valid_input,
-                    Tamb=valid_input,
-                )
+#                     Tmed_c_in=valid_input,
+#                     I=valid_input,
+#                     Tamb=valid_input,
+#                 )
 
-                # Save iteration results
-                df = generate_results(model=model, df=df, iteration_idx=iteration_idx, output_path=output_path)
+#                 # Save iteration results
+#                 df = generate_results(model=model, df=df, iteration_idx=iteration_idx, output_path=output_path)
 
-                # Validate states
-                test_state(expected_state=expected_sf_ts_states[sf_ts_idx], current_state=model.sf_ts_state)
-                test_state(expected_state=expected_med_states[step_cnt], current_state=model.med_state)
+#                 # Validate states
+#                 test_state(expected_state=expected_sf_ts_states[sf_ts_idx], current_state=model.sf_ts_state)
+#                 test_state(expected_state=expected_med_states[step_cnt], current_state=model.med_state)
 
-            except AssertionError:
-                # Some of the steps take various iterations to complete
-                logger.debug(f"Step {iteration_idx} needs to be repeated with the same inputs for the MED FSM, expected state: {expected_med_states[step_cnt]}, got {model.med_state}")
-                iteration_idx += 1
-            else:
+#             except AssertionError:
+#                 # Some of the steps take various iterations to complete
+#                 logger.debug(f"Step {iteration_idx} needs to be repeated with the same inputs for the MED FSM, expected state: {expected_med_states[step_cnt]}, got {model.med_state}")
+#                 iteration_idx += 1
+#             else:
 
-                logger.debug(f"Step {step_cnt+1} completed successfully")
+#                 logger.debug(f"Step {step_cnt+1} completed successfully")
 
-                iteration_idx += 1 # Index for SF-TS cycle increases every iteration
-                step_cnt += 1 # Index for MED cycle increases only when the state change is completed
+#                 iteration_idx += 1 # Index for SF-TS cycle increases every iteration
+#                 step_cnt += 1 # Index for MED cycle increases only when the state change is completed
 
-            if iteration_idx > 100:
-                raise RuntimeError("Ow Jeez, those are too many iterations, check the inputs and expected states, they are provoking an infinite loop.")
+#             if iteration_idx > 100:
+#                 raise RuntimeError("Ow Jeez, those are too many iterations, check the inputs and expected states, they are provoking an infinite loop.")
 
 
-            # Exit condition
-            if step_cnt >= len(expected_med_states):
-                exit_flag = True
+#             # Exit condition
+#             if step_cnt >= len(expected_med_states):
+#                 exit_flag = True
 
-    return df
+#     return df
