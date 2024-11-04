@@ -18,29 +18,7 @@ from solarmed_modeling.solar_med import SolarMED
 valid_input: float = 1.0
 invalid_input: float = 0.0
 
-def convert_to(
-    state: str | int | Enum, 
-    state_cls: SupportedSystemsStatesType, 
-    return_format: Literal["enum", "name", "value"] = "enum"
-) -> Enum | str | int:
-    
-    if isinstance(state, str):
-        output = getattr(state_cls, state) 
-    elif isinstance(state, int):
-        output = state_cls(state)
-    elif isinstance(state, Enum):
-        output = state
-    else:
-        raise ValueError(f"`state` should be either a str or an int, not {type(state)}")
-    
-    if return_format == "enum":
-        return output
-    elif return_format == "name":
-        return output.name
-    elif return_format == "value":
-        return output.value
-    else:
-        raise ValueError(f"`return_format` should be one of enum, str or int. Not {return_format}")
+
 
 
 SupportedStateTypes = MedState | SfTsState

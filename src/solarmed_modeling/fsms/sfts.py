@@ -36,21 +36,33 @@ class FsmParameters:
     shutdown_conditions: FsmShutdownConditions = field(default_factory=lambda: FsmShutdownConditions())
 
     
-def get_sfts_state(sf_state: int | SolarFieldState, ts_state: int | ThermalStorageState) -> SfTsState:
+def get_sfts_state(sf_state: int | SolarFieldState | str, ts_state: int | ThermalStorageState | str,
+                   return_format: Literal["name", "value", "enum"] = "enum") -> SfTsState | str | int:
     
     if isinstance(sf_state, int):
         sf_state = SolarFieldState(sf_state)
+    elif isinstance(sf_state, str):
+        sf_state = SolarFieldState[sf_state]
     if isinstance(ts_state, int):
         ts_state = ThermalStorageState(ts_state)
+    elif isinstance(ts_state, str):
+        ts_state = ThermalStorageState[ts_state]
     
     if sf_state == SolarFieldState.IDLE and ts_state == ThermalStorageState.IDLE:
-        return SfTsState.IDLE
+        output = SfTsState.IDLE
     elif sf_state == SolarFieldState.ACTIVE and ts_state == ThermalStorageState.IDLE:
-        return SfTsState.HEATING_UP_SF
+        output = SfTsState.HEATING_UP_SF
     elif sf_state == SolarFieldState.IDLE and ts_state == ThermalStorageState.ACTIVE:
-        return SfTsState.RECIRCULATING_TS
+        output = SfTsState.RECIRCULATING_TS
     else:
-        return SfTsState.SF_HEATING_TS
+        output = SfTsState.SF_HEATING_TS
+        
+    if return_format == "enum":
+        return output
+    elif return_format == "value":
+        return output.value
+    elif return_format == "name":
+        return output.name
     
 def get_sf_ts_individual_states(sfts_state: int | SfTsState | str, 
                                 return_format = Literal["enum", "value", "name"]) -> tuple[SolarFieldState | str | int, ThermalStorageState | str | int]:
