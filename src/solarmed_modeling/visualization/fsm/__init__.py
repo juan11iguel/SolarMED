@@ -9,9 +9,10 @@ from solarmed_modeling.fsms import (MedState,
                                     SolarMedState, 
                                     SolarMedState_with_value)
 from solarmed_modeling.fsms.utils import (SupportedSubsystemsStatesMapping,
+                                          SupportedSubsystemsLiteral,
                                           SupportedSubsystemsFsmsMapping,
-                                          SupportedSubsystemsLiteral)
-
+                                          SupportedSystemsStatesMapping,
+                                          SupportedSystemsLiteral)
 
 class Node(BaseModel):
     """
@@ -236,8 +237,8 @@ def generate_edges_coordinates(nodes_df: pd.DataFrame, edges_df: pd.DataFrame) -
         edges_df.loc[idx, 'y_pos_dst'] = dst_node['y_pos'] + increment
         
 
-def generate_nodes_df(n_horizon: int, system: SupportedSubsystemsLiteral) -> pd.DataFrame:
-    states_enum: Enum = getattr(SupportedSubsystemsStatesMapping, system).value
+def generate_nodes_df(n_horizon: int, system: SupportedSystemsLiteral) -> pd.DataFrame:
+    states_enum: Enum = SupportedSystemsStatesMapping[system].value
     
     nodes_df = pd.DataFrame([
         Node(step_idx=step_idx, state=state).model_dump()

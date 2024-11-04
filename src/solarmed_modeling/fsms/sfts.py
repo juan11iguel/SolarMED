@@ -48,11 +48,11 @@ def get_sfts_state(sf_state: int | SolarFieldState | str, ts_state: int | Therma
     elif isinstance(ts_state, str):
         ts_state = ThermalStorageState[ts_state]
     
-    if sf_state == SolarFieldState.IDLE and ts_state == ThermalStorageState.IDLE:
+    if sf_state.value == SolarFieldState.IDLE.value and ts_state.value == ThermalStorageState.IDLE.value:
         output = SfTsState.IDLE
-    elif sf_state == SolarFieldState.ACTIVE and ts_state == ThermalStorageState.IDLE:
+    elif sf_state.value == SolarFieldState.ACTIVE.value and ts_state.value == ThermalStorageState.IDLE.value:
         output = SfTsState.HEATING_UP_SF
-    elif sf_state == SolarFieldState.IDLE and ts_state == ThermalStorageState.ACTIVE:
+    elif sf_state.value == SolarFieldState.IDLE.value and ts_state.value == ThermalStorageState.ACTIVE.value:
         output = SfTsState.RECIRCULATING_TS
     else:
         output = SfTsState.SF_HEATING_TS
@@ -64,25 +64,26 @@ def get_sfts_state(sf_state: int | SolarFieldState | str, ts_state: int | Therma
     elif return_format == "name":
         return output.name
     
-def get_sf_ts_individual_states(sfts_state: int | SfTsState | str, 
-                                return_format = Literal["enum", "value", "name"]) -> tuple[SolarFieldState | str | int, ThermalStorageState | str | int]:
+def get_sf_ts_individual_states(
+    sfts_state: int | SfTsState | str, 
+    return_format = Literal["enum", "value", "name"]
+) -> tuple[SolarFieldState | str | int, ThermalStorageState | str | int]:
     
     if isinstance(sfts_state, int):
         sfts_state = SfTsState(sfts_state)
     elif isinstance(sfts_state, str):
         sfts_state = SfTsState[sfts_state]
     
-    if sfts_state == SfTsState.IDLE:
+    if sfts_state.value == SfTsState.IDLE.value:
         output = ( SolarFieldState.IDLE, ThermalStorageState.IDLE )
-    
-    elif sfts_state == SfTsState.HEATING_UP_SF:
+    elif sfts_state.value == SfTsState.HEATING_UP_SF.value:
         output = ( SolarFieldState.ACTIVE, ThermalStorageState.IDLE )
-    
-    elif sfts_state == SfTsState.SF_HEATING_TS:
+    elif sfts_state.value == SfTsState.SF_HEATING_TS.value:
         output = ( SolarFieldState.ACTIVE, ThermalStorageState.ACTIVE )
-    
-    elif sfts_state == SfTsState.RECIRCULATING_TS:
+    elif sfts_state.value == SfTsState.RECIRCULATING_TS.value:
         output = ( SolarFieldState.IDLE, ThermalStorageState.ACTIVE )
+    else:
+        raise ValueError(f"Invalid SfTsState: {sfts_state}")
         
     if return_format == "enum":
         return output
