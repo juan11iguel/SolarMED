@@ -5,14 +5,6 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, model_validator
 from loguru import logger
 
-
-from solarmed_modeling import SupportedStatesType, MedState
-
-
-def convert_to_state(state: str, state_cls: SupportedStatesType = MedState) -> SupportedStatesType:
-    return getattr(state_cls, state)
-
-
 class EnvVarsSolarMED(BaseModel):
     """
     Simple class to make sure that the required environment variables are passed

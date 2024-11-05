@@ -13,3 +13,9 @@ def timer_decorator(func):
         logger.info(f"Function {func.__name__} took {(end_time - start_time):.2f} seconds to run. Evaluated initial states {initial_states} for {max_step_idx} steps")
         return result
     return wrapper
+
+def get_nested_attr(d, attr):
+        keys = attr.split('.')
+        for key in keys:
+            d = d.get(key, None)
+        return d

@@ -1,13 +1,22 @@
+import warnings
+
+warnings.warn(
+    "The module 'solarmed_optimization.path_exploration' is deprecated since ti was moved to solarmed_modeling and will be removed in a future version.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+
 from typing import Literal
-import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict
 
-from solarmed_modeling import MedState, SF_TS_State, SolarMED_State, SolarMedState_with_value, SfTsState_with_value
-from solarmed_modeling.fsms import SolarFieldWithThermalStorage_FSM, MedFSM
+from solarmed_modeling import MedState, SfTsState, SolarMedState, SolarMedState_with_value, SfTsState_with_value
+from solarmed_modeling.fsms import SolarFieldWithThermalStorageFsm, MedFSM
+import warnings
 
-SupportedStates = MedState | SF_TS_State | SolarMED_State
-SupportedFSMs = MedFSM | SolarFieldWithThermalStorage_FSM
+SupportedStates = MedState | SfTsState | SolarMedState
+SupportedFSMs = MedFSM | SolarFieldWithThermalStorageFsm
 
 class Node(BaseModel):
     """
@@ -33,9 +42,9 @@ class Node(BaseModel):
         self.state_name = self.state.name
         self.x_pos = self.step_idx
 
-        if isinstance(self.state, SolarMED_State):
+        if isinstance(self.state, SolarMedState):
             self.y_pos = getattr(SolarMedState_with_value, self.state.name).value
-        elif isinstance(self.state, SF_TS_State):
+        elif isinstance(self.state, SfTsState):
             self.y_pos = getattr(SfTsState_with_value, self.state.name).value
         else:
             self.y_pos = float(self.state.value)
@@ -88,15 +97,16 @@ def generate_edges(result_list: list[dict], step_idx: int, system: Literal['MED'
     )
 
     if system.lower() == 'sfts':
-        states = [state for state in SF_TS_State]
-        machine_cls = SolarFieldWithThermalStorage_FSM
-        state_cls = SF_TS_State
+        states = [state for state in SfTsState]
+        machine_cls = SolarFieldWithThermalStorageFsm
+        state_cls = SfTsState
 
     elif system.lower() == 'med':
         states = [state for state in MedState]
         machine_cls = MedFSM
         state_cls = MedState
 
+        # TODO: This can't be hardcoded
         machine_init_args.update(
             vacuum_duration_time=5,
             brine_emptying_time=2,
