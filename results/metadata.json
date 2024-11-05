@@ -1,0 +1,146 @@
+{
+    "SFTS": [
+        {
+            "n_horizon": 3,
+            "computation_time": 0.10992002487182617,
+            "n_paths": 23,
+            "n_paths_per_initial_state": {
+                "IDLE": 8,
+                "HEATING_UP_SF": 6,
+                "SF_HEATING_TS": 6,
+                "RECIRCULATING_TS": 3
+            },
+            "parameters": {
+                "sample_time": 1
+            },
+            "file_id": "sfts_n_3_76b1cce6-c6f9-431f-8c56-d4caef66fc51.csv"
+        },
+        {
+            "n_horizon": 5,
+            "computation_time": 0.23445868492126465,
+            "n_paths": 179,
+            "n_paths_per_initial_state": {
+                "IDLE": 61,
+                "HEATING_UP_SF": 48,
+                "SF_HEATING_TS": 48,
+                "RECIRCULATING_TS": 22
+            },
+            "parameters": {
+                "sample_time": 1
+            },
+            "file_id": "sfts_n_5_f5314c24-1a9d-4bcc-9f8d-a5561d092b70.csv"
+        },
+        {
+            "n_horizon": 8,
+            "computation_time": 3.3911304473876953,
+            "n_paths": 3930,
+            "n_paths_per_initial_state": {
+                "IDLE": 1329,
+                "HEATING_UP_SF": 1063,
+                "SF_HEATING_TS": 1063,
+                "RECIRCULATING_TS": 475
+            },
+            "parameters": {
+                "sample_time": 1
+            },
+            "file_id": "sfts_n_8_f1f8b36a-bf6b-4e3d-b0ea-6887001b8fe1.csv"
+        },
+        {
+            "n_horizon": 10,
+            "computation_time": 26.3768310546875,
+            "n_paths": 30847,
+            "n_paths_per_initial_state": {
+                "IDLE": 10422,
+                "HEATING_UP_SF": 8352,
+                "SF_HEATING_TS": 8352,
+                "RECIRCULATING_TS": 3721
+            },
+            "parameters": {
+                "sample_time": 1
+            },
+            "file_id": "sfts_n_10_20f2505f-fd0d-468e-9a91-e5e7b963002e.csv"
+        }
+    ],
+    "MED": [
+        {
+            "n_horizon": 3,
+            "computation_time": 0.10865449905395508,
+            "n_paths": 21,
+            "n_paths_per_initial_state": {
+                "OFF": 3,
+                "GENERATING_VACUUM": 1,
+                "IDLE": 6,
+                "STARTING_UP": 4,
+                "SHUTTING_DOWN": 5,
+                "ACTIVE": 2
+            },
+            "parameters": {
+                "sample_time": 1,
+                "vacuum_duration_time": 3,
+                "brine_emptying_time": 1,
+                "startup_duration_time": 1
+            },
+            "file_id": "med_n_3_25bbe70c-e3a2-4b39-9343-e7e966f70417.csv"
+        },
+        {
+            "n_horizon": 5,
+            "computation_time": 0.19383573532104492,
+            "n_paths": 68,
+            "n_paths_per_initial_state": {
+                "OFF": 5,
+                "GENERATING_VACUUM": 3,
+                "IDLE": 19,
+                "STARTING_UP": 17,
+                "SHUTTING_DOWN": 15,
+                "ACTIVE": 9
+            },
+            "parameters": {
+                "sample_time": 1,
+                "vacuum_duration_time": 3,
+                "brine_emptying_time": 1,
+                "startup_duration_time": 1
+            },
+            "file_id": "med_n_5_53a42de5-a30d-420e-abac-28b586c7d09a.csv"
+        },
+        {
+            "n_horizon": 8,
+            "computation_time": 1.423187494277954,
+            "n_paths": 391,
+            "n_paths_per_initial_state": {
+                "OFF": 25,
+                "GENERATING_VACUUM": 21,
+                "IDLE": 106,
+                "STARTING_UP": 125,
+                "SHUTTING_DOWN": 73,
+                "ACTIVE": 41
+            },
+            "parameters": {
+                "sample_time": 1,
+                "vacuum_duration_time": 3,
+                "brine_emptying_time": 1,
+                "startup_duration_time": 1
+            },
+            "file_id": "med_n_8_83aa6d15-265c-4fe3-b6f6-2eeb3838119d.csv"
+        },
+        {
+            "n_horizon": 10,
+            "computation_time": 6.479038953781128,
+            "n_paths": 1262,
+            "n_paths_per_initial_state": {
+                "OFF": 88,
+                "GENERATING_VACUUM": 83,
+                "IDLE": 332,
+                "STARTING_UP": 394,
+                "SHUTTING_DOWN": 234,
+                "ACTIVE": 131
+            },
+            "parameters": {
+                "sample_time": 1,
+                "vacuum_duration_time": 3,
+                "brine_emptying_time": 1,
+                "startup_duration_time": 1
+            },
+            "file_id": "med_n_10_2b61545a-e683-4430-b15c-9abf7a38a461.csv"
+        }
+    ]
+}
