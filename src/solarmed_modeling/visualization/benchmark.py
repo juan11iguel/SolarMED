@@ -90,7 +90,6 @@ def visualize_benchmark(results: list[dict[str, str | dict[str, float]]], output
             
 
         # Highlight best value by turning the respective bar to `highlight_color`
-        
         comp_operator: callable = np.max if maximize else np.min
         comp_idx_operator: callable = np.argmax if maximize else np.argmin
         data_plot = []
@@ -111,7 +110,7 @@ def visualize_benchmark(results: list[dict[str, str | dict[str, float]]], output
                 if diff > 0 and maximize or diff < 0 and not maximize:
                     best_values[plt_idx] = best_value
                     best_idxs[plt_idx] = best_idx
-                    
+
         # With best_idxs, now the colors can be updated
         for best_idx in best_idxs:
             grp_idx, plt_idx, bar_idx = best_idx

@@ -5,8 +5,8 @@ from enum import Enum
 import pandas as pd
 # import time
 
-from solarmed_modeling.fsms import (MedState, SfTsState, MedVacuumState, 
-                                    SupportedSystemsStatesType)
+from solarmed_modeling.fsms import (MedState, SfTsState, MedVacuumState,)
+from solarmed_modeling.fsms.utils import SupportedSystemsStatesType
 from solarmed_modeling.fsms.med import MedFsm
 from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm
 # from phd_visualizations import save_figure
@@ -17,9 +17,6 @@ from solarmed_modeling.solar_med import SolarMED
 
 valid_input: float = 1.0
 invalid_input: float = 0.0
-
-
-
 
 SupportedStateTypes = MedState | SfTsState
 SupportedFMSs = MedFsm | SolarFieldWithThermalStorageFsm | SolarMED
@@ -38,6 +35,9 @@ def test_state(expected_state: str | SupportedStateTypes, base_cls: SupportedFMS
     Returns:
 
     """
+    if base_cls is None:
+        assert model is not None, "At least one of base_cls or model need to be provided"
+        base_cls = model._state_type
 
     if isinstance(expected_state, str) or isinstance(current_state, str):
         if not base_cls:

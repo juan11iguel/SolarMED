@@ -1,11 +1,14 @@
+import copy
+from dataclasses import asdict, dataclass
+import inspect
 from typing import Callable, Literal, Type
 from enum import Enum
 from pathlib import Path
 
 from loguru import logger
 import numpy as np
+import pandas as pd
 from transitions.extensions import GraphMachine as Machine
-
 
 # States definition
 class SolarFieldState(Enum):
@@ -54,16 +57,24 @@ SolarMedState_with_value = Enum('SolarMedState_with_value', {
     for i, state in enumerate(SolarMedState)
 })
 
-SupportedSystemsStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMedState | SfTsState
 
-def ensure_type(expected_type: Type) -> callable:
-    def decorator(func):
-        def wrapper(self, value):
-            if not isinstance(value, expected_type):
-                return getattr(expected_type, value)
+# def ensure_type(expected_type: Type) -> callable:
+#     def decorator(func):
+#         def wrapper(self, value):
+#             if not isinstance(value, expected_type):
+#                 return getattr(expected_type, value)
 
-            return func(self, value)
-        return wrapper
+#             return func(self, value)
+#         return wrapper
+
+@dataclass
+class FsmParameters:
+    ...
+    
+@dataclass
+class FsmInternalState:
+    ...
+    
 
 class BaseFsm:
 
@@ -74,43 +85,77 @@ class BaseFsm:
     - Every input that needs to be provided in the `step` method (to move the state machine one step forward), needs to
     be gettable from the get_inputs method, either as a numpy array or a dictionary. 
     
-    For consistency during comparison to check whether values have changed or not, every input needs to be convertable 
+    - For consistency during comparison to check whether values have changed or not, every input needs to be convertable 
     to a **float**.
+    
+    - Any conditional transition that implements some counter (usually named *_elapsed_samples), should check
+    for `last_checked_sample` to be different to `current_sample` before increasing its counter. This is to avoid
+    increasing the counter more than once per step since these methods could be called multiple times in a single step.
+    
+    - If for a transition, there are two or more conditions with counters, they need to use different last_checked_sample, otherwise
+    only the first condition increase its number of elapsed samples.
     """
 
-    current_sample: int = 0
     warn_different_inputs_but_no_state_change: bool = False
-
+    _last_checked_sample: dict[str, int] = None  #  Automatically initialized in the constructor given the _cooldown_callbacks and _counter_callbacks lists
     _state_type: Enum = None  # To be defined in the child class, type of the FSM state, should be an Enum like class
-
-    def __init__(self, name: str, initial_state: str | Enum, sample_time: int):
-
+    _cooldown_callbacks: list[str] = None  # To be defined in the child class, list of methods to call at the begining of a new step (prepare_event) and registered in the last_checked_sample dict
+    _counter_callbacks: list[str] = None  # To be defined in the child class, list of methods to register in the last_checked_sample dict
+    
+    def __init__(self, sample_time: int, name: str, initial_state: str | Enum, 
+                 params: FsmParameters, internal_state: FsmInternalState, 
+                 current_sample: int = 0) -> None:
+        
+        from solarmed_modeling.fsms.utils import convert_to # Avoid circular import
+        self.convert_to = convert_to
+        
         self.name = name
         self.sample_time = sample_time
-
-        if isinstance(initial_state, str):
-            initial_state = getattr(self._state_type, initial_state)
+        self.current_sample: int = current_sample # Counter to keep track of the current sample
+        
+        # In condition functions, counters will be increased only if `last_checked_sample` is different to `current_sample`
+        # By default we only have one checker, it's up to the child class to add more if it includes
+        # multiple conditions with counters for the same transition
+        checker_ids: list[str] = []
+        if self._cooldown_callbacks is not None:
+            checker_ids += self._cooldown_callbacks
+        if self._counter_callbacks is not None:
+            checker_ids += self._counter_callbacks
+        
+        self._last_checked_sample: dict[str, int] = {checker_id: self.current_sample for checker_id in checker_ids}
+        
+        self.params: FsmParameters = copy.deepcopy(params) # Suputamadrepython
+        self.internal_state: FsmInternalState = copy.deepcopy(internal_state) # Suputamadrepython
+        self.initial_internal_state = copy.deepcopy(internal_state) # mutable?
+        initial_state = convert_to(initial_state, self._state_type, return_format='enum')
+        self.initial_state = initial_state
 
         # State machine initialization
         self.machine: Machine = Machine(
-            model=self, initial=initial_state, auto_transitions=False, show_conditions=True, show_state_attributes=True,
-            ignore_invalid_triggers=False, queued=True, send_event=True, # finalize_event=''
+            model=self, initial=initial_state, auto_transitions=False, show_conditions=True,
+            show_state_attributes=True, ignore_invalid_triggers=False, queued=True, 
+            send_event=True, # finalize_event=''
             before_state_change='inform_exit_state', after_state_change='inform_enter_state',
+            prepare_event=self._cooldown_callbacks
         )
 
+    @property
+    def state(self) -> Enum:
+        return self._state
+    
+    @state.setter
+    def state(self, value: int | Enum | str) -> None:
+        # if not isinstance(value, self._state_type):
+        #     raise ValueError("State must a {self._state_type} instance")
+        self._state = self.convert_to(value, self._state_type, return_format='enum')
+
+    def make_hissing_noises(self, event) -> None:
+        logger.debug(f"[{self.name}] Hiss hiss")
+
     def get_state(self) -> Enum:
-        return self.state if isinstance(self.state, self._state_type) else getattr(self._state_type, self.state)
+        return self.state
 
-    # @property
-    # def state(self):
-    #     return self._state
-    #
-    # @state.setter
-    # @ensure_type(type(cls.))
-    # def state(self, value):
-    #     self._state = value
-
-    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> None:
+    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> np.ndarray[float] | dict:
         """
         This base method can be used to perform validation of format, 
         but the logic to get the inputs should be implemented in the child class.
@@ -143,11 +188,10 @@ class BaseFsm:
             raise ValueError(f"Format should be either 'array' or 'dict', not {format}")
 
     def update_inputs_array(self) -> np.ndarray[float]:
+        """ Update the inputs array """
+        self.inputs_array = self.get_inputs(format='array')
 
-        # self.inputs_array = self.get_inputs(format='array')
-        # return self.inputs_array
-
-        raise NotImplementedError("This method should be implemented in the child class")
+        return self.inputs_array
 
 
     def customize_fsm_style(self) -> None:
@@ -210,6 +254,79 @@ class BaseFsm:
             return None
 
         return getattr(self, transition_trigger_id)
+    
+    def check_elapsed_samples(self, elapsed_samples: int, samples_duration: int, msg: str = None) -> tuple[bool, int]:
+        # Elapsed samples is increased only if the current sample is different 
+        # to the last checked sample, and only once per step
+        
+        caller_fn_id: str = inspect.currentframe().f_back.f_code.co_name
+        assert caller_fn_id in self._last_checked_sample.keys(), f"Function {caller_fn_id} not registered in last_checked_sample. They need to be defined in one off `_cooldown_callbacks` or `_counter_callbacks` class attributes. Check the non-existing documenation for more info."
+        
+        first_check: bool = self._last_checked_sample[caller_fn_id] != self.current_sample
+        if first_check:
+            elapsed_samples += 1
+            self._last_checked_sample[caller_fn_id] = self.current_sample
+        
+        if elapsed_samples >= samples_duration:
+            output = True
+            log_msg = f"[{self.name}] {msg if msg else 'transition'} done"
+        else:                
+            output = False
+            log_msg = f"[{self.name}] Still {msg if msg else 'performing transition'}, {elapsed_samples}/{samples_duration} to complete"
+        
+        if first_check:
+            logger.info(log_msg)
+                
+        return output, elapsed_samples
+    
+    def step(self, ) -> None:
+        """Common FSM logic here that should be extended in child classes. 
+        Here we just increase the current sample counter, and call cool down callbacks.
+        
+        The child implementation should follow this structure:
+            1. Update input attributes and call self.update_inputs_array()
+            2. Get next valid transition
+            3. Trigger the transition
+            4. Update prior inputs attribute
+            5. Update and return the dataframe if needed
+            
+        """
+        self.current_sample += 1
+        
+        # # Call cool down callbacks checkers to update the internal state
+        # for clbk in self._cooldown_callbacks:
+        #     getattr(self, clbk)()
+        
+    
+    def reset_fsm(self, *args, **kwargs) -> None:
+        """ Resets FSM to initial state and initial internal state """
+        self.current_sample = 0
+        self.state = self.initial_state
+        self.internal_state = self.initial_internal_state
+        # super().reset_fsm(*args, **kwargs) # Resets current_sample counter
+        
+        logger.info(f"[{self.name}] Resetting FSM")
+    
+    def to_dataframe(self, df: pd.DataFrame = None, states_format: Literal["enum", "value", "name"] = "enum") -> pd.DataFrame:
+
+        if df is None:
+            df = pd.DataFrame()
+            
+        assert states_format in ["enum", "value", "name"], "states_format should be either 'enum', 'value' or 'name'"
+        
+        return df
+
+    def get_internal_state_dict(self) -> dict:
+        # What to include would be better defined in a parameter,
+        # which is updated starting from a default parent class value
+        # Should we export almost all the variables that are not internal like the machine?
+        internal_state_dict = asdict(self.internal_state)
+        for key, value in internal_state_dict.items():
+            if not isinstance(value, (int, float, bool, str)):
+                internal_state_dict.pop(key)
+                
+        return internal_state_dict
+        
 
     # Auxiliary methods (to calculate associated costs depending on the state)
     def generate_graph(self, fmt :Literal['png', 'svg'] = 'svg', output_path: Path = None) -> str:

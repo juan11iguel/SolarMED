@@ -1,3 +1,5 @@
+import copy
+from dataclasses import asdict
 import numpy as np
 import pandas as pd
 import math
@@ -5,12 +7,13 @@ from enum import Enum
 from loguru import logger
 import plotly.graph_objs as go
 
-from solarmed_modeling.fsms import (SupportedSystemsStatesType, 
-                                    MedState, 
+from solarmed_modeling.fsms import (MedState, 
                                     SfTsState, 
                                     SolarMedState)
-from solarmed_modeling.fsms.utils import (SupportedSystemsLiteral,
-                                          SupportedSystemsStatesMapping)
+from solarmed_modeling.fsms.utils import SupportedSystemsStatesType, SupportedFSMTypes
+                                        # (SupportedSystemsLiteral,
+                                        # SupportedSystemsStatesMapping,)
+                                          
 from . import Node, generate_edges, generate_edges_dataframe, get_coordinates_edge
 
 
@@ -24,7 +27,8 @@ node_colors = {
 def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, system_title: str = None,
                      edges_df: pd.DataFrame | list[pd.DataFrame] = None, width=1400, height=500,
                      title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30,
-                     highligth_step: int = None) -> go.FigureWidget:
+                     highligth_step: int = None, state_col: str = None,
+                     subtitle: str = None) -> go.FigureWidget:
 
     """
 
@@ -134,7 +138,12 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             Yr_dash.append([])
 
             # TODO: Not generic, should be improved
-            state_col = 'med_state' if system_types[-1] == MedState else 'sf_ts_state'
+            if state_col is None:
+                state_col = 'med_state' if system_types[-1] == MedState else 'sf_ts_state'
+            # Chapuza para tapar chapuza
+            if state_col not in results_df.columns:
+                assert "state" in results_df, f"Neither {state_col}, nor `state` are present in the results dataframe, input a valid `state_col` with the system states"
+                state_col = "state"
 
             for idx in range(0, len(results_df)-step_size, step_size):
 
@@ -249,7 +258,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         )
 
         # for system_ in system_types_with_value:
-        ticktext += [state.name for state in system_types_with_value[-1]]
+        ticktext += [f"- {state.name}" for state in system_types_with_value[-1]]
         tickvals += [state.value + last_val for state in system_types_with_value[-1]]
 
         last_val += len(system_types_with_value[-1])
@@ -264,7 +273,9 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             hoverinfo='none',
             mode='lines+markers',
             line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
-                                            width=3, dash='solid'),
+                      width=3, dash='solid'),
+            marker=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
+                        size=16)
             # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
             #             angleref="previous"),
         )
@@ -292,6 +303,8 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                 mode='lines+markers',
                 line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[idx].__name__],
                                             width=3, dash='dash'),
+                marker=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
+                        size=16)
                 # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
                 #             angleref="previous"),
             )
@@ -318,11 +331,27 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         tickvals=np.arange(Np, step=step_size),
     )
 
+    xaxis_title = 'Samples'
+    if results_df is not None:
+        try:
+            xaxis_title =f'Samples (sample rate: {str(results_df.index.to_series().diff().mode()[0])})'
+        except Exception:
+            pass
+        
     fig.update_layout(
-        title=title,# + \
-              # f"<br> Average number of alternative paths per state {options_avg}</br>",
-        # "<br> Data source: <a href='https://networkdata.ics.uci.edu/data.php?id=11'> [1]</a>",
         font=dict(size=12),
+        title=dict(
+            text=title,
+            # + \
+            # f"<br> Average number of alternative paths per state {options_avg}</br>",
+            # "<br> Data source: <a href='https://networkdata.ics.uci.edu/data.php?id=11'> [1]</a>",
+            subtitle=dict(
+                text=subtitle if subtitle is not None else "",
+                font=dict(color="gray", size=11),
+            ),
+            x=0,
+            xanchor= 'left',
+        ),
         showlegend=False,
         autosize=False,
         width=width,
@@ -332,7 +361,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             showline=False,
             showgrid=False,
             showticklabels=True,
-            title=f'Samples (sample rate: {str(results_df.index.to_series().diff().mode()[0])})' if results_df is not None else 'Samples',
+            title=xaxis_title
         ),
         yaxis=axis_conf,
         margin=dict(
@@ -357,8 +386,15 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
     return fig
 
 
-def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: SupportedSystemsStatesType, show_edges: bool = False,
-                                 highligth_step: int = None, width: int = None, height: int = None) -> go.Figure | go.FigureWidget:
+def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: list[SupportedSystemsStatesType] = None, show_edges: bool = False,
+                                 highligth_step: int = None, width: int = None, height: int = None,
+                                 title: str = None, subtitle: str = None, model: SupportedFSMTypes = None) -> go.Figure | go.FigureWidget:
+
+    """
+        If the model instance is provided, some additional information will be added to the plot
+    """
+
+    assert not(subsystems_state_cls is None and model is None), "Either `subsystems_state_cls` or `model` should be provided"
 
     Np = len(df)
     edges_df = None
@@ -366,6 +402,12 @@ def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: Support
 
     nodes_dfs = []
     edges_df = [] if show_edges else None
+    
+    if subsystems_state_cls is None:
+        subsystems_state_cls = model._state_type
+        
+    if not isinstance(subsystems_state_cls, list):
+        subsystems_state_cls = [subsystems_state_cls]
 
     for subsystem_cls in subsystems_state_cls:
         nodes_dfs.append(pd.DataFrame([
@@ -396,6 +438,23 @@ def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: Support
     #     Node(step_idx=step_idx, state=state).model_dump()
     #     for step_idx in range(Np) for state in [state for state in MedState]
     # ])
+    
+    if model is not None:
+        params: dict = asdict(model.params)
+        init_int_sts = asdict(model.initial_internal_state)
+        params_enum = ''.join( [f"<br>{key.replace('_', ' ')}: {value}" for key, value in params.items() if isinstance(value, (int, float, bool, str))] )
+        init_int_sts_enum = ''.join([f"<br>{key.replace('_', ' ')}: {value}" for key, value in init_int_sts.items() if not isinstance(value, bool)])
+
+        # Build custom title and subtitle
+        if title is None:
+            title = f"<b>{model.name}</b> <br>State evolution from: <br>{model.initial_state.name.replace('_', ' ')}"
+        if subtitle is None:
+            subtitle = f"""<b>Parameters</b> {params_enum} <br><br><b>Initial internal conditions</b> {init_int_sts_enum}"""
+        # Build custom hover information
+        labels = [key for key, value in init_int_sts.items() if isinstance(value, (int, float, bool, str))]
+        hovertemplate = "(sample: %{x}, state: <b>%{customdata[0]}</b>) <br><br><b>Internal states</b>" 
+        hovertemplate = hovertemplate + ''.join([f"<br>{label.replace('_', ' ')}: %{{customdata[{idx+1}]}}" for idx, label in enumerate(labels)]) + "<extra></extra>"
+
 
     fig = plot_state_graph(
         nodes_df=nodes_dfs,
@@ -405,9 +464,53 @@ def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: Support
         Np=Np,
         height=800 if height is None else height,
         width=1200 if width is None else width,
-        highligth_step=highligth_step
+        highligth_step=highligth_step,
+        title=title,
+        subtitle=subtitle
     )
 
+    if model is not None:
+        fig.update_yaxes(side="right")
+        # title_x = 0.2
+        # base_title_x = 0.2
+        # base_left_margin = 220
+        # left_margin_proportion = 
+        # left_margin = title_x * 
+        fig.update_layout(
+            margin=dict(t=50, b=0, pad=1, l=220, r=20),
+            title_yanchor="top",
+            title_y=0.8,
+            title_xanchor="right",
+            title_x=0.2,
+            height=400 if height is None else height,
+            width=1000 if width is None else width,
+            hovermode='x unified',
+        )
+
+        # Add custom hover information
+        """ The hovers are not working completely, I suspect is because they are
+        being attached to the scatter of states, which may have a strange data shape, 
+        maybe to the line traces it would.
+        
+        Confirmed by changing hovermode to x, and the hover changes by changing the y value
+        and not the x.
+        
+        -> Add an invisible scatter trace to add the custom hover information"""
+        customdata = copy.deepcopy(df[["state"] + labels])
+        customdata["state"] = customdata["state"].apply(lambda x: x.name)
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=np.zeros(len(df)),
+                mode='markers',
+                marker=dict(color='rgba(0, 0, 0, 0)'),
+                hovertemplate=hovertemplate,
+                customdata=customdata.values,
+            )
+        )
+        fig.update_traces(
+            hoverinfo='none',
+            selector=(({"name": "states"}))
+        )
+
     return fig
-
-
