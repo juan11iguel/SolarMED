@@ -33,6 +33,7 @@ class FsmShutdownConditions:
     
 @dataclass
 class FsmParameters:
+    recirculating_ts_enabled: bool = True
     recirculating_ts_cooldown_time: int = 9999*3600 # Time to wait before activating state recirculating ts (seconds)
     idle_cooldown_time: int = 3 # Time to wait before activating state idle (seconds)
     
@@ -161,15 +162,17 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         st = self._state_type # alias
 
         self.machine.add_state(st.IDLE, on_enter=['stop_pumps', 'set_idle_cooldown_start'])
-        self.machine.add_state(st.RECIRCULATING_TS, on_exit=['set_recirculating_ts_cooldown_start'])
+        if self.params.recirculating_ts_enabled:
+            self.machine.add_state(st.RECIRCULATING_TS, on_exit=['set_recirculating_ts_cooldown_start'])
         self.machine.add_state(st.HEATING_UP_SF, on_enter=['stop_pump_ts'])
         self.machine.add_state(st.SF_HEATING_TS)
 
         # Transitions
-        self.machine.add_transition('start_recirculating_ts',  source=st.IDLE, dest=st.RECIRCULATING_TS, 
-                                    conditions=['is_pump_ts_on', 'is_recirculating_ts_cooldown_done', 'is_idle_cooldown_done'], unless=['is_pump_sf_on'])
-        self.machine.add_transition('stop_recirculating_ts', source=st.RECIRCULATING_TS, dest=st.IDLE, 
-                                    unless=['is_pump_ts_on'])
+        if self.params.recirculating_ts_enabled:
+            self.machine.add_transition('start_recirculating_ts',  source=st.IDLE, dest=st.RECIRCULATING_TS, 
+                                        conditions=['is_pump_ts_on', 'is_recirculating_ts_cooldown_done', 'is_idle_cooldown_done'], unless=['is_pump_sf_on'])
+            self.machine.add_transition('stop_recirculating_ts', source=st.RECIRCULATING_TS, dest=st.IDLE, 
+                                        unless=['is_pump_ts_on'])
         self.machine.add_transition('start_recirculating_sf', source=st.IDLE, dest=st.HEATING_UP_SF, 
                                     conditions=['is_pump_sf_on', 'is_idle_cooldown_done'])
         self.machine.add_transition('stop_recirculating_sf', source=st.HEATING_UP_SF, dest=st.IDLE, 
