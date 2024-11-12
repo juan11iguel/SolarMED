@@ -12,12 +12,12 @@ dependencies = [
     "pyarrow>=18.0.0",
     "pydantic>=2.9.2",
     "pygmo>=2.19.5",
-    "solarmed-modeling",
 ]
 
 [tool.uv]
 dev-dependencies = [
     "jupyter>=1.1.1",
+    "solarmed-modeling",
 ]
 
 [build-system]
