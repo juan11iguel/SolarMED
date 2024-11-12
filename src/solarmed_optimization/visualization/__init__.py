@@ -128,6 +128,7 @@ def generate_n_paths_per_initial_state_bar_plot(metadata: dict, system: str, ini
     y = []
     x = []
     facet_col = []
+    color = []
     for initial_state in initial_states[system]:
         for d in metadata[system]:
             # y.append( 
@@ -135,20 +136,21 @@ def generate_n_paths_per_initial_state_bar_plot(metadata: dict, system: str, ini
             # )
             y.append(d["n_paths_per_initial_state"][initial_state]),
             x.append(f'N={d["n_horizon"]}'),
-            facet_col.append(initial_state)
+            facet_col.append(initial_state),
+            color.append(d["alternative_id"])
 
     # Prepare data
     data = dict(
         x=x,
         y = y,
         facet_col=facet_col,
-        # 'color': alternatives,
+        color= color,
     )
     # print(data)
     # data = pd.DataFrame()
     # print(data)
 
-    fig = px.bar(data, x="x", y="y", facet_col="facet_col") # color="color", facet_col="facet_col", pattern_shape="color"
+    fig = px.bar(data, x="x", y="y", facet_col="facet_col", color="color", pattern_shape="color")
 
     # little customisations
     fig.for_each_annotation(lambda a: a.update(text=''))# remove the facet titles

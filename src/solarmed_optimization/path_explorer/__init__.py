@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from loguru import logger
 import inspect
 from enum import Enum
@@ -12,14 +13,14 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from solarmed_modeling.fsms import MedState, SfTsState
+from solarmed_modeling.fsms import MedState, SfTsState, FsmParameters
 from solarmed_modeling.fsms.med import MedFsm
 from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm
 from solarmed_optimization.utils import timer_decorator
 from .utils import export_results
 
 SupportedFSMTypes = MedFsm | SolarFieldWithThermalStorageFsm
-FSMPathType = list[Enum]
+SupportedStates = MedState | SfTsState
 
 # def generate_default_inputs(system):
 # Define expected inputs to the step method, can't think of a cleaner way to only do it once and for every option
@@ -99,8 +100,9 @@ def get_transitions_with_inputs(model: SupportedFSMTypes, prior_inputs: list | n
     return outputs
 
 
-def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, current_path: FSMPathType,
-                       all_paths: list[FSMPathType], max_step_idx: int, recursitron_cnt: int = 0) -> int:
+def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, current_path: list[SupportedStates],
+                       all_paths: list[list[SupportedStates]], max_step_idx: int, recursitron_cnt: int = 0,
+                       current_valid_inputs: list[list[float]] = None, valid_inputs: list[list[list[float]]] = None) -> int | bool:
     """
     Recursive function that generates all possible paths for a given instance of the machine starting from its current state.
     It will explore every possible path from the current state up to a final state defined by the prediction horizon (`max_step_idx`). Then it will
@@ -110,7 +112,7 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
     :param machines: instances of the machine with different states
     :param current_state: current state of the machine
     :param current_path: current path from the initial state to the current state
-    :param all_paths: list of all possible paths
+    :param all_paths: list of all possible paths, this is the actual "output" of the function
     :param max_step_idx: prediction horizon
     :param current_step_idx: current step index
     :return:
@@ -118,12 +120,12 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
 
     if len(current_path) == 0 and recursitron_cnt > max_step_idx:
         # Exit
-
         logger.info(f"Path exploration completed for initial state {current_state}")
         return True
 
     current_path.append(current_state)
     machines.append(copy.deepcopy(machines[-1]))  # Create a copy from the machine before starting a new path
+    # if current_valid_inputs is not None: current_valid_inputs.append(machines[-1].get_inputs(format='array'))
 
     logger.info(
         f"Hello, this is recursitron {recursitron_cnt:03d}, current state is: {current_state}, current step: {len(current_path) - 1} and we are {len(machines)} machines deep with samples {[machine.current_sample for machine in machines]}")
@@ -136,8 +138,14 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
     # If the current state is a final state, add the current path to all_paths
     if len(current_path) >= max_step_idx:
         all_paths.append(list(current_path))  # Make a copy of current_path
+        if valid_inputs is not None:
+            current_path_inputs = [np.nan_to_num(machines[machine_idx].get_inputs(format="array"), nan=0.0) for machine_idx in range(len(machines)-1)]
+            
+            valid_inputs.append( current_path_inputs )
+        # if valid_inputs is not None: valid_inputs.append(list(current_valid_inputs))
 
         current_path.pop()
+        # if current_valid_inputs is not None: current_valid_inputs.pop()
         machine_sample = machines[-1].current_sample
         machines.pop()  # Remove the current machine from the list of machines, to effectively go back one step
         machines[-1] = copy.deepcopy(machines[-2])  # Make sure we start the next path from the machine
@@ -157,8 +165,10 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
             raise e
 
         next_state = machines[-1].get_state()
-        recursitron_cnt = generate_all_paths(machines, next_state, current_path, all_paths, max_step_idx,
-                                             recursitron_cnt)
+        recursitron_cnt = generate_all_paths(machines=machines, current_state=next_state, 
+                                             current_path=current_path, all_paths=all_paths, 
+                                             max_step_idx=max_step_idx, recursitron_cnt=recursitron_cnt,
+                                             valid_inputs=valid_inputs)
 
     if recursitron_cnt == True:
         return True
@@ -175,72 +185,149 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
         # Remove the current state from the current path after exploring all paths from it, unless it's succeeding a final state
         current_path.pop()
 
+
     return recursitron_cnt
 
 
 def worker(args):
-    machine_cls, machine_init_args, max_step_idx, initial_state = args
-    machines = [machine_cls(**machine_init_args, initial_state=initial_state)]
+    machine_cls, machine_init_args, max_step_idx, fsm_params, initial_state, include_valid_inputs = args
+    machines = [machine_cls(**machine_init_args, initial_state=initial_state, params=fsm_params)]
+    
     all_paths = []
-    generate_all_paths(machines, initial_state, [], all_paths, max_step_idx, 0)
+    valid_inputs = None
+    if include_valid_inputs:
+        valid_inputs = []
+    generate_all_paths(machines=machines, current_state=initial_state, 
+                       current_path=[], all_paths=all_paths, 
+                       valid_inputs=valid_inputs,
+                       max_step_idx=max_step_idx, recursitron_cnt=0)
     logger.info(f"Completed paths search (Deep First Search - DFS) for initial state {initial_state}, in total {len(all_paths)} paths were found")
 
+    if include_valid_inputs:
+        return all_paths, valid_inputs
     return all_paths
 
 @timer_decorator
 def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_step_idx: int,
-                  initial_states: list[Enum] = None, use_parallel: bool = False,
-                  filter_duplicates: bool = True, 
+                  fsm_params: FsmParameters, initial_states: list[SupportedStates] = None, 
+                  use_parallel: bool = False, filter_duplicates: bool = True, 
                   save_results: bool = False, output_path: Path = None,
-                  ) -> list[list[str]]:
+                  id: str = None, include_valid_inputs: bool = False
+                  ) -> list[list[str]] | tuple[list[list[str]], list[list[list[float]]]]:
+    
+    """Function that generates all possible paths for a given system and its parameters. 
+    The function will explore every possible path from the `initial_states` list up to a 
+    final state defined by the prediction horizon (`max_step_idx`).
+    - If `use_parallel` is enabled, the function will use the multiprocessing module to
+    parallelize the search for paths. 
+    - The results can be saved to a file if `save_results` is enabled.
+    - If `include_valid_inputs` is enabled, the function will also return the valid inputs that allow the machine to 
+    transition to the next state.
+    - If an `id` is provided, the results will be saved to a file with including an `alternative_id` field.
+
+    Args:
+        system (Literal["MED", "SFTS"]): System to evaluate
+        machine_init_args (dict): FSM class initialization arguments, usually just the `sample_time`
+        max_step_idx (int): Prediction horizon
+        fsm_params (FsmParameters): A dataclass containing the parameters for the FSM
+        initial_states (list[SupportedStates], optional): List of initial states to start the path exploration from. 
+        Defaults to automatically extracting all possible states for the machine.
+        use_parallel (bool, optional): Whether to use parallel processing for path exploration. Defaults to False.
+        filter_duplicates (bool, optional): Whether to filter out duplicate paths. Defaults to True.
+        save_results (bool, optional): Whether to save the results to a file. Defaults to False.
+        output_path (Path, optional): Path to save the results if `save_results` is enabled. Defaults to None.
+        id (str, optional): Identifier to include in the saved results file. Defaults to None.
+        include_valid_inputs (bool, optional): Whether to include valid inputs in the results. Defaults to False.
+
+    Raises:
+        NotImplementedError: If the system is not supported.
+
+    Returns:
+        list[list[str]] | tuple[list[list[str]], list[list[list[float]]]]: List of paths or tuple of paths and valid inputs.
+    """
 
     # Validation
     assert save_results and output_path is not None, "If `save_results` is enabled, a valid output_path needs to be provided"
+    valid_inputs: list[list[list[float]]] = None
 
     start_time = time.time()
 
     if system == 'MED':
-        machine_cls = MedFsm
-        state_cls = MedState
-
+        machine_cls: SupportedFSMTypes = MedFsm
+        state_cls: SupportedStates = MedState
     elif system == 'SFTS':
-        machine_cls = SolarFieldWithThermalStorageFsm
-        state_cls = SfTsState
-
+        machine_cls: SupportedFSMTypes = SolarFieldWithThermalStorageFsm
+        state_cls: SupportedStates = SfTsState
     else:
         raise NotImplementedError(f'Unsupported system {system}')
 
     # Define the possible initial states
     if not initial_states:
         initial_states = [state for state in state_cls]
-        # initial_states = [MedState.IDLE]
 
     if not use_parallel:
         all_paths = []
+        valid_inputs = None
+        if include_valid_inputs:
+            valid_inputs = []
+            
         for initial_state in initial_states:
 
             # The machines are re-initialized for every initial state
-            machines = [machine_cls(**machine_init_args, initial_state=initial_state)]
+            machines = [machine_cls(**machine_init_args, params=fsm_params, initial_state=initial_state)]
 
-            generate_all_paths(machines, initial_state, [], all_paths, max_step_idx, 0)
+            generate_all_paths(machines=machines, current_state=initial_state, 
+                               current_path=[], all_paths=all_paths, 
+                               valid_inputs=valid_inputs, 
+                               max_step_idx=max_step_idx, recursitron_cnt=0)
             logger.info(f"Completed paths search (Deep first search?) for initial state {initial_state}, in total {len(all_paths)} paths were found")
 
     else:
         with Pool() as p:
-            all_paths = p.map(
+            output = p.map(
                 worker,
-                [(machine_cls, machine_init_args, max_step_idx, initial_state) for initial_state in initial_states]
+                [(machine_cls, machine_init_args, max_step_idx, fsm_params, initial_state, include_valid_inputs) for initial_state in initial_states]
             )
+            
+            if include_valid_inputs:
+                all_paths, valid_inputs = zip(*output)
+                # Flatten the list of lists
+                valid_inputs = [inputs for inputs_list in valid_inputs for inputs in inputs_list]
+            else:
+                all_paths = output
 
             # Flatten the list of lists
             all_paths = [path for paths in all_paths for path in paths]
 
+    # if filter_duplicates:
+    #     # Filter out duplicates using sets
+    #     original_size = len(all_paths)
+    #     set_of_tuples = set(tuple(x) for x in all_paths)
+    #     all_paths = [list(x) for x in set_of_tuples]
+        
     if filter_duplicates:
-        # Filter out duplicates using sets
+        
         original_size = len(all_paths)
-        set_of_tuples = set(tuple(x) for x in all_paths)
-        all_paths = [list(x) for x in set_of_tuples]
+        if not include_valid_inputs:
+            # Filter out duplicates using sets
+            set_of_tuples = set(tuple(x) for x in all_paths)
+            all_paths = [list(x) for x in set_of_tuples]
+        
+        else:
+            # Step 1: Use a set for unique paths and track indices to keep
+            unique_paths = set()
+            indices_to_keep = []
 
+            for idx, path in enumerate(all_paths):
+                path_tuple = tuple(path)
+                if path_tuple not in unique_paths:
+                    unique_paths.add(path_tuple)
+                    indices_to_keep.append(idx)  # Track index of unique item
+
+            # Step 2: Filter all_paths and valid_inputs based on indices to keep
+            all_paths = [all_paths[i] for i in indices_to_keep]
+            valid_inputs = [valid_inputs[i] for i in indices_to_keep]
+            
         logger.info(f"Removed {original_size - len(all_paths)} duplicate paths from the results")
 
     logger.info(f"Total number of paths found using a Deep First Search algorithm: {len(all_paths)}")
@@ -248,8 +335,15 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
     computation_time: float = time.time() - start_time
 
     if save_results:
-        export_results(paths=all_paths, output_path=output_path, system=system, params=machine_init_args, computation_time=computation_time)
+        export_results(paths=all_paths, output_path=output_path, system=system, 
+                       params={**machine_init_args, **asdict(fsm_params)}, 
+                       computation_time=computation_time, id=id,
+                       valid_inputs=valid_inputs)
 
+
+    if include_valid_inputs:
+        return all_paths, valid_inputs
+    
     return all_paths
 
 

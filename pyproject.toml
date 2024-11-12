@@ -9,6 +9,7 @@ dependencies = [
     "lxml>=5.3.0",
     "pandas>=2.2.2",
     "phd-visualizations",
+    "pyarrow>=18.0.0",
     "pydantic>=2.9.2",
     "pygmo>=2.19.5",
     "solarmed-modeling",
