@@ -1,8 +1,45 @@
 
 
 ---
-Generated at 2024-04-04 17:39
+Generated at 2024-05-09 14:58
 Sample rate: 30s
+
+Model parameters:
+`lims_mts_src`: `(0.95, 20)`
+`lims_msf`: `(4.7, 14)`
+`lims_mmed_s`: `(30, 48)`
+`lims_mmed_f`: `(5, 9)`
+`lims_mmed_c`: `(8, 21)`
+`lims_Tmed_s_in`: `(60, 75)`
+`lims_Tsf_out`: `(65, 120.0)`
+`lims_T_hot`: `(0, 120.0)`
+`use_models`: `True`
+`use_finite_state_machine`: `False`
+`sample_time`: `30.0`
+`resolution_mode`: `simple`
+`vacuum_duration_time`: `300`
+`brine_emptying_time`: `180`
+`startup_duration_time`: `60`
+`med_actuators`: `[{'id': 'med_brine_pump', 'coefficients': [0.010371467694486103, -0.025160600483389525, 0.03393870518526908]}, {'id': 'med_feed_pump', 'coefficients': [0.7035299527191431, -0.09466303549610014, 0.019077706335712326]}, {'id': 'med_distillate_pump', 'coefficients': [4.149635559273511, -3.6572156762250954, 0.9484207971761789]}, {'id': 'med_cooling_pump', 'coefficients': [5.2178993694785625, -0.9238542100009888, 0.056680794931454774]}, {'id': 'med_heatsource_pump', 'coefficients': [0.031175213554380448, -0.01857544733009508, 0.0013320144040346285]}]`
+`ts_actuators`: `[{'id': 'ts_src_pump', 'coefficients': [0.0, 0.0, 0.0, 0.0, 0.0]}]`
+`UAts_h`: `[0.0069818, 0.00584034, 0.03041486]`
+`UAts_c`: `[0.01396848, 0.0001, 0.02286885]`
+`Vts_h`: `[5.94771006, 4.87661781, 2.19737023]`
+`Vts_c`: `[5.33410037, 7.56470594, 0.90547187]`
+`sf_actuators`: `[{'id': 'sf_pump', 'coefficients': [0.0, 0.0, 0.0, 0.0, 0.0]}]`
+`beta_sf`: `0.0436396`
+`H_sf`: `13.676448551722462`
+`gamma_sf`: `0.1`
+`filter_sf`: `0.1`
+`nt_sf`: `1`
+`np_sf`: `35`
+`ns_sf`: `2`
+`Lt_sf`: `23.0`
+`Acs_sf`: `7.85e-05`
+`Kp_sf`: `-0.1`
+`Ki_sf`: `-0.01`
+`UA_hx`: `13536.596`
+`H_hx`: `0`
 
 ---
 
@@ -131,10 +168,15 @@ More detailed information about the model can be found in the [model documentati
 
 More detailed information about the model can be found in the [model documentation](../../models/complete_system.md).
 
-- Parameters
-
 (For some reason the static image generation is broken, but the interactive version is displayed correctly)
 
 [Interactive version](attachments/20230628_solarMED_validation.html)
 ![solar MED validation](attachments/20230628_solarMED_validation.svg)
+
+### State evolution
+
+Result of Finiste State Machines (FSMs) evaluation:
+
+[Interactive version](attachments/20230628_solarMED_FSMs.html)
+![solar MED FSMs](attachments/20230628_solarMED_FSMs.svg)
 

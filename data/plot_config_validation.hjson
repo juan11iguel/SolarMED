@@ -36,20 +36,20 @@
     # Global legends
     "global_legend": { # Name it as you want
         "title": "Optimization layer",
-        "bgcolor": "bg_blue_rgb",
+        "bgcolor": "bg_blue",
         "x": 0.9,
         "y": 0.8,
     },
     // "legend_control": {
     //     "title": "Control layer",
-    //     "bgcolor": "bg_gray_rgb",
+    //     "bgcolor": "bg_gray",
     //     "x": 0.9,
     //     "y": 0.1,
     // },
 
     # Plot legends, need to be named as the plot they belong to
     // "temperatures_dc_cv": {
-    //     "bgcolor": "bg_gray_rgb",
+    //     "bgcolor": "bg_gray",
     // },
 
   },
@@ -150,7 +150,7 @@
       
 
           {
-            var_id: "B",
+            var_id: "benefit",
             name: "B (u.m.)",
             mode: "lines",
             color: "dc_green", # gray
@@ -202,7 +202,7 @@
       # Plotted between this plot and the next one
       show_active: true,
       active_var_id: "sf_active",
-      active_color: "plotly_yellow_rgb", # Needs to end with _rgb
+      active_color: "plotly_yellow", # Needs to end with 
 
 
       traces_left: [
@@ -311,20 +311,20 @@
     
         traces_left: [
             {
-            var_id: "Phx_p",
-            name: "P<sub>hx,p</sub>",
+            var_id: "Pth_hx_p",
+            name: "P<sub>th,hx,p</sub>",
             mode: "lines",
             color: "plotly_red",
             width: 3,
-            fill_between: "Phx_s", # Traces to plot fill between need to be defined next to each other
+            fill_between: "Pth_hx_s", # Traces to plot fill between need to be defined next to each other
             },
             {
-            var_id: "Phx_s",
-            name: "P<sub>hx,s</sub>",
+            var_id: "Pth_hx_s",
+            name: "P<sub>th,hx,s</sub>",
             mode: "lines",
             color: "plotly_blue", # Should never be greater than Phx_p, but define a color anyway
             width: 3,
-            fill_between: "Phx_p", # Traces to plot fill between need to be defined next to each other
+            fill_between: "Pth_hx_p", # Traces to plot fill between need to be defined next to each other
             },
         ]
     },
@@ -383,11 +383,21 @@
           width: 3,
         },
         {
+          "var_id": "qts_dis_original",
+          "name": "q<sub>ts,dis,measured</sub>",
+          "color": "plotly_blue", "width": 1.5, "dash": "dash"
+        },
+        {
           var_id: "qts_src", //"qts_src",
           name: "q<sub>ts,src</sub>"
           mode: "lines",
           color: "plotly_red",
           width: 3,
+        },
+        {
+          "var_id": "qts_src_original", #"qts_src",
+          "name": "q<sub>ts,src,measured</sub>",
+          "color": "plotly_red", "dash": "dash", "width": 1.5,
         },
       ],
 
@@ -425,20 +435,20 @@
           "traces_left": [
             # Make this a filled trace between source and discharge, where the color is red when there is more discharge than recharge, and green otherwise
             {
-              "var_id": "Pts_src",
-              "name": "P<sub>ts,src</sub>",
+              "var_id": "Pth_ts_src",
+              "name": "P<sub>th,ts,src</sub>",
               "mode": "lines",
               "color": "plotly_yellow",
               "width": 3,
-              "fill_between": "Pts_dis", # Traces to plot fill between need to be defined next to each other
+              "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
             },
             {
-              "var_id": "Pts_dis",
+              "var_id": "Pth_ts_dis",
               "name": "P<sub>ts,dis</sub>",
               "mode": "lines",
               "color": "wct_purple",
               "width": 3,
-              "fill_between": "Pts_src", # Traces to plot fill between need to be defined next to each other
+              "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
             },
           ]
         },
@@ -456,94 +466,94 @@
             # Hot tank
             {"var_id": "Tts_h_t", "mode": "lines", "color": "plotly_red", "width": 3,},
            
-            # To MED
+            # From solar field
             {"var_id": "Tts_h_in", "mode": "markers", "color": "plotly_yellow", "width": 3, "opacity": 0.5,
               "conditional":{ "var_id": "qts_src", "operator": ">", "threshold_value": 1,}
             },
-    
-            # From solar field
+
+            # To MED
             {"var_id": "Tts_h_out", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
               "conditional":{ "var_id": "qts_dis", "operator": ">", "threshold_value": 1,}
             },        
           ]
         },
           
-        "temperatures_hot_med": {
-          "row_height": 0.33,
-          "title": "Temperature, Hot - medium",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-          "tight_vertical_spacing": True,
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_h_m", "mode": "lines", "color": "plotly_red", "width": 3,},
-          ]
-        },
-    
-        "temperatures_hot_bottom": {
-          "row_height": 0.33,
-          "title": "Temperature, Hot - bottom",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_h_b", "mode": "lines", "color": "plotly_red", "width": 3,},
-          ]
-        },
-          
-    
-        "temperatures_cold_top": {
-          "row_height": 0.33,
-          "title": "Temperature, Cold - top",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-          "tight_vertical_spacing": True,
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_c_t", "mode": "lines", "color": "plotly_blue", "width": 3,},
-          ]
-        },
-    
-        "temperatures_cold_med": {
-          "row_height": 0.33,
-          "title": "Temperature, Cold - Medium",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-          "tight_vertical_spacing": True,
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_c_m", "mode": "lines", "color": "plotly_blue", "width": 3,},
-          ]
-        },
-          
-        "temperatures_cold_bottom": {
-          "row_height": 0.33,
-          "title": "Temperature, Cold - bottom",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": 'manual',
-    
-          "traces_left": [
-            {"var_id": "Tts_c_b", "mode": "lines", "color": "plotly_blue", "width": 3,},
-            # From MED
-            {"var_id": "Tts_c_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
-              "conditional":{ "var_id": "qts_dis", "operator": ">", "threshold_value": 1,}
-            },
-          ]
-        },
+      "temperatures_hot_med": {
+        "row_height": 0.33,
+        "title": "Temperature, Hot - medium",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+        "tight_vertical_spacing": True,
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_h_m", "mode": "lines", "color": "plotly_red", "width": 3,},
+        ]
+      },
+  
+      "temperatures_hot_bottom": {
+        "row_height": 0.33,
+        "title": "Temperature, Hot - bottom",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_h_b", "mode": "lines", "color": "plotly_red", "width": 3,},
+        ]
+      },
+        
+  
+      "temperatures_cold_top": {
+        "row_height": 0.33,
+        "title": "Temperature, Cold - top",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+        "tight_vertical_spacing": True,
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_c_t", "mode": "lines", "color": "plotly_blue", "width": 3,},
+        ]
+      },
+  
+      "temperatures_cold_med": {
+        "row_height": 0.33,
+        "title": "Temperature, Cold - Medium",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+        "tight_vertical_spacing": True,
+  
+        "traces_left": [
+          # Hot tank
+          {"var_id": "Tts_c_m", "mode": "lines", "color": "plotly_blue", "width": 3,},
+        ]
+      },
+        
+      "temperatures_cold_bottom": {
+        "row_height": 0.33,
+        "title": "Temperature, Cold - bottom",
+        "bg_color": "bg_blue", # bg gray
+        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
+        "ylabels_left": ["⁰C"],
+        "ylims_left": 'manual',
+  
+        "traces_left": [
+          {"var_id": "Tts_c_b", "mode": "lines", "color": "plotly_blue", "width": 3,},
+          # From MED
+          {"var_id": "Tts_c_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
+            "conditional":{ "var_id": "qmed_s", "operator": ">", "threshold_value": 1,}
+          },
+        ]
+      },
 
      three_way_valve: {
        title: "Three-way valve",
@@ -607,7 +617,7 @@
       # Plotted between this plot and the next one
       show_active: true,
       active_var_id: "med_active",
-      active_color: "dc_green_rgb", # Needs to end with _rgb
+      active_color: "dc_green", # Needs to end with 
 
       traces_left: [
         {
@@ -680,7 +690,12 @@
         },
 
         // TODO: Add other relevant variables such as Tf
-      ]
+      ],
+
+      // Added pressure for reference during vacuum generation
+      "ylabels_right": ["mbar"],
+      "ylims_right": "manual",
+      "traces_right": [ {"var_id": "Pmed_c"}, {"var_id": "Pmed_14"} ]
     },
 
     // power_balance: {

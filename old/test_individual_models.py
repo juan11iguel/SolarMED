@@ -14,7 +14,7 @@ from utils.constants import vars_info
 from utils import filter_nan, get_Q_from_3wv_model
 
 # Select working directory
-os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/models_psa"))
+os.chdir(os.path.join(os.getenv("HOME"), "Nextcloud/Juanmi_MED_PSA/EURECAT/solarMED_modeling"))
 
 #%% Functions
 

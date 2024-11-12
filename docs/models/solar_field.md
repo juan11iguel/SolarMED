@@ -300,6 +300,26 @@ Aunque los resultados ahora parecen peor que antes tras filtrar, creo que hay al
 
 ![solar_field_inverse_validation2_20230807_beta_2.9118e-02_H_9.726_gamma_0.100](../attachments/solar_field_inverse_validation2_20230807_beta_2.9118e-02_H_9.726_gamma_0.100.svg)
 
+
+## Electrical power consumption modeling as a function of solar field total recirculation flow
+
+![Solar field simplified diagram](../attachments/solar_field_flows_diagram.svg)
+
+For the optimization scheme, we want to have a high-level model that relates the electrical power consumption of the solar field with the total recirculation flow. This is a simplification since the same flows can be obtained with different configurations of the solar field, and we are fixing it to one per flow range, and is only valid when all loops are being used (2..5). To determine this relationship, a step train was provided to the main loop (l0) recirculation pump with different values, and for each of these steps, another step train was given to the inner loops pumps (l2...l5). The minimum consumption obtained for each flow was selected and a polynomial regression was performed.
+
+Experimental test timeseries example:
+
+![](attachments/20240927_test.png)
+![](attachments/20240925_individual_loops_calibration.png)
+
+Experimental points that relate flow and electrical power consumption, highlighting minimum curves:
+
+![Solar field electrical power consumption vs flow](attachments/flow_vs_consumption_highlighted_min.png)
+
+To the surprise of no one, where possible, it is better to only use the main recirculation pump (l0), since it's about the same power of any of the individual loop pumps, which there are two per loop. For higher flows, i.e. sf,l0 saturated, they need to be used.
+
+![Curve fit result](attachments/total_flow_power_fit_result.png)
+
 # TODO
 
 - [x] Incorporar retardo qsf, Tsf,in - Tsf,out -> 10.1016/j.solener.2018.11.014 y

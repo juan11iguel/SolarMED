@@ -45,29 +45,29 @@ Since the model is implemented as a class, once it is initialized, a new iterati
 #### Initialization
 
 ```python
-from models_psa.solar_med import SolarMED
-  
-idx_start = 20  
-span = 12  
-idx_end = len(df)  
-df_mod = pd.DataFrame()  
-  
+from solarMED_modeling.solar_med import SolarMED
+
+idx_start = 20
+span = 12
+idx_end = len(df)
+df_mod = pd.DataFrame()
+
 # Initialize model  
-model = SolarMED(  
-    sample_time=60, # seconds  
-    resolution_mode='simple',  
-      
+model = SolarMED(
+    sample_time=60,  # seconds  
+    resolution_mode='simple',
+
     # Initial states  
     ## Thermal storage    
-    Tts_h=[df['Tts_h_t'].iloc[idx_start], df['Tts_h_m'].iloc[idx_start], df['Tts_h_b'].iloc[idx_start]],   
-    Tts_c=[df['Tts_c_t'].iloc[idx_start], df['Tts_c_m'].iloc[idx_start], df['Tts_c_b'].iloc[idx_start]],  
-      
+    Tts_h=[df['Tts_h_t'].iloc[idx_start], df['Tts_h_m'].iloc[idx_start], df['Tts_h_b'].iloc[idx_start]],
+    Tts_c=[df['Tts_c_t'].iloc[idx_start], df['Tts_c_m'].iloc[idx_start], df['Tts_c_b'].iloc[idx_start]],
+
     ## Solar field  
-    Tsf_in_ant=df['Tsf_in'].iloc[idx_start-span:idx_start].values,  
-    msf_ant=df['qsf'].iloc[idx_start-span:idx_start].values,  
-      
-    cost_w = 3, # €/m³   
-	cost_e = 0.05 # €/kWhe  
+    Tsf_in_ant=df['Tsf_in'].iloc[idx_start - span:idx_start].values,
+    msf_ant=df['qsf'].iloc[idx_start - span:idx_start].values,
+
+    cost_w=3,  # €/m³   
+    cost_e=0.05  # €/kWhe  
 )
 ```
 

@@ -13,10 +13,24 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Validation signals list.md",
+                "file": "fsm_results/test2/report.md",
                 "mode": "source",
                 "source": false
               }
+            }
+          }
+        ]
+      },
+      {
+        "id": "4fb33b05905d5b4c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e6603db5d603e3da",
+            "type": "leaf",
+            "state": {
+              "type": "reveal-preview-view",
+              "state": {}
             }
           }
         ]
@@ -94,7 +108,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Validation signals list.md",
+                "file": "fsm_results/test2/report.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -151,11 +165,37 @@
       "canvas:Create new canvas": false,
       "workspaces:Manage workspace layouts": false,
       "table-editor-obsidian:Advanced Tables Toolbar": false,
-      "obsidian-excalidraw-plugin:Create new drawing": false
+      "obsidian-excalidraw-plugin:Create new drawing": false,
+      "slides-extended:Show slide preview": false
     }
   },
   "active": "6ea9380ac54801f8",
   "lastOpenFiles": [
+    "Validation signals list.md",
+    "validation/YYYYMMDD/YYYYMMDD_solarMED_validation_presentation.md",
+    "validation/20230703/attachments/20230703_SolarMED_FSMs.svg",
+    "validation/20230703/attachments/20230703_SolarMED_FSMs.html",
+    "validation/20230703/20230703_solarMED_validation_presentation.md",
+    "validation/20230628/20230628_solarMED_validation_presentation.md",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_SHUTTING_DOWN.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_OFF.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_IDLE.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_GENERATING_VACUUM.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_ACTIVE.svg",
+    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_STARTING_UP.svg",
+    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_SHUTTING_DOWN.svg",
+    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_OFF.svg",
+    "operating_modes",
+    "fsm_results/test2/report.md",
+    "fsm_results/test2/attachments",
+    "fsm_results/test2",
+    "fsm_results",
+    "attachments/thermal_storage_validation_20230707_generated_20240509T1215.html",
+    "attachments/thermal_storage_validation_20230707_generated_20240509T1042.html",
+    "attachments/thermal_storage_validation_20230703_generated_20240508T1027.html",
+    "attachments/thermal_storage_validation_20230703_generated_20240508T1017.html",
+    "attachments/SolarMED_validation_20230703.html",
     "README.md",
     "models/solar_field.md",
     "models/MED.md",
@@ -168,39 +208,14 @@
     "validation/20230703/20230703_solarMED_validation_report.md",
     "models.md",
     "validation/20230703/models.md",
-    "Validation signals list.md",
     "Profiling.md",
     "Pending tasks.md",
     "Nomenclature.md",
     "Issues.md",
     "Import data.md",
     "old/Historical data processing.md",
-    "old",
     "attachments.md",
     "validation/YYYYMMDD/solarMED_validation_report_YYYYMMDD.md",
-    "validation/20230628/20230628_solarMED_validation_report.md",
-    "validation/20230629/20230629_solarMED_validation_report.md",
-    "validation/20230628/attachments/20230628_MED_validation.html",
-    "validation/20230628/attachments/20230628_MED_validation.svg",
-    "validation/20230628/attachments/20230628_heat_exchanger_validation.html",
-    "validation/20230628/attachments/20230628_heat_exchanger_validation.svg",
-    "validation/20230628/attachments/20230628_solar_field_inverse_validation.html",
-    "validation/20230628/attachments/20230628_solar_field_inverse_validation.svg",
-    "validation/20230628/attachments/20230628_solar_field_validation.html",
-    "validation/20230628/attachments/20230628_solar_field_validation.svg",
-    "validation/20230628/attachments/20230628_thermal_storage_validation.html",
-    "validation/20230628/attachments/20230628_thermal_storage_validation.svg",
-    "validation/20230628/attachments/20230628_SolarMED_validation.html",
-    "validation/20230628/attachments/20230628_SolarMED_validation.svg",
-    "validation/20230628/attachments/20230628_solarMED_visualization.html",
-    "validation/20230628/attachments/20230628_solarMED_visualization.svg",
-    "validation/20230628/attachments",
-    "validation/20230628",
-    "validation/20230511/20230511_solarMED_validation_report.md",
-    "validation/20230629/attachments/20230629_MED_validation.svg",
-    "validation/20230629/attachments/20230629_heat_exchanger_validation.svg",
-    "validation/20230629/attachments/20230629_solar_field_inverse_validation.svg",
-    "validation/20230630/20230630_solarMED_validation_report.md",
-    "validation/20230505/20230505_solarMED_validation_report.md"
+    "validation/20230628/20230628_solarMED_validation_report.md"
   ]
 }

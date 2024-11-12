@@ -3,7 +3,7 @@
 ![](docs/models/attachments/solarMED_optimization-general_diagram.svg)
 
 Repository with source code of a variety of models of a solar field - thermal storage and MED plant combined system located at Plataforma Solar de Almería.
-The model of the complete system, called `SolarMED` is contained in the [models_psa package](./models_psa).
+The model of the complete system, called `SolarMED` is contained in the [models_psa package](./solarMED_modeling).
 
 - Documentation and results of the modelling of the different components can be found in the [docs](./docs). For better visualization, using [Obsidian](https://obsidian.md) is recommended.
 - The model calibration for the different components is contained in [model_calibrations](./model_calibrations).
@@ -11,21 +11,61 @@ The model of the complete system, called `SolarMED` is contained in the [models_
 - For examples on how to use it check the [examples](#examples) section.
 
 
+# TODOs
+
+- [x] Re-factor packaging using uv
+- [x] Add .devcontainer
+- [ ] Add support for notebook deployment. WIP reverse-proxy giving trouble, works on port
+- [x] Model refactor with benchmark implementation
+- [x] Integrate new models and last practises to combined model
+- [ ] Simulate two consecutive operation days
+- [x] In FSMs, add cooldown times for particular state changes
+- [x] Add support for partial initialization of FSMs
+- [ ] As with FsmParameters and FsmInternalState, use a dataclass for FsmInputs. This simplifies FSM code but also path_explorer from SolarMED-optimization
+
+
+# Benchmarks
+
+The script [test_model.py](./scripts/test_model.py) is used to benchmark the model performance in different scenarios. The script is run with the following command:
+
+```bash
+uv run scripts/test_model.py
+```
+
+At the end it prints some performance metrics of the model (error metrics), and the time it took to run the model.
+Log here the results of the benchmarks:
+
+|  | Date test | Date evaluated | Scenario | Total time (s) | N iterations | Time/it. (s) | RMSE | MAE |
+|--|------|------|----------|-----------|-------|------|---|---|
+| 1 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. Debugging | 54.40 | 660 | 0.0824 | 0.78 | 0.61 |
+| 2 | 20230703 | 20240923   | Standard configuration. Asus Rog Flow X13 | 29.89 | 660 | 0.0453 | 0.78 | 0.61 |
+| 3 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. | 28.97 | 660 | 0.0439 | 0.78 | 0.61 |
+| 4 | 20230703 | 20240923   | Standard configuration. VM ai.psa.es. Tras llorarle a Joaquín para más potensia | 29.27 | 660 | 0.0443 | 0.78 | 0.61 |
+| 5 | 20230703 | 20240924   | Standard configuration. VM ai.psa.es. After some changes (not optimization focused) | 25.90 | 660 | 0.0392 | 0.78 | 0.61 |
+
+
+
+> [!NOTE] 
+> Comparison between runs where test date or sample rate (=number for iterations) changes, are not valid for total time and error metrics. Time per iteration (`Time/it.`) is a better "universal" execution time metric to compare different runs.
+
+- "Standard configuration" stands for model using both fsms and evaluation component models, prior to applying any optimizations (such as assumming water properties as constant)
+
+
 ## Package structure
 
-- [models_psa](./models_psa) is the package folder.
-- [models_psa.solar_med](models_psa/solar_med.py) is the main module containing the complete model class `SolarMED`.
-- [models_psa.solar_field](models_psa/solar_field.py) contains the solar field model code.
-- [models_psa.thermal_storage](models_psa/thermal_storage.py) contains the thermal storage model code.
-- [models_psa.med](models_psa/med.py) contains the MED model code (will do once updated, right now it's an external package from MATLAB)
-- [models_psa.heat_exchanger](models_psa/heat_exchanger.py) contains the heat exchanger model code.
-- [models_psa.three_way_valve](models_psa/three_way_valve.py) contains the three-way valve model code.
-- [models_psa.validation](models_psa/data_validation.py) contains validation utility functions (within_range_or_min_or_max, etc) and new types definitions (conHotTemperatureType, rangeType, etc)
-- [models_psa.power_consumption](models_psa/power_consumption.py) implements models to evaluate different actuators, mainly electricity consumption though maybe these will be refactored to extend the use of the `Actuator` class.
-- [models_psa.utils](models_psa/utils) contains different utility functions to process the experimental data.
-- [models_psa.metrics](models_psa/metrics) contains different metrics to evaluate the performance of the system (not yet implemented).
-- [models_psa.curve_fitting](models_psa/curve_fitting) contains curve fitting functions to calibrate simple fits e.g. fit electricity consumptions and so on.
-- [models_psa.calibration](models_psa/calibration) contains the code to perform model parameter calibrations.
+- [models_psa](./src/solarmed_modeling) is the package folder.
+- [models_psa.solar_med](./src/solarmed_modeling/solar_med.py) is the main module containing the complete model class `SolarMED`.
+- [models_psa.solar_field](./src/solarmed_modeling/solar_field.py) contains the solar field model code.
+- [models_psa.thermal_storage](./src/solarmed_modeling/thermal_storage.py) contains the thermal storage model code.
+- [models_psa.med](./src/solarmed_modeling/med.py) contains the MED model code (will do once updated, right now it's an external package from MATLAB)
+- [models_psa.heat_exchanger](./src/solarmed_modeling/heat_exchanger.py) contains the heat exchanger model code.
+- [models_psa.three_way_valve](./src/solarmed_modeling/three_way_valve.py) contains the three-way valve model code.
+- [models_psa.validation](./src/solarmed_modeling/data_validation.py) contains validation utility functions (within_range_or_min_or_max, etc) and new types definitions (conHotTemperatureType, rangeType, etc)
+- [models_psa.power_consumption](./src/solarmed_modeling/power_consumption.py) implements models to evaluate different actuators, mainly electricity consumption though maybe these will be refactored to extend the use of the `Actuator` class.
+- [models_psa.utils](./src/solarmed_modeling/utils) contains different utility functions to process the experimental data.
+- [models_psa.metrics](./src/solarmed_modeling/metrics) contains different metrics to evaluate the performance of the system (not yet implemented).
+- [models_psa.curve_fitting](./src/solarmed_modeling/curve_fitting) contains curve fitting functions to calibrate simple fits e.g. fit electricity consumptions and so on.
+- [models_psa.calibration](./src/solarmed_modeling/calibration) contains the code to perform model parameter calibrations.
 
 
 ## Examples
@@ -90,7 +130,7 @@ installed. The runtime can be downloaded from [here](https://www.mathworks.com/p
 After that is done, at least in linux, the `LD_LIBRARY_PATH` environment variable needs to be created before being able to use the runtime. To simplfiy the command, an auxiliary `MR` environment variable is created to store the path to the runtime.
 This is embedded in the notebooks that make use of the MED model, but it can also be added to the `venv/bin/activate` script to make it available every time the virtual environment is activated.
 
-4. Add the following lines to the `venv/bin/activate` script:
+4. Add the following lines to the end of `venv/bin/activate` script:
 ```
 export MR=$HOME/MATLAB_Runtime
 export LD_LIBRARY_PATH=$MR/v911/runtime/glnxa64:$MR/v911/bin/glnxa64:$MR/v911/sys/os/glnxa64:$MR/v911/sys/opengl/lib/glnxa64
@@ -143,8 +183,8 @@ High priority:
 - [ ] Recalibrate thermal storage model, once the experimental data is exported including the necessary variables to estimate qhx_s.
 - [x] Find a more robust alternative to obtain the flow from the solar field than inverting the model (implement an internal control loop for the outlet temperature?)
 - [ ] Calibrate input signal - flow of qhx_s once the experimental data is exported including the necessary variables to estimate qhx_s.
-- [ ] Extend MED model to accept the new operating modes (generating vacuum, starting up, shutting down, idle)
-- [ ] Integrate new `SolarMED` states.
+- [x] Extend MED model to accept the new operating modes (generating vacuum, starting up, shutting down, idle)
+- [x] Integrate new `SolarMED` states.
 - [ ] Add electrical consumption of solar field and thermal storage pump. Pending of physical modifications in the experimental facility
 
 UFSC collaboration towards alternative SolarMED configurations:
@@ -157,7 +197,7 @@ UFSC collaboration towards alternative SolarMED configurations:
 Low priority:
 - [ ] Move auxiliary calculations in `SolarMED` (powers, metrics, etc) to the module of the specific component in its own function instead of having them in the `step` method.
 - [ ] When `resolution_mode` is `'simple'`, the water physical properties should also be simplified in the models
-- [ ] Replace MED model with Python implementation from KWR.
+- [ ] Replace MED model with Python implementation from KWR. Attempted, having trouble importing the model
 
 Longer term: 
 - [ ] Implement alternative way of exporting experimental data from the plant instead of relying on manually exported txts from LABview.

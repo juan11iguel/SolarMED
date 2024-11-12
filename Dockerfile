@@ -1,34 +1,10 @@
-# This Dockerfile sets the entrypoint to "tail -f /dev/null".
-# This is a common practice in Dockerfiles for creating a container that runs indefinitely without executing any commands.
-# The purpose of this is to keep the container running so that it can be used as a base image or as a placeholder for other services.
+# # syntax = devthefuture/dockerfile-x
 
-FROM python:3.11
-LABEL authors="Juan Miguel Serrano, Alejandro Clavera"
+# INCLUDE ./Dockerfile.base
 
-# Install matlab runtime
-ENV MR=/app/MATLAB_Runtime
-RUN mkdir MATLAB_Runtime
-COPY MED_model_installers /app/MATLAB_Runtime
-RUN chmod +rx ${MR}/MED_model_web_python_python_311.install
-RUN ${MR}/MED_model_web_python_python_311.install \
-    -agreeToLicense yes \
-    -destinationFolder ${MR} \
-    -mode silent
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\
-$MR/R2023b/runtime/glnxa64:\
-$MR/R2023b/bin/glnxa64:\
-$MR/R2023b/sys/os/glnxa64:\
-$MR/R2023b/sys/opengl/lib/glnxa64
-RUN cd $MR/application/ && python setup.py install
+# Copy the rest of the project
+# COPY . .
 
-# Install project dependencies
-WORKDIR /app 
-COPY requirements.txt /app
-RUN pip install -r requirements.txt
-RUN pip install . # To install the models package in the container
-
-
-# Copy the project code into the container
-COPY . /app
-
-# ENTRYPOINT ["tail", "-f", "/dev/null"]
+# Set the default command to run when starting the container
+# Start jupyter notebook
+# CMD ["uvx", "jupyter", "--ip=0.0.0.0", "--port=8890", "--allow-root"]
