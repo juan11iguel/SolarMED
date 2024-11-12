@@ -1,6 +1,5 @@
 from typing import Literal
-from dataclasses import dataclass, field, asdict
-import copy
+from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 import math
@@ -80,6 +79,17 @@ class FsmInternalState:
     off_cooldown_done: bool = True
     off_cooldown_elapsed_samples: int = 0
 
+# @dataclass
+# class FsmInputs:
+#     """
+#     Inputs / Decision variables
+#     """
+#     qmed_s: float
+#     qmed_f: float
+#     Tmed_s_in: float
+#     Tmed_c_out: float
+#     med_vacuum_state: MedVacuumState
+
 class MedFsm(BaseFsm):
 
     """
@@ -153,13 +163,19 @@ class MedFsm(BaseFsm):
                                     conditions=['is_high_vacuum', 'is_off_cooldown_done'], after=['set_vacuum_start'])
         self.machine.add_transition('finish_generating_vacuum', source=st.GENERATING_VACUUM, dest=st.IDLE,
                                     conditions=['is_vacuum_done'], unless=['is_off_vacuum', 'are_inputs_active'])#, after='set_vacuum_done')
+        # To avoid staying more than strictly needed in this transitionary state
+        self.machine.add_transition('generating_vacuum_interrupted', source=st.GENERATING_VACUUM, dest=st.IDLE,
+                                    conditions=['is_off_vacuum'])
         # self.machine.add_transition('cancel_generating_vacuum', source=st.GENERATING_VACUUM, dest=st.OFF,
         #                             conditions=['is_off_vacuum']) # Removed to reduce the FSM posibilities
         ## Start-up
         self.machine.add_transition('start_startup', source=[st.IDLE, st.GENERATING_VACUUM], dest=st.STARTING_UP,
                                     conditions=['is_vacuum_done', 'are_inputs_active', 'is_active_cooldown_done'], after='set_startup_start')
         self.machine.add_transition('finish_startup', source=st.STARTING_UP, dest=st.ACTIVE,
-                                    conditions=['are_inputs_active', 'is_startup_done'])#, after='set_startup_done')
+                                    conditions=['are_inputs_active', 'is_startup_done'])
+        # To avoid staying more than strictly needed in this transitionary state
+        self.machine.add_transition('startup_interrupted', source=st.STARTING_UP, dest=st.IDLE,
+                                    unless=['are_inputs_active'])#, after='set_startup_done')
         ## Shutdown
         self.machine.add_transition('start_shutdown', source=st.ACTIVE, dest=st.SHUTTING_DOWN,
                                     unless=['are_inputs_active'], after='set_brine_emptying_start')

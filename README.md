@@ -16,10 +16,12 @@ The model of the complete system, called `SolarMED` is contained in the [models_
 - [x] Re-factor packaging using uv
 - [x] Add .devcontainer
 - [ ] Add support for notebook deployment. WIP reverse-proxy giving trouble, works on port
-- [ ] Model refactor with benchmark implementation
-- [ ] Integrate new models and last practises to combined model
+- [x] Model refactor with benchmark implementation
+- [x] Integrate new models and last practises to combined model
 - [ ] Simulate two consecutive operation days
-- [ ] In FSMs, add cooldown times for particular state changes
+- [x] In FSMs, add cooldown times for particular state changes
+- [x] Add support for partial initialization of FSMs
+- [ ] As with FsmParameters and FsmInternalState, use a dataclass for FsmInputs. This simplifies FSM code but also path_explorer from SolarMED-optimization
 
 
 # Benchmarks
