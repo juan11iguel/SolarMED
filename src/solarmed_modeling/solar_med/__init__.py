@@ -41,9 +41,11 @@ from solarmed_modeling.fsms import (MedState,
                                     SolarFieldState, 
                                     SolarMedState)
 from solarmed_modeling.fsms.med import (MedFsm,
-                                        FsmParameters as MedFsmParams)
+                                        FsmParameters as MedFsmParams,
+                                        FsmInternalState as MedFsmInternalState,)
 from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm,
                                          FsmParameters as SfTsFsmParams,
+                                         FsmInternalState as SfTsFsmInternalState,
                                          get_sfts_state,
                                          get_sf_ts_individual_states)
 """
@@ -91,6 +93,11 @@ class FixedModelParameters:
 class FsmParameters:
     med: MedFsmParams = field(default_factory=lambda: MedFsmParams())
     sf_ts: SfTsFsmParams = field(default_factory=lambda: SfTsFsmParams())
+    
+@dataclass
+class FsmInternalState:
+    med: MedFsmInternalState = field(default_factory=lambda: MedFsmInternalState())
+    sf_ts: SfTsFsmInternalState = field(default_factory=lambda: SfTsFsmInternalState())
     
 @dataclass
 class EnvironmentParameters:
@@ -146,7 +153,6 @@ class SolarMED(BaseModel):
         - Alternatively, the model can be serialized as JSON using the `solar_med.model_dump_json()` method.
     """
 
-
     # Parameters
     # Important to define first, so that they are available for validation
     fixed_model_params: FixedModelParameters = Field(FixedModelParameters(), titile="Fixed model parameters",
@@ -155,6 +161,8 @@ class SolarMED(BaseModel):
                                                 description="Component models parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     fsms_params: FsmParameters = Field(FsmParameters(), titile="FSM parameters",
                                             description="Finite State Machine parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
+    fsms_initial_internal_state: FsmInternalState = Field(FsmInternalState(), titile="FSM internal state",
+                                                            description="Finite State Machine internal state", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     env_params: EnvironmentParameters = Field(EnvironmentParameters(), titile="Environment parameters",
                                                 description="Environment parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     ## General parameters
@@ -507,19 +515,19 @@ class SolarMED(BaseModel):
             # self.current_state = SolarMedState(str(self.sf_state.value) + str(self.ts_state.value) + str(self.med_state.value))
             self.current_state = self.get_state()
 
-            # TODO: Refactor once FSMs make use of FsmParameters
             self._sf_ts_fsm: SolarFieldWithThermalStorageFsm = SolarFieldWithThermalStorageFsm(
                 name='SF-TS', 
                 initial_state=initial_sf_ts, 
-                sample_time=self.sample_time
+                sample_time=self.sample_time,
+                params=self.fsms_params.sf_ts,
+                internal_state=self.fsms_initial_internal_state.sf_ts,
             )
             self._med_fsm: MedFsm = MedFsm(
                 name='MED', 
                 initial_state=self.med_state,
                 sample_time=self.sample_time, 
-                vacuum_duration_time=self.fsms_params.med.vacuum_duration_time,
-                brine_emptying_time=self.fsms_params.med.brine_emptying_time, 
-                startup_duration_time=self.fsms_params.med.startup_duration_time
+                params=self.fsms_params.med,
+                internal_state=self.fsms_initial_internal_state.med,
             )
             
         if self.resolution_mode == 'constant-water-props':
@@ -540,7 +548,8 @@ class SolarMED(BaseModel):
             - Thermal storage actuators: {[actuator.id for actuator in self.actuators_consumptions.ts.values()]}
             - Model parameters: {self.model_params}
             - Fixed model parameters: {self.fixed_model_params}
-            - FSM parameters: {self.fsms_params}
+            - FSM parameters: {self.fsms_params},
+            - FSM initial internal state: {self.fsms_initial_internal_state}
             - Environment parameters: {self.env_params}
         ''')
 

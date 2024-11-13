@@ -33,7 +33,7 @@ class FsmShutdownConditions:
     
 @dataclass
 class FsmParameters:
-    recirculating_ts_enabled: bool = True
+    recirculating_ts_enabled: bool = False
     recirculating_ts_cooldown_time: int = 9999*3600 # Time to wait before activating state recirculating ts (seconds)
     idle_cooldown_time: int = 3 # Time to wait before activating state idle (seconds)
     
@@ -63,6 +63,8 @@ class FsmInternalState:
 def get_sfts_state(sf_state: int | SolarFieldState | str, ts_state: int | ThermalStorageState | str,
                    return_format: Literal["name", "value", "enum"] = "enum") -> SfTsState | str | int:
     
+    assert return_format in ["name", "value", "enum"], "Invalid return_format"
+    
     if isinstance(sf_state, int):
         sf_state = SolarFieldState(sf_state)
     elif isinstance(sf_state, str):
@@ -90,8 +92,10 @@ def get_sfts_state(sf_state: int | SolarFieldState | str, ts_state: int | Therma
     
 def get_sf_ts_individual_states(
     sfts_state: int | SfTsState | str, 
-    return_format = Literal["enum", "value", "name"]
+    return_format: Literal["enum", "value", "name"] = "enum"
 ) -> tuple[SolarFieldState | str | int, ThermalStorageState | str | int]:
+    
+    assert return_format in ["enum", "value", "name"], "Invalid return_format"
     
     if isinstance(sfts_state, int):
         sfts_state = SfTsState(sfts_state)
