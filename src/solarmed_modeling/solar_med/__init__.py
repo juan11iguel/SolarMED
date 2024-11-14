@@ -386,7 +386,8 @@ class SolarMED(BaseModel):
 
     model_config = ConfigDict(
         validate_assignment=True,  # So that fields are validated, not only when created, but every time they are set
-        arbitrary_types_allowed=True
+        arbitrary_types_allowed=True,
+        extra='forbid'
     )
 
     @computed_field(title="Export fields df", description="Fields to export into a dataframe", json_schema_extra={"var_type": ModelVarType.PARAMETER})
