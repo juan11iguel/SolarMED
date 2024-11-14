@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 import re
 import numpy as np
 import pandas as pd
@@ -14,7 +14,8 @@ from pydantic import (BaseModel,
                       computed_field,
                       ValidationInfo,
                       PositiveFloat,
-                      PrivateAttr)
+                      PrivateAttr,
+                      field_serializer)
 from pathlib import Path
 
 from solarmed_modeling.data_validation import (within_range_or_zero_or_max, 
@@ -73,6 +74,7 @@ supported_eval_alternatives: tuple[str] = get_args(SupportedAlternativesLiteral)
 class ModelVarType(Enum):
     TIMESERIES = 0
     PARAMETER  = 1
+    INITIAL_STATE = 2
 
 states_sf_ts: list[SfTsState] = [state for state in SfTsState]
 states_med: list[MedState] = [state for state in MedState]
@@ -86,8 +88,8 @@ class ModelParameters:
 @dataclass
 class FixedModelParameters:
     med: MedFixedModParams = field(default_factory=lambda: MedFixedModParams())
-    sf: MedFixedModParams = field(default_factory=lambda: SfFixedModParams())
-    ts: MedFixedModParams = field(default_factory=lambda: TsFixedModParams())
+    sf: SfFixedModParams = field(default_factory=lambda: SfFixedModParams())
+    ts: TsFixedModParams = field(default_factory=lambda: TsFixedModParams())
     
 @dataclass
 class FsmParameters:
@@ -161,7 +163,7 @@ class SolarMED(BaseModel):
                                                 description="Component models parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     fsms_params: FsmParameters = Field(FsmParameters(), titile="FSM parameters",
                                             description="Finite State Machine parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
-    fsms_initial_internal_state: FsmInternalState = Field(FsmInternalState(), titile="FSM internal state",
+    fsms_internal_states: FsmInternalState = Field(FsmInternalState(), titile="FSM internal state",
                                                             description="Finite State Machine internal state", json_schema_extra={"var_type": ModelVarType.PARAMETER})
     env_params: EnvironmentParameters = Field(EnvironmentParameters(), titile="Environment parameters",
                                                 description="Environment parameters", json_schema_extra={"var_type": ModelVarType.PARAMETER})
@@ -227,10 +229,10 @@ class SolarMED(BaseModel):
     Tts_h_out: conHotTemperatureType = Field(None, title="Tts,h,out", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                                              description="Output. Thermal storage heat source outlet temperature, from top of hot tank == Tts_h_t (ºC)")
     Tts_h: list[conHotTemperatureType] | np.ndarray[conHotTemperatureType] = Field(..., title="Tts,h",
-                                                                                   json_schema_extra={"var_type": None, "units": "C"},
+                                                                                   json_schema_extra={"var_type": ModelVarType.INITIAL_STATE, "units": "C"},
                                                                                    description="Output. Temperature profile in the hot tank (ºC)")
     Tts_c: list[conHotTemperatureType] | np.ndarray[conHotTemperatureType] = Field(..., title="Tts,c",
-                                                                                   json_schema_extra={"var_type": None, "units": "C"},
+                                                                                   json_schema_extra={"var_type": ModelVarType.INITIAL_STATE, "units": "C"},
                                                                                    description="Output. Temperature profile in the cold tank (ºC)")
     Pth_ts_src: float = Field(None, title="Pth,ts,in", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWth"},
                            description="Output. Thermal storage inlet power (kWth)")
@@ -250,9 +252,9 @@ class SolarMED(BaseModel):
                                               description="Output. Solar field outlet temperature (ºC)")
     Tsf_in: conHotTemperatureType = Field(None, title="Tsf,in", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "C"},
                                           description="Output. Solar field inlet temperature (ºC)")
-    Tsf_in_ant: np.ndarray[conHotTemperatureType] = Field(..., title="Tsf,in_ant", json_schema_extra={"var_type": None, "units": "C"},
+    Tsf_in_ant: np.ndarray[conHotTemperatureType] = Field(..., title="Tsf,in_ant", json_schema_extra={"var_type": ModelVarType.INITIAL_STATE, "units": "C"},
                                                           description="Solar field inlet temperature in the previous Nsf_max steps (ºC)")
-    qsf_ant: np.ndarray[float] = Field(..., repr=False, exclude=False, json_schema_extra={"var_type": None},
+    qsf_ant: np.ndarray[float] = Field(..., repr=False, exclude=False, json_schema_extra={"var_type": ModelVarType.INITIAL_STATE},
                                        description='Solar field flow rate in the previous Nsf_max steps', )
     Tsf_out_ant: conHotTemperatureType = Field(None, title="Tsf,out,ant", json_schema_extra={"var_type": None, "units": "C"},
                                                description="Output. Solar field prior outlet temperature (ºC)")
@@ -415,11 +417,24 @@ class SolarMED(BaseModel):
         for fld in self.model_fields.keys():
             if 'var_type' in self.model_fields[fld].json_schema_extra:
                 if self.model_fields[fld].json_schema_extra.get('var_type', None) == ModelVarType.PARAMETER:
-                        fields.append(fld)
+                    fields.append(fld)
             else:
                 logger.warning(
                     f'Field {fld} has no `json_schema_extra.var_type` set, it should be if it needs to be included in the exports')
         return fields
+    
+    @computed_field(title="Export fields model initialization", description="Initialization fields to export", json_schema_extra={"var_type": ModelVarType.PARAMETER})
+    @property
+    def export_fields_initial_states(self) -> list[str]:
+        # Fields to export into a dataframe
+        # Choose variable to export based on explicit property, need to be single variables
+        fields = []
+        for fld in self.model_fields.keys():
+            if 'var_type' not in self.model_fields[fld].json_schema_extra:
+                logger.warning(f'Field {fld} has no `json_schema_extra.var_type` set, it should be if it needs to be included in the exports')
+            elif self.model_fields[fld].json_schema_extra.get('var_type', None) == ModelVarType.INITIAL_STATE:
+                fields.append(fld)
+
 
     @field_validator("qmed_s_sp", "qmed_f_sp", "qts_src_sp", "qsf_sp", "qmed_c")
     @classmethod
@@ -460,11 +475,17 @@ class SolarMED(BaseModel):
         return within_range_or_min_or_max(Tmed_c_out, range=(info.data["Tmed_c_in"], np.inf),
                                           var_name=info.field_name)
 
+    @field_serializer("fixed_model_params")
+    def serialize_fixed_model_params(self, value: FixedModelParameters) -> dict:
+        return asdict(value)
+    
+    @field_serializer("actuators_consumptions")
+    def serialize_actuators_consumptions(self, value: ActuatorsMaping) -> dict:
+        return {k: {var: actuator.id for var, actuator in v.items()} for k, v in asdict(value).items()}
 
 
     def model_post_init(self, ctx) -> None:
         """ Post initialization method, called after the model is created """
-        
         # Aliases
         self._fmp = self.fixed_model_params
         self._mp  = self.model_params
@@ -520,14 +541,14 @@ class SolarMED(BaseModel):
                 initial_state=initial_sf_ts, 
                 sample_time=self.sample_time,
                 params=self.fsms_params.sf_ts,
-                internal_state=self.fsms_initial_internal_state.sf_ts,
+                internal_state=self.fsms_internal_states.sf_ts,
             )
             self._med_fsm: MedFsm = MedFsm(
                 name='MED', 
                 initial_state=self.med_state,
                 sample_time=self.sample_time, 
                 params=self.fsms_params.med,
-                internal_state=self.fsms_initial_internal_state.med,
+                internal_state=self.fsms_internal_states.med,
             )
             
         if self.resolution_mode == 'constant-water-props':
@@ -549,7 +570,7 @@ class SolarMED(BaseModel):
             - Model parameters: {self.model_params}
             - Fixed model parameters: {self.fixed_model_params}
             - FSM parameters: {self.fsms_params},
-            - FSM initial internal state: {self.fsms_initial_internal_state}
+            - FSM initial internal state: {self.fsms_internal_states}
             - Environment parameters: {self.env_params}
         ''')
 
@@ -746,6 +767,11 @@ class SolarMED(BaseModel):
         return SolarMedState(state_code)
 
     def update_internal_states(self) -> None:
+        # Sync internal states from fsm classes in fsm
+        self.fsms_internal_states: FsmInternalState = FsmInternalState(
+            med=self._med_fsm.internal_state,
+            sf_ts=self._sf_ts_fsm.internal_state
+        )
         self.med_state: MedState = self._med_fsm.get_state()
         self.sf_ts_state: SfTsState = self._sf_ts_fsm.get_state()
         # self.sf_state = SolarFieldState(int(self.sf_ts_state.value[0]))
@@ -1353,7 +1379,7 @@ class SolarMED(BaseModel):
         # serialize_as_any: see [Serializing with duck-typing](https://docs.pydantic.dev/latest/concepts/serialization/#serializing-with-duck-typing)
         return self.model_dump(include=self.export_fields_config, by_alias=True, serialize_as_any=True)
 
-    def model_dump_instance(self, reset_samples: bool = False, to_file: Path | str = None) -> dict:
+    def dump_instance(self, reset_samples: bool = False, to_file: Path | str = None) -> dict:
         """
         WIP
 
@@ -1376,21 +1402,29 @@ class SolarMED(BaseModel):
         """
 
         # TODO: How to handle the FSM instances correctly? Just take the current samples? (startup_started_sample, current_sample, etc)
-        if reset_samples:
-            raise NotImplementedError("Resetting samples is not yet supported")
+        # if reset_samples:
+        #     raise NotImplementedError("Resetting samples is not yet supported")
 
-        dump = self.model_dump()
+        # dump = self.model_dump()
 
-        # Filter out fields whose values are not set (None)
-        dump = {k: v for k, v in dump.items() if v is not None}
+        # # Filter out fields whose values are not set (None)
+        # dump = {k: v for k, v in dump.items() if v is not None}
 
-        # Add FSMs
-        dump['_med_fsm'] = pickle.dumps(self._med_fsm)
-        dump['_sf_ts_fsm'] = pickle.dumps(self._sf_ts_fsm)
+        # # Add FSMs
+        # dump['_med_fsm'] = pickle.dumps(self._med_fsm)
+        # dump['_sf_ts_fsm'] = pickle.dumps(self._sf_ts_fsm)
+        
 
         # Add PID if set
         # if self._pid_sf is not None:
         #     dump['_pid_sf'] = pickle.dumps(self._pid_sf)
+        
+        
+        dump = {
+            **self.model_dump(include=self.export_fields_initial_states, by_alias=False, exclude_none=True, exclude_defaults=True),
+            **self.model_dump(include=self.export_fields_df, by_alias=False, exclude_none=True, exclude_defaults=True),
+            **self.model_dump(include=self.export_fields_config, by_alias=False, exclude_none=True, exclude_defaults=True),
+        }
 
         if to_file is not None:
             to_file = Path(to_file).with_suffix('.pkl')
