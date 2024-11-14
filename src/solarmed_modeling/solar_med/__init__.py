@@ -390,7 +390,7 @@ class SolarMED(BaseModel):
         extra='forbid'
     )
 
-    @computed_field(title="Export fields df", description="Fields to export into a dataframe", json_schema_extra={"var_type": ModelVarType.PARAMETER})
+    @computed_field(title="Export fields df", description="Fields to export into a dataframe", json_schema_extra={"var_type": None})
     @property
     def export_fields_df(self) -> list[str]:
         # Fields to export into a dataframe
@@ -407,7 +407,7 @@ class SolarMED(BaseModel):
 
         return fields
 
-    @computed_field(title="Export fields model config", description="Fields to export into model parameters dict", json_schema_extra={"var_type": ModelVarType.PARAMETER})
+    @computed_field(title="Export fields model config", description="Fields to export into model parameters dict", json_schema_extra={"var_type": None})
     @property
     def export_fields_config(self) -> list[str]:
         # Fields to export into model parameters dict
@@ -424,7 +424,7 @@ class SolarMED(BaseModel):
                     f'Field {fld} has no `json_schema_extra.var_type` set, it should be if it needs to be included in the exports')
         return fields
     
-    @computed_field(title="Export fields model initialization", description="Initialization fields to export", json_schema_extra={"var_type": ModelVarType.PARAMETER})
+    @computed_field(title="Export fields model initialization", description="Initialization fields to export", json_schema_extra={"var_type": None})
     @property
     def export_fields_initial_states(self) -> list[str]:
         # Fields to export into a dataframe
