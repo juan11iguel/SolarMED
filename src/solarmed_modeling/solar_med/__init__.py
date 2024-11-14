@@ -1426,6 +1426,11 @@ class SolarMED(BaseModel):
             **self.model_dump(include=self.export_fields_df, by_alias=False, exclude_none=True, exclude_defaults=True),
             **self.model_dump(include=self.export_fields_config, by_alias=False, exclude_none=True, exclude_defaults=True),
         }
+        
+        # Computed fields are always included when dumping the model, filter them out
+        for field in self.model_computed_fields:
+            if field in dump:
+                del dump[field]
 
         if to_file is not None:
             to_file = Path(to_file).with_suffix('.pkl')
