@@ -173,8 +173,7 @@ def import_results(paths_path: Path,
         metadata_dict = json.load(f)
         
     if system not in metadata_dict.keys():
-        logger.error(f"No results found for system {system} with horizon")
-        return None, None
+        raise ValueError(f"No results found for system {system} with horizon")
     
     if is_dataclass(params):
         params = asdict(params)
@@ -188,8 +187,8 @@ def import_results(paths_path: Path,
             break
     else:
         # If no match is found, append a new entry
-        logger.error(f"No data found for {system} with parameters: {params}")
-        return None, None
+        raise ValueError(f"No data found for {system}, horizon={n_horizon} and parameters: {params}")
+
 
     paths_df = pd.read_csv(paths_path / item["paths_file_id"], index_col=0)
     valid_inputs_path: Path = item.get("valid_inputs_file_id", None)

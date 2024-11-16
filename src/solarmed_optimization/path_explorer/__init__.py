@@ -25,7 +25,7 @@ SupportedStates = MedState | SfTsState
 # def generate_default_inputs(system):
 # Define expected inputs to the step method, can't think of a cleaner way to only do it once and for every option
 expected_inputs_default = {}
-for system, default_value in zip(['MED', 'SFTS'], [None, 0.0]):
+for system, default_value in zip(['MED', 'SFTS'], [0.0, 0.0]):
     if system == 'MED':
         machine_cls = MedFsm
     elif system == 'SFTS':
@@ -102,7 +102,7 @@ def get_transitions_with_inputs(model: SupportedFSMTypes, prior_inputs: list | n
 
 def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, current_path: list[SupportedStates],
                        all_paths: list[list[SupportedStates]], max_step_idx: int, recursitron_cnt: int = 0,
-                       current_valid_inputs: list[list[float]] = None, valid_inputs: list[list[list[float]]] = None) -> int | bool:
+                       valid_inputs: list[list[list[float]]] = None) -> int | bool:
     """
     Recursive function that generates all possible paths for a given instance of the machine starting from its current state.
     It will explore every possible path from the current state up to a final state defined by the prediction horizon (`max_step_idx`). Then it will

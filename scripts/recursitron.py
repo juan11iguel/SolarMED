@@ -7,6 +7,7 @@ from solarmed_modeling.fsms.med import FsmParameters as MedFsmParameters
 from solarmed_modeling.fsms.sfts import FsmParameters as SfTsFsmParameters
 from solarmed_optimization.path_explorer import get_all_paths
 from solarmed_optimization.path_explorer.utils import import_results
+from concurrent.futures import ProcessPoolExecutor
 
 """WARNING
 Depending on the FSM parameters and the max_step_idx, the number of paths can grow exponentially
@@ -17,10 +18,10 @@ logger.disable("solarmed_optimization.path_explorer")
 
 use_parallel: bool = True
 output_path: Path = Path("results")
-# n_horizons: list[int] = [3, 3, 5, 8, 10] # Repeat the number of horizons to evaluate rewriting the results
-n_horizons: list[int] = [5]
+# n_horizons: list[int] = [3, 3, 5, 8, 10, 12, 15] # Repeat the number of horizons to evaluate rewriting the results
+n_horizons: list[int] = [5, 8, 10]
 return_formats: list[str] = ["value", "name", "enum"]
-sample_time: int = 1
+sample_time: int = 1*3600 # 1
 include_valid_inputs: bool = True
 
 params_to_test: dict[str, list[MedFsmParameters] | list[SfTsFsmParameters]] = {
@@ -32,23 +33,41 @@ params_to_test: dict[str, list[MedFsmParameters] | list[SfTsFsmParameters]] = {
         #     off_cooldown_time=0,
         #     active_cooldown_time=0,
         # ),
+        # MedFsmParameters(
+        #     vacuum_duration_time = 2,
+        #     brine_emptying_time = 1,
+        #     startup_duration_time = 1,
+        #     off_cooldown_time=9999,
+        #     active_cooldown_time=5,
+        # ),
         MedFsmParameters(
-            vacuum_duration_time = 2,
-            brine_emptying_time = 1,
-            startup_duration_time = 1,
-            off_cooldown_time=9999,
-            active_cooldown_time=5,
-        )
+            vacuum_duration_time = 1*3600, # 1 hour
+            brine_emptying_time = 30*60,   # 30 minutes
+            startup_duration_time = 20*60, # 20 minutes
+            off_cooldown_time = 12*3600,   # 12 hours
+            active_cooldown_time = 3*3600, # 3 hours
+        ),
+        MedFsmParameters(
+            vacuum_duration_time = 1*3600, # 1 hour
+            brine_emptying_time = 30*60,   # 30 minutes
+            startup_duration_time = 20*60, # 20 minutes
+            off_cooldown_time = 12*3600,   # 12 hours
+            active_cooldown_time = 3*3600, # 3 hours
+        ),
     ],
     'SFTS': [
         # SfTsFsmParameters(
         #     recirculating_ts_enabled=True,
         #     idle_cooldown_time = 0,
         # ),
+        # SfTsFsmParameters(
+        #     recirculating_ts_enabled = False,
+        #     idle_cooldown_time = 3,
+        # ),
         SfTsFsmParameters(
             recirculating_ts_enabled = False,
-            idle_cooldown_time = 3,
-        ),
+            idle_cooldown_time = 1*3600,   # 1 hour
+        )
     ]
 }
 alternative_ids: dict[str, list[str]] = {
@@ -60,30 +79,40 @@ assert all( [len(alts) == len(params)] for alts, params in zip(alternative_ids.v
 
 machine_init_args: dict[str, int] = dict(sample_time=sample_time)
 
-for idx_n, n_horizon in enumerate(n_horizons):
-    for idx_s, (system, params_list) in enumerate(params_to_test.items()):
-        for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
+def evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p):
+    logger.info(f"Evaluating possible paths for system: {system} ({idx_s+1}/{len(params_to_test.keys())}), N={n_horizon} ({idx_n+1}/{len(n_horizons)}), params {idx_p+1}/{len(params_to_test[system])}")
 
-            logger.info(f"Evaluating possible paths for system: {system} ({idx_s+1}/{len(params_to_test.keys())}), N={n_horizon} ({idx_n+1}/{len(n_horizons)}), params {idx_p+1}/{len(params_list)}")
-
-            start_time = time.time()
-            get_all_paths(
-                system=system,
-                machine_init_args=machine_init_args,
-                fsm_params=params,
-                max_step_idx=n_horizon,
-                # initial_states=[MedState.IDLE, MedState.OFF],
-                use_parallel=use_parallel, 
-                save_results=True,
-                output_path=output_path.absolute(),
-                id=alt_id,
-                include_valid_inputs = include_valid_inputs
-            )
-            
-            logger.info(f"Finished evaluation of system {system}, took {time.time()-start_time:.2f} seconds")
-            
-            # Test importing
-            [import_results(output_path, system, n_horizon, 
-                            params={**asdict(params), **machine_init_args}, return_format=r) for r in return_formats]
-        
+    start_time = time.time()
+    get_all_paths(
+        system=system,
+        machine_init_args=machine_init_args,
+        fsm_params=params,
+        max_step_idx=n_horizon,
+        use_parallel=use_parallel, 
+        save_results=True,
+        output_path=output_path.absolute(),
+        id=alt_id,
+        include_valid_inputs=include_valid_inputs
+    )
     
+    logger.info(f"Finished evaluation of system {system}, took {time.time()-start_time:.2f} seconds")
+    
+    # Test importing
+    [import_results(output_path, system, n_horizon, 
+                    params={**asdict(params), **machine_init_args}, return_format=r) for r in return_formats]
+
+if use_parallel:
+    with ProcessPoolExecutor() as executor:
+        futures = []
+        for idx_n, n_horizon in enumerate(n_horizons):
+            for idx_s, (system, params_list) in enumerate(params_to_test.items()):
+                for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
+                    futures.append(executor.submit(evaluate_paths, system, params, alt_id, n_horizon, idx_s, idx_n, idx_p))
+        
+        for future in futures:
+            future.result()
+else:
+    for idx_n, n_horizon in enumerate(n_horizons):
+            for idx_s, (system, params_list) in enumerate(params_to_test.items()):
+                for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
+                    evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p)
