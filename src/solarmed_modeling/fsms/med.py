@@ -137,8 +137,13 @@ class MedFsm(BaseFsm):
         # self.qmed_f = qmed_f
         # self.Tmed_s_in = Tmed_s_in
         # self.Tmed_c_out = Tmed_c_out
-        self.med_active = med_active
-        self.med_vacuum_state = med_vacuum_state
+        self.med_active: bool = med_active if med_active is not None else False
+        if med_vacuum_state is not None:
+            self.med_vacuum_state: MedVacuumState = self.convert_to(med_vacuum_state,
+                                                                state_cls=MedVacuumState,
+                                                                return_format="enum")
+        else:
+            self.med_vacuum_state = MedVacuumState.OFF
 
         inputs_array = self.update_inputs_array()
         self.inputs_array_prior = inputs_array
@@ -513,6 +518,9 @@ class MedFsm(BaseFsm):
         # self.qmed_f = qmed_f
         # self.Tmed_s_in = Tmed_s_in
         # self.Tmed_c_out = Tmed_c_out
+        assert med_active is not None, "MED active state cannot be None"
+        assert med_vacuum_state is not None, "MED vacuum state cannot be None"
+        
         self.med_active = bool(med_active)
         self.med_vacuum_state = self.convert_to(med_vacuum_state, state_cls = MedVacuumState, return_format = "enum")
 

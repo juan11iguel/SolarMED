@@ -156,8 +156,8 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         self.idle_cooldown_samples: int = math.ceil(self.params.idle_cooldown_time / self.sample_time)
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.qts_src: float = qts_src
-        self.qsf: float = qsf
+        self.qts_src: float = qts_src if qts_src is not None else 0.0
+        self.qsf: float = qsf if qsf is not None else 0.0
 
         inputs_array: np.ndarray[float] = self.update_inputs_array()
         self.inputs_array_prior: np.ndarray[float] = inputs_array
@@ -302,6 +302,9 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         """ Move the state machine one step forward """
 
         super().step()
+        
+        assert qsf is not None, "qsf cannot be None"
+        assert qts_src is not None, "qts_src cannot be None"
 
         # Inputs validation (would be done by Pydantic), here just update the values
         self.qsf = qsf
