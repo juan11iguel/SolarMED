@@ -25,5 +25,5 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv.sources]
-solarmed-modeling = { git = "https://github.com/juan11iguel/solarMED-modeling", branch = "fsms" }
+solarmed-modeling = { git = "https://github.com/juan11iguel/solarMED-modeling", branch = "main" }
 phd-visualizations = { git = "https://github.com/juan11iguel/phd_visualizations", branch = "main" }
