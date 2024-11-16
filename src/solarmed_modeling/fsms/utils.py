@@ -31,8 +31,8 @@ def convert_to(
     
     if isinstance(state, str):
         output = getattr(state_cls, state) 
-    elif isinstance(state, int):
-        output = state_cls(state)
+    elif isinstance(state, int | float):
+        output = state_cls(int(state))
     elif isinstance(state, Enum):
         output = state
     else:

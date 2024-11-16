@@ -112,10 +112,11 @@ class MedFsm(BaseFsm):
             internal_state: FsmInternalState = FsmInternalState(),
 
             # Inputs / Decision variables (optional, use to set prior inputs)
-            qmed_s: float = None,
-            qmed_f: float = None,
-            Tmed_s_in: float = None,
-            Tmed_c_out: float = None,
+            # qmed_s: float = None,
+            # qmed_f: float = None,
+            # Tmed_s_in: float = None,
+            # Tmed_c_out: float = None,
+            med_active: bool = None,
             med_vacuum_state: MedVacuumState = None,
      ) -> None:
         
@@ -132,10 +133,11 @@ class MedFsm(BaseFsm):
         self.off_cooldown_duration_samples = math.ceil(self.params.off_cooldown_time / self.sample_time)
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.qmed_s = qmed_s
-        self.qmed_f = qmed_f
-        self.Tmed_s_in = Tmed_s_in
-        self.Tmed_c_out = Tmed_c_out
+        # self.qmed_s = qmed_s
+        # self.qmed_f = qmed_f
+        # self.Tmed_s_in = Tmed_s_in
+        # self.Tmed_c_out = Tmed_c_out
+        self.med_active = med_active
         self.med_vacuum_state = med_vacuum_state
 
         inputs_array = self.update_inputs_array()
@@ -455,17 +457,19 @@ class MedFsm(BaseFsm):
         
         if return_valid_inputs:
             return dict(
-                qmed_s = 1.0,
-                qmed_f = 1.0,
-                Tmed_s_in = 1.0,
-                Tmed_c_out = 1.0,
+                # qmed_s = 1.0,
+                # qmed_f = 1.0,
+                # Tmed_s_in = 1.0,
+                # Tmed_c_out = 1.0,
+                med_active = True
             )
         elif return_invalid_inputs:
             return dict( # Just one would be enough
-                qmed_s = 0.0,
-                qmed_f = 0.0,
-                Tmed_s_in = 0.0,
-                Tmed_c_out = 0.0,
+                # qmed_s = 0.0,
+                # qmed_f = 0.0,
+                # Tmed_s_in = 0.0,
+                # Tmed_c_out = 0.0,
+                med_active = False
             )
         
         return np.all(self.inputs_array > 0)
@@ -478,21 +482,26 @@ class MedFsm(BaseFsm):
         if format == 'array':
             """ When the array format is used, all variables necessarily need to be parsed as floats """
 
-            med_vac_float = float(str(self.med_vacuum_state.value)) if self.med_vacuum_state is not None else None
-            return np.array([self.qmed_s, self.qmed_f, self.Tmed_s_in, self.Tmed_c_out, med_vac_float], dtype=float)
+            # med_vac_float = float(str(self.med_vacuum_state.value)) if self.med_vacuum_state is not None else None
+            # return np.array([self.qmed_s, self.qmed_f, self.Tmed_s_in, self.Tmed_c_out, med_vac_float], dtype=float)
+            med_vacuum_state = self.med_vacuum_state.value if self.med_vacuum_state is not None else None
+            return np.array([float(x) if x is not None else 0.0 for x in [self.med_active, med_vacuum_state]], dtype=float)
 
         elif format == 'dict':
             """ In the dict format, each variable  can have its own type """
 
             return {
-                'qmed_s': self.qmed_s,
-                'qmed_f': self.qmed_f,
-                'Tmed_s_in': self.Tmed_s_in,
-                'Tmed_c_out': self.Tmed_c_out,
+                # 'qmed_s': self.qmed_s,
+                # 'qmed_f': self.qmed_f,
+                # 'Tmed_s_in': self.Tmed_s_in,
+                # 'Tmed_c_out': self.Tmed_c_out,
+                'med_active': self.med_active,
                 'med_vacuum_state': self.med_vacuum_state,
             }
 
-    def step(self, qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float,
+    def step(self, 
+            #  qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float,
+             med_active: bool,
              med_vacuum_state: int | MedVacuumState, 
              return_df: bool = False, df: pd.DataFrame = None) -> None | pd.DataFrame:
         """ Move the state machine one step forward """
@@ -500,11 +509,12 @@ class MedFsm(BaseFsm):
         super().step()
 
         # Inputs validation (would be done by Pydantic), here just update the values
-        self.qmed_s = qmed_s
-        self.qmed_f = qmed_f
-        self.Tmed_s_in = Tmed_s_in
-        self.Tmed_c_out = Tmed_c_out
-        self.med_vacuum_state = MedVacuumState(med_vacuum_state) if med_vacuum_state is not None else None
+        # self.qmed_s = qmed_s
+        # self.qmed_f = qmed_f
+        # self.Tmed_s_in = Tmed_s_in
+        # self.Tmed_c_out = Tmed_c_out
+        self.med_active = bool(med_active)
+        self.med_vacuum_state = self.convert_to(med_vacuum_state, state_cls = MedVacuumState, return_format = "enum")
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
         self.update_inputs_array()
@@ -532,10 +542,11 @@ class MedFsm(BaseFsm):
         
         data = pd.DataFrame({
             'state': self.convert_to(self.state, state_cls = self._state_type, return_format = states_format),
-            'qmed_s': self.qmed_s,
-            'qmed_f': self.qmed_f,
-            'Tmed_s_in': self.Tmed_s_in,
-            'Tmed_c_out': self.Tmed_c_out,
+            # 'qmed_s': self.qmed_s,
+            # 'qmed_f': self.qmed_f,
+            # 'Tmed_s_in': self.Tmed_s_in,
+            # 'Tmed_c_out': self.Tmed_c_out,
+            'med_active': self.med_active,
             'med_vacum_state': self.convert_to(self.med_vacuum_state.value, state_cls = MedVacuumState, return_format = states_format),
             'current_sample': self.current_sample,
             **internal_state_dict

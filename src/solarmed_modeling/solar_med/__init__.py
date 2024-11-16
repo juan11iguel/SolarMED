@@ -648,8 +648,11 @@ class SolarMED(BaseModel):
             # med_fsm0 = copy.deepcopy(self._med_fsm)
 
             self._sf_ts_fsm.step(qsf=self.qsf_sp, qts_src=self.qts_src_sp)
-            self._med_fsm.step(qmed_s=self.qmed_s_sp, qmed_f=self.qmed_f_sp, Tmed_s_in=self.Tmed_s_in_sp,
-                               Tmed_c_out=self.Tmed_c_out_sp, med_vacuum_state=self.med_vacuum_state)
+            self._med_fsm.step(med_active=np.all(np.array([self.qmed_s_sp, self.qmed_f_sp, self.Tmed_s_in_sp, self.Tmed_c_out_sp]) > 0), 
+                               med_vacuum_state=self.med_vacuum_state)
+                # qmed_s=self.qmed_s_sp, qmed_f=self.qmed_f_sp, Tmed_s_in=self.Tmed_s_in_sp,
+                # Tmed_c_out=self.Tmed_c_out_sp,
+            
 
             self.update_current_state()
             logger.debug(f"SolarMED state after inputs validation: {self.current_state}")
