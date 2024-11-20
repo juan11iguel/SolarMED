@@ -2,9 +2,9 @@ from dataclasses import asdict
 from pathlib import Path
 import time
 from loguru import logger
-from solarmed_modeling.fsms import FsmParameters
 from solarmed_modeling.fsms.med import FsmParameters as MedFsmParameters
 from solarmed_modeling.fsms.sfts import FsmParameters as SfTsFsmParameters
+from solarmed_modeling.fsms import MedState, SfTsState
 from solarmed_optimization.path_explorer import get_all_paths
 from solarmed_optimization.path_explorer.utils import import_results
 from concurrent.futures import ProcessPoolExecutor
@@ -47,13 +47,6 @@ params_to_test: dict[str, list[MedFsmParameters] | list[SfTsFsmParameters]] = {
             off_cooldown_time = 12*3600,   # 12 hours
             active_cooldown_time = 3*3600, # 3 hours
         ),
-        MedFsmParameters(
-            vacuum_duration_time = 1*3600, # 1 hour
-            brine_emptying_time = 30*60,   # 30 minutes
-            startup_duration_time = 20*60, # 20 minutes
-            off_cooldown_time = 12*3600,   # 12 hours
-            active_cooldown_time = 3*3600, # 3 hours
-        ),
     ],
     'SFTS': [
         # SfTsFsmParameters(
@@ -70,14 +63,28 @@ params_to_test: dict[str, list[MedFsmParameters] | list[SfTsFsmParameters]] = {
         )
     ]
 }
+
+valid_sequences: dict[ str, list[list[int]] ] = {
+    'MED': [
+        [MedState.IDLE.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
+        # [MedState.GENERATING_VACUUM.value, MedState.IDLE.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
+        [MedState.GENERATING_VACUUM.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
+    ],
+    'SFTS': [
+        [SfTsState.HEATING_UP_SF.value, SfTsState.SF_HEATING_TS.value],
+    ]
+}
+
 alternative_ids: dict[str, list[str]] = {
-    'MED': ["lightly-contrained", "restricted"],
-    'SFTS': ["lightly-contrained", "restricted"]
+    'MED': ["valid-sequences"], #["lightly-contrained", "restricted"],
+    'SFTS': ["valid-sequences"] # ["lightly-contrained", "restricted"]
 }
 assert all( [len(alts) == len(params)] for alts, params in zip(alternative_ids.values(), params_to_test.values()) ), \
     "There should same number of alternative ids as number of params to test, per system"
 
-machine_init_args: dict[str, int] = dict(sample_time=sample_time)
+machine_init_args: dict[str, int] = dict(
+    sample_time=sample_time,
+)
 
 def evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p):
     logger.info(f"Evaluating possible paths for system: {system} ({idx_s+1}/{len(params_to_test.keys())}), N={n_horizon} ({idx_n+1}/{len(n_horizons)}), params {idx_p+1}/{len(params_to_test[system])}")
@@ -92,7 +99,8 @@ def evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p):
         save_results=True,
         output_path=output_path.absolute(),
         id=alt_id,
-        include_valid_inputs=include_valid_inputs
+        include_valid_inputs=include_valid_inputs,
+        valid_sequences=valid_sequences[system]
     )
     
     logger.info(f"Finished evaluation of system {system}, took {time.time()-start_time:.2f} seconds")

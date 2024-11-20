@@ -17,7 +17,7 @@ from solarmed_modeling.fsms import MedState, SfTsState, FsmParameters
 from solarmed_modeling.fsms.med import MedFsm
 from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm
 from solarmed_optimization.utils import timer_decorator
-from .utils import export_results
+from .utils import export_results, filter_paths
 
 SupportedFSMTypes = MedFsm | SolarFieldWithThermalStorageFsm
 SupportedStates = MedState | SfTsState
@@ -212,7 +212,8 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
                   fsm_params: FsmParameters, initial_states: list[SupportedStates] = None, 
                   use_parallel: bool = False, filter_duplicates: bool = True, 
                   save_results: bool = False, output_path: Path = None,
-                  id: str = None, include_valid_inputs: bool = False
+                  id: str = None, include_valid_inputs: bool = False,
+                  valid_sequences: list[list[int]] = None,  
                   ) -> list[list[str]] | tuple[list[list[str]], list[list[list[float]]]]:
     
     """Function that generates all possible paths for a given system and its parameters. 
@@ -329,17 +330,28 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
             valid_inputs = [valid_inputs[i] for i in indices_to_keep]
             
         logger.info(f"Removed {original_size - len(all_paths)} duplicate paths from the results")
+        
+    # Filter out invalid sequences
+    if valid_sequences is not None:
+        original_size = len(all_paths)
+        for valid_sequence in valid_sequences:
+            original_size2 = len(all_paths)
+            all_paths, valid_inputs = filter_paths(paths=all_paths, valid_sequence=valid_sequence, aux_list=valid_inputs)
+            
+            logger.info(f"Removed {original_size2 - len(all_paths)} paths not matching the valid sequence {valid_sequence}")
+        logger.info(f"Removed a total of {original_size - len(all_paths)} paths not matching all valid sequences")
 
     logger.info(f"Total number of paths found using a Deep First Search algorithm: {len(all_paths)}")
 
     computation_time: float = time.time() - start_time
 
     if save_results:
-        export_results(paths=all_paths, output_path=output_path, system=system, 
-                       params={**machine_init_args, **asdict(fsm_params)}, 
-                       computation_time=computation_time, id=id,
-                       valid_inputs=valid_inputs)
-
+        export_results(
+            paths=all_paths, output_path=output_path, system=system, 
+            params={"valid_sequences": valid_sequences, **machine_init_args, **asdict(fsm_params)}, 
+            computation_time=computation_time, id=id,
+            valid_inputs=valid_inputs
+        )
 
     if include_valid_inputs:
         return all_paths, valid_inputs
@@ -347,28 +359,6 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
     return all_paths
 
 
-# def get_paths_from_state_to_dst_state(machine: SupportedFSMTypes, dst_state: Enum | str, dst_step_idx: int) -> list[
-#     str]:
-#     """
-#     WIP
-#
-#     Function that returns all possible paths for a given instance of the machine starting from its current state,
-#     and ends in the destination state at the destination step index.
-#
-#     :param machine: Instance of the machine
-#     :param dst_state: Destination state
-#     :param dst_step_idx: Destination step index
-#     :return: list of paths
-#     """
-#     machines = [copy.deepcopy(machine)]
-#
-#     all_paths = []
-#     generate_all_paths(machines, machine.get_state(), [], all_paths, dst_step_idx)
-#
-#     # Filter out the paths that do not end in the destination state
-#     paths = [path for path in all_paths if path[-1] == dst_state]
-#
-#     return paths
 
 def dump_as(paths: list[list[str]], file_path: Path, file_format: Literal['csv', 'json'] = 'csv'):
     """

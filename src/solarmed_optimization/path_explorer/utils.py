@@ -8,6 +8,7 @@ from dataclasses import asdict, is_dataclass
 import pickle
 
 from loguru import logger
+import numpy as np
 import pandas as pd
 from solarmed_modeling.fsms.utils import convert_to
 
@@ -208,3 +209,90 @@ def import_results(paths_path: Path,
         return paths_df, valid_inputs, item
     else:
         return paths_df, valid_inputs
+    
+    
+def is_valid_path(path: list[int], valid_seq: list[int]) -> bool:
+    """
+    Check if a path contains the valid_sequence in order or a prefix of it in order.
+    """
+    if valid_seq[0] not in path: # or len(valid_seq) > len(path):
+        # valid path since the valid sequence is not in the path
+        # ~~or valid sequence is longer than the path~~ -> it should match the first elements
+        return True
+    
+    for element_idx, element in enumerate(path):
+        if element == valid_seq[0]:
+            remaining_path = np.array( path[element_idx:] )
+            # Filter out repeated elements
+            remaining_path = remaining_path[ np.insert(np.abs(np.diff(remaining_path)) > 0, 0, True) ]
+            
+            # print(remaining_path[:len(valid_seq)])
+            if (list(remaining_path[:len(valid_seq)]) == valid_seq or # Path contains the valid sequence
+                list(remaining_path) == valid_seq[:len(remaining_path)]): # The remainining section of the path follows the sequence
+                # len(valid_seq) > len(remaining_path)):
+                continue
+            return False
+        
+    return True
+
+def filter_paths(paths: list[list], valid_sequence: list, aux_list: list = None) -> list[list] | tuple[list[list], list[list]]:
+    """ Filter `paths` that, if present, follow a given `valid_sequence`. Also filters an auxiliary list if provided.
+        - Supports both integer and Enum types for the paths and valid_sequence.
+        - If enums are provided, the values need to be integers.
+        
+        TODO: As used in get_all_paths, valid_sequences are chained with AND logic. If starting from a given state, two 
+        valid paths should be possible, then we should be able to have OR logic. This is currently not supported.
+        
+        Proposed interface:
+        valid_sequences: list[ list[int] | list[list[int]] ] = [
+            [0, 1, 2], # vs1
+            [[0, 1, 2], [0, 2, 1]] # vs2, vs3
+        ]
+        vs1 AND ( vs2 OR vs3 )
+        
+        TODO: Currently we filter by valid sequences, but sometimes it might be easier to filter by invalid sequences.
+        Add support for this.
+
+    Args:
+        paths (list[list]): List of paths to be filtered
+        valid_sequence (list): Valid sequence of states that the paths should respect
+
+    Returns:
+        list[list]: List of paths that, if contain the given sequence, respect it
+
+    Example usage:
+        path_sequence: list[int] = [0, 1, 2]
+        
+        paths: list[list[int]] = [
+            [0, 0, 1, 2, 0],       # Should be valid
+            [0, 0, 1, 1, 1, 2, 0], # Should be valid
+            [0, 1, 1, 1, 1, 1],    # Should be valid
+            [0, 0, 0, 0, 0],       # Should be valid
+            [0, 1, 0, 1, 0],       # Should be invalid
+            [0, 0, 0, 0, 2]        # Should be invalid
+        ]
+
+        filtered_paths = filter_paths(paths, path_sequence)
+        
+        print(f"Original paths ({len(paths)}): {paths}")
+        print(f"Filtered paths ({len(filtered_paths)}): {filtered_paths}")
+        assert filtered_paths == [*paths[:-2]], "Filtering function not working correctly"
+    """
+    
+    assert isinstance(valid_sequence[0], Enum) or isinstance(valid_sequence[0], int), "Valid sequence should be a list of integers or Enums (that have integers as values)"
+    # assert type(paths[0][0]) is type(valid_sequence[0]), "Paths and valid_sequence should have the same type"
+    
+    # Convert paths to values
+    paths_numeric: list[list[int]] = [[state.value for state in path] for path in paths] if isinstance(paths[0][0], Enum) else paths
+    valid_seq_numeric: list[int] = [state.value for state in valid_sequence] if isinstance(valid_sequence[0], Enum) else valid_sequence
+    
+    if aux_list is None:
+        # return [path for path in paths if is_valid_path(path, valid_sequence)]
+        aux_list = [None] * len(paths)
+
+    filtered_paths, filtered_aux_list = zip(*[(path, aux) for path_num, path, aux in zip(paths_numeric, paths, aux_list) if is_valid_path(path_num, valid_seq_numeric)])
+    
+    if aux_list[0] is not None:
+        return list(filtered_paths), list(filtered_aux_list)
+    else:
+        return list(filtered_paths)
