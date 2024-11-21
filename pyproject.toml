@@ -10,7 +10,7 @@ dependencies = [
     "pandas>=2.2.2",
     "phd-visualizations",
     "pyarrow>=18.0.0",
-    "pydantic>=2.9.2",
+    "pydantic==2.9.2", # 2.10 raises PydanticSchemaGenerationError even when `arbitrary_types_allowed=True` is set: Unable to generate pydantic-core schema for numpy.ndarray[float]. Set `arbitrary_types_allowed=True` in the model_config to ignore this error or implement `__get_pydantic_core_schema__` on your type to fully support it.
     "pygmo>=2.19.5",
 ]
 
