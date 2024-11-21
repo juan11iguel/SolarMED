@@ -5,9 +5,8 @@ import pandas as pd
 import math
 from loguru import logger
 
-from . import BaseFsm, MedState, MedVacuumState
+from . import BaseFsm, MedState, MedVacuumState, FsmInputs as BaseFsmInputs
 from solarmed_modeling.med import FixedModelParameters
-
 
 @dataclass
 class FsmStartupConditions:
@@ -79,16 +78,28 @@ class FsmInternalState:
     off_cooldown_done: bool = True
     off_cooldown_elapsed_samples: int = 0
 
-# @dataclass
-# class FsmInputs:
-#     """
-#     Inputs / Decision variables
-#     """
-#     qmed_s: float
-#     qmed_f: float
-#     Tmed_s_in: float
-#     Tmed_c_out: float
-#     med_vacuum_state: MedVacuumState
+@dataclass
+class FsmInputs(BaseFsmInputs):
+    """
+    Inputs / Decision variables
+    """
+    med_active: bool
+    med_vacuum_state: MedVacuumState
+    
+    def __post_init__(self):
+        super().__post_init__()
+        
+        # Make sure med_vacuum_state is of the correct type
+        self.med_vacuum_state: MedVacuumState = self._convert_to(self.med_vacuum_state,
+                                                                state_cls=MedVacuumState,
+                                                                return_format="enum")
+        
+    # def dump_as_array(self):
+        
+        # return super().dump_as_array()
+        # med_vacuum_state = self.med_vacuum_state.value if self.med_vacuum_state is not None else None
+        # return np.array([float(x) if x is not None else 0.0 for x in [self.med_active, med_vacuum_state]], dtype=float)
+
 
 class MedFsm(BaseFsm):
 
@@ -116,14 +127,15 @@ class MedFsm(BaseFsm):
             # qmed_f: float = None,
             # Tmed_s_in: float = None,
             # Tmed_c_out: float = None,
-            med_active: bool = None,
-            med_vacuum_state: MedVacuumState = None,
-     ) -> None:
+            # med_active: bool = None,
+            # med_vacuum_state: MedVacuumState = None,
+            inputs: FsmInputs = None,
+    ) -> None:
         
         # Call parent constructor
         super().__init__(name=name, initial_state=initial_state, sample_time=sample_time,
                          current_sample=current_sample, internal_state=internal_state,
-                         params=params)
+                         params=params, inputs=inputs)
 
         # Convert duration times to samples
         self.vacuum_duration_samples = math.ceil(self.params.vacuum_duration_time / self.sample_time)
@@ -137,13 +149,15 @@ class MedFsm(BaseFsm):
         # self.qmed_f = qmed_f
         # self.Tmed_s_in = Tmed_s_in
         # self.Tmed_c_out = Tmed_c_out
-        self.med_active: bool = med_active if med_active is not None else False
-        if med_vacuum_state is not None:
-            self.med_vacuum_state: MedVacuumState = self.convert_to(med_vacuum_state,
-                                                                state_cls=MedVacuumState,
-                                                                return_format="enum")
-        else:
-            self.med_vacuum_state = MedVacuumState.OFF
+        if self.inputs is None:
+            self.inputs = FsmInputs(
+                med_active = False,
+                med_vacuum_state=MedVacuumState.OFF
+            )
+            # if med_vacuum_state is not None:
+            #     
+            # else:
+            #     self.inputs.med_vacuum_state = 
 
         inputs_array = self.update_inputs_array()
         self.inputs_array_prior = inputs_array
@@ -366,7 +380,7 @@ class MedFsm(BaseFsm):
         elif return_invalid_inputs:
             return dict(med_vacuum_state = MedVacuumState.OFF) # Could also be LOW
         
-        return self.med_vacuum_state == MedVacuumState.HIGH
+        return self.inputs.med_vacuum_state == MedVacuumState.HIGH
         
     def is_low_vacuum(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
         """ Check if the vacuum is low """
@@ -377,7 +391,7 @@ class MedFsm(BaseFsm):
             # Should not be HIGH! since it will still return a valid transition in some cases
             return dict(med_vacuum_state = MedVacuumState.OFF)
             
-        return self.med_vacuum_state == MedVacuumState.LOW
+        return self.inputs.med_vacuum_state == MedVacuumState.LOW
                     
     def is_off_vacuum(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
         """ Check if the vacuum is off """
@@ -387,7 +401,7 @@ class MedFsm(BaseFsm):
         elif return_invalid_inputs:
             return dict(med_vacuum_state = MedVacuumState.HIGH) # Could also be LOW
         
-        return self.med_vacuum_state == MedVacuumState.OFF
+        return self.inputs.med_vacuum_state == MedVacuumState.OFF
 
     def is_vacuum_done(self, *args) -> bool:
         """ Check if the vacuum generation is done """
@@ -455,7 +469,7 @@ class MedFsm(BaseFsm):
 
             return inputs
 
-        return self.are_inputs_valid() and self.med_vacuum_state != MedVacuumState.OFF
+        return self.are_inputs_valid() and self.inputs.med_vacuum_state != MedVacuumState.OFF
 
     def are_inputs_valid(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
         """ Just check if the inputs are greater than zero, not the vacuum """
@@ -478,89 +492,4 @@ class MedFsm(BaseFsm):
             )
         
         return np.all(self.inputs_array > 0)
-
-    # Other methods
-    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> np.ndarray[float] | dict:
-        
-        super().get_inputs(format=format) # Just to check if the format is valid
-
-        if format == 'array':
-            """ When the array format is used, all variables necessarily need to be parsed as floats """
-
-            # med_vac_float = float(str(self.med_vacuum_state.value)) if self.med_vacuum_state is not None else None
-            # return np.array([self.qmed_s, self.qmed_f, self.Tmed_s_in, self.Tmed_c_out, med_vac_float], dtype=float)
-            med_vacuum_state = self.med_vacuum_state.value if self.med_vacuum_state is not None else None
-            return np.array([float(x) if x is not None else 0.0 for x in [self.med_active, med_vacuum_state]], dtype=float)
-
-        elif format == 'dict':
-            """ In the dict format, each variable  can have its own type """
-
-            return {
-                # 'qmed_s': self.qmed_s,
-                # 'qmed_f': self.qmed_f,
-                # 'Tmed_s_in': self.Tmed_s_in,
-                # 'Tmed_c_out': self.Tmed_c_out,
-                'med_active': self.med_active,
-                'med_vacuum_state': self.med_vacuum_state,
-            }
-
-    def step(self, 
-            #  qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float,
-             med_active: bool,
-             med_vacuum_state: int | MedVacuumState, 
-             return_df: bool = False, df: pd.DataFrame = None) -> None | pd.DataFrame:
-        """ Move the state machine one step forward """
-
-        super().step()
-
-        # Inputs validation (would be done by Pydantic), here just update the values
-        # self.qmed_s = qmed_s
-        # self.qmed_f = qmed_f
-        # self.Tmed_s_in = Tmed_s_in
-        # self.Tmed_c_out = Tmed_c_out
-        assert med_active is not None, "MED active state cannot be None"
-        assert med_vacuum_state is not None, "MED vacuum state cannot be None"
-        
-        self.med_active = bool(med_active)
-        self.med_vacuum_state = self.convert_to(med_vacuum_state, state_cls = MedVacuumState, return_format = "enum")
-
-        # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.update_inputs_array()
-
-        transition = self.get_next_valid_transition(prior_inputs=self.inputs_array_prior,
-                                                    current_inputs=self.inputs_array)
-
-        if transition is not None:
-            transition()
-
-        # Save prior inputs
-        self.inputs_array_prior = self.inputs_array
-        
-        # Return updated dataframe
-        if return_df:
-            return self.to_dataframe(df)
-
-
-    def to_dataframe(self, df: pd.DataFrame = None, states_format: Literal["enum", "value", "name"] = "enum") -> pd.DataFrame:
-        # Return some of the internal variables as a dataframe
-        # the state as en Enum?str?, the inputs, the consumptions
-
-        df = super().to_dataframe(df, states_format)
-        internal_state_dict = self.get_internal_state_dict()
-        
-        data = pd.DataFrame({
-            'state': self.convert_to(self.state, state_cls = self._state_type, return_format = states_format),
-            # 'qmed_s': self.qmed_s,
-            # 'qmed_f': self.qmed_f,
-            # 'Tmed_s_in': self.Tmed_s_in,
-            # 'Tmed_c_out': self.Tmed_c_out,
-            'med_active': self.med_active,
-            'med_vacum_state': self.convert_to(self.med_vacuum_state.value, state_cls = MedVacuumState, return_format = states_format),
-            'current_sample': self.current_sample,
-            **internal_state_dict
-        }, index=[0])
-
-        df = pd.concat([df, data], ignore_index=True)
-
-        return df
 

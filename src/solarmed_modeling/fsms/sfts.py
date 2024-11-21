@@ -5,7 +5,8 @@ import pandas as pd
 from loguru import logger
 import math
 
-from . import BaseFsm, SfTsState, SolarFieldState, ThermalStorageState
+from . import (BaseFsm, SfTsState, SolarFieldState, ThermalStorageState,
+               FsmInputs as BaseFsmInputs) 
 from solarmed_modeling.solar_field import FixedModelParameters as SfFixedModParams
 from solarmed_modeling.thermal_storage import FixedModelParameters as TsFixedModParams
 
@@ -59,6 +60,18 @@ class FsmInternalState:
     recirculating_ts_cooldown_done: bool = False
     recirculating_ts_cooldown_elapsed_samples: int = 0
     
+@dataclass
+class FsmInputs(BaseFsmInputs):
+    """
+    Inputs to the Finite State Machine (FSM)
+    
+    Using a dataclass provides validation, but specially allows to mantain a consistent
+    order when returning inputs by using:
+    - return a dict representation: FsmInputs.asdict()
+    - return a list of input values: list(FsmInputs.asdict().values()) -> [qsf_value, qts_src_value]
+    """
+    qsf: float # Solar field recirculation flow rate (m³/h)
+    qts_src: float # Thermal storage heat source recirculation flow rate (m³/h)
     
 def get_sfts_state(sf_state: int | SolarFieldState | str, ts_state: int | ThermalStorageState | str,
                    return_format: Literal["name", "value", "enum"] = "enum") -> SfTsState | str | int:
@@ -142,22 +155,25 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
             internal_state: FsmInternalState = FsmInternalState(),
             
             # Inputs / Decision variables (optional, use to set prior inputs)
-            qts_src: float = None, 
-            qsf: float = None
+            # qts_src: float = None, 
+            # qsf: float = None
+            inputs: FsmInputs = None,
     ) -> None:
 
         # Call parent constructor
         super().__init__(name=name, initial_state=initial_state, sample_time=sample_time,
                          current_sample=current_sample, internal_state=internal_state,
-                         params=params)
+                         params=params, inputs=inputs)
         
         # Convert duration times to samples
         self.recirculating_ts_cooldown_samples: int = math.ceil(self.params.recirculating_ts_cooldown_time / self.sample_time)
         self.idle_cooldown_samples: int = math.ceil(self.params.idle_cooldown_time / self.sample_time)
 
         # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.qts_src: float = qts_src if qts_src is not None else 0.0
-        self.qsf: float = qsf if qsf is not None else 0.0
+        # self.inputs.qts_src: float = qts_src if qts_src is not None else 0.0
+        # self.inputs.qsf: float = qsf if qsf is not None else 0.0
+        if self.inputs is None:
+            self.inputs = FsmInputs(qsf=0.0, qts_src=0.0)
 
         inputs_array: np.ndarray[float] = self.update_inputs_array()
         self.inputs_array_prior: np.ndarray[float] = inputs_array
@@ -191,30 +207,14 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         # Additional
         self.customize_fsm_style()
 
-    def get_inputs(self, format: Literal['array', 'dict'] = 'array') -> np.ndarray[float] | dict:
-
-        super().get_inputs(format=format) # Just to check if the format is valid
-
-        if format == 'array':
-            # When the array format is used, all variables necessarily need to be parsed as floats
-
-            return np.array([self.qts_src, self.qsf], dtype=float)
-
-        elif format == 'dict':
-            # In the dict format, each variable  can have its own type
-            return {
-                'qts_src': self.qts_src,
-                'qsf': self.qsf,
-            }
-
     # State machine actions - callbacks of states and transitions
     def stop_pump_ts(self, *args) -> None:
         """ Stop the pump for the thermal storage """
-        self.qts_src = 0
+        self.inputs.qts_src = 0
 
     def stop_pump_sf(self, *args) -> None:
         """ Stop the pump for the solar field """
-        self.qsf = 0
+        self.inputs.qsf = 0
 
     def stop_pumps(self, *args) -> None:
         """ Stop both pumps """
@@ -245,12 +245,12 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
             return dict(qsf = 0.0)
 
         output: bool = False
-        if self.qsf is not None:
-            output = self.qsf > 0
+        if self.inputs.qsf is not None:
+            output = self.inputs.qsf > 0
 
         # Prioritize Tsf_out, but if it has no valid value, check qsf
-        # if output == False and self.qsf is not None:
-        #     output = self.qsf > 0
+        # if output == False and self.inputs.qsf is not None:
+        #     output = self.inputs.qsf > 0
 
         return output
 
@@ -263,7 +263,7 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         elif return_invalid_inputs:
             return dict(qts_src = 0.0)
 
-        return self.qts_src > 0 if self.qts_src is not None else False
+        return self.inputs.qts_src > 0 if self.inputs.qts_src is not None else False
     
     def is_idle_cooldown_done(self, *args, ) -> bool:
         """ Check if the idle cooldown is done """
@@ -294,56 +294,3 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         self.internal_state.recirculating_ts_cooldown_done = cooldown_done
         
         return cooldown_done
-
-
-    def step(self, qsf: float, qts_src: float, 
-             return_df: bool = False, df: pd.DataFrame = None) -> None | pd.DataFrame:
-        
-        """ Move the state machine one step forward """
-
-        super().step()
-        
-        assert qsf is not None, "qsf cannot be None"
-        assert qts_src is not None, "qts_src cannot be None"
-
-        # Inputs validation (would be done by Pydantic), here just update the values
-        self.qsf = qsf
-        self.qts_src = qts_src
-
-        # Store inputs in an array, needs to be updated every time the inputs change (step)
-        self.update_inputs_array()
-
-        transition: callable = self.get_next_valid_transition(prior_inputs=self.inputs_array_prior,
-                                                    current_inputs=self.inputs_array)
-        if transition is not None:
-            transition()
-
-        # Save prior inputs
-        self.inputs_array_prior = self.inputs_array
-        
-        # Return updated dataframe
-        if return_df:
-            return self.to_dataframe(df)
-
-    def to_dataframe(self, df: pd.DataFrame = None, states_format: Literal["enum", "value", "name"] = "enum") -> pd.DataFrame:
-        # Return some of the internal variables as a dataframe
-        # the state as en Enum?str?, the inputs, the consumptions
-        df = super().to_dataframe(df, states_format)
-        internal_state_dict = self.get_internal_state_dict()
-        
-        # There should be some internal method to set the fields. 
-        # - Inputs similar to internal states and params should be an `inputs` dataclass
-        # - And then just have an attribute with a list of the fields to be included in the dataframe
-        # It does not make sense on every child class to be including the convert_to and current samples
-        
-        data = pd.DataFrame({
-            'state': self.convert_to(self.state, state_cls = self._state_type, return_format = states_format),
-            'current_sample': self.current_sample,
-            'qsf': self.qsf,
-            'qts_src': self.qts_src,
-            **internal_state_dict
-        }, index=[0])
-
-        df = pd.concat([df, data], ignore_index=True)
-
-        return df
