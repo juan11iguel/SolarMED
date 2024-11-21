@@ -1,17 +1,23 @@
 {
     "SFTS": [
         {
-            "alternative_id": "lightly-contrained",
+            "alternative_id": "valid-sequences",
             "n_horizon": 5,
-            "computation_time": 0.6391348838806152,
-            "n_paths": 103,
+            "computation_time": 0.346179723739624,
+            "n_paths": 59,
             "n_paths_per_initial_state": {
-                "IDLE": 34,
-                "HEATING_UP_SF": 34,
-                "SF_HEATING_TS": 34,
+                "IDLE": 21,
+                "HEATING_UP_SF": 16,
+                "SF_HEATING_TS": 21,
                 "RECIRCULATING_TS": 1
             },
             "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
                 "sample_time": 3600,
                 "recirculating_ts_enabled": false,
                 "recirculating_ts_cooldown_time": 35996400,
@@ -29,21 +35,28 @@
                 "qsf",
                 "qts_src"
             ],
-            "paths_file_id": "sfts_n_5_8f1d72f6-e61d-481f-adc0-1a3fe832e138.csv",
-            "valid_inputs_file_id": "sfts_n_5_8f1d72f6-e61d-481f-adc0-1a3fe832e138.pkl"
+            "paths_file_id": "sfts_n_5_7a7bb2e4-de50-4692-b5e8-10ef8eafa79a.csv",
+            "valid_inputs_file_id": "sfts_n_5_7a7bb2e4-de50-4692-b5e8-10ef8eafa79a.pkl",
+            "generated_at": "2024-11-21T18:50:51.352746+00:00"
         },
         {
-            "alternative_id": "lightly-contrained",
+            "alternative_id": "valid-sequences",
             "n_horizon": 8,
-            "computation_time": 4.029100179672241,
-            "n_paths": 1831,
+            "computation_time": 2.817394256591797,
+            "n_paths": 731,
             "n_paths_per_initial_state": {
-                "IDLE": 610,
-                "HEATING_UP_SF": 610,
-                "SF_HEATING_TS": 610,
+                "IDLE": 265,
+                "HEATING_UP_SF": 200,
+                "SF_HEATING_TS": 265,
                 "RECIRCULATING_TS": 1
             },
             "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
                 "sample_time": 3600,
                 "recirculating_ts_enabled": false,
                 "recirculating_ts_cooldown_time": 35996400,
@@ -61,21 +74,28 @@
                 "qsf",
                 "qts_src"
             ],
-            "paths_file_id": "sfts_n_8_a2de83df-c2cf-4254-8b80-869414e3c64c.csv",
-            "valid_inputs_file_id": "sfts_n_8_a2de83df-c2cf-4254-8b80-869414e3c64c.pkl"
+            "paths_file_id": "sfts_n_8_38107bc4-dc26-4c3e-b69d-3c1b376b03fe.csv",
+            "valid_inputs_file_id": "sfts_n_8_38107bc4-dc26-4c3e-b69d-3c1b376b03fe.pkl",
+            "generated_at": "2024-11-21T18:50:53.824471+00:00"
         },
         {
-            "alternative_id": "lightly-contrained",
+            "alternative_id": "valid-sequences",
             "n_horizon": 10,
-            "computation_time": 15.415037631988525,
-            "n_paths": 12544,
+            "computation_time": 14.684560537338257,
+            "n_paths": 3946,
             "n_paths_per_initial_state": {
-                "IDLE": 4181,
-                "HEATING_UP_SF": 4181,
-                "SF_HEATING_TS": 4181,
+                "IDLE": 1432,
+                "HEATING_UP_SF": 1081,
+                "SF_HEATING_TS": 1432,
                 "RECIRCULATING_TS": 1
             },
             "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
                 "sample_time": 3600,
                 "recirculating_ts_enabled": false,
                 "recirculating_ts_cooldown_time": 35996400,
@@ -93,25 +113,38 @@
                 "qsf",
                 "qts_src"
             ],
-            "paths_file_id": "sfts_n_10_4829ac8b-b521-403a-af43-9bf21fb3b127.csv",
-            "valid_inputs_file_id": "sfts_n_10_4829ac8b-b521-403a-af43-9bf21fb3b127.pkl"
+            "paths_file_id": "sfts_n_10_b1cc368b-8a32-48bc-ac98-6dd55b389bc0.csv",
+            "valid_inputs_file_id": "sfts_n_10_b1cc368b-8a32-48bc-ac98-6dd55b389bc0.pkl",
+            "generated_at": "2024-11-21T18:51:05.699190+00:00"
         }
     ],
     "MED": [
         {
-            "alternative_id": "restricted",
+            "alternative_id": "valid-sequences",
             "n_horizon": 5,
-            "computation_time": 0.8504428863525391,
-            "n_paths": 68,
+            "computation_time": 0.7100090980529785,
+            "n_paths": 31,
             "n_paths_per_initial_state": {
-                "OFF": 19,
-                "GENERATING_VACUUM": 12,
-                "IDLE": 8,
-                "STARTING_UP": 12,
-                "SHUTTING_DOWN": 12,
-                "ACTIVE": 5
+                "OFF": 6,
+                "GENERATING_VACUUM": 4,
+                "IDLE": 4,
+                "STARTING_UP": 8,
+                "SHUTTING_DOWN": 6,
+                "ACTIVE": 3
             },
             "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
                 "sample_time": 3600,
                 "vacuum_duration_time": 3600,
                 "brine_emptying_time": 1800,
@@ -137,23 +170,36 @@
                 "med_active",
                 "med_vacuum_state"
             ],
-            "paths_file_id": "med_n_5_1370d9ee-073a-4f71-af08-13037d4fe9b2.csv",
-            "valid_inputs_file_id": "med_n_5_1370d9ee-073a-4f71-af08-13037d4fe9b2.pkl"
+            "paths_file_id": "med_n_5_a466a637-048a-4570-a00d-f84d67d3625e.csv",
+            "valid_inputs_file_id": "med_n_5_a466a637-048a-4570-a00d-f84d67d3625e.pkl",
+            "generated_at": "2024-11-21T18:50:51.717917+00:00"
         },
         {
-            "alternative_id": "lightly-contrained",
+            "alternative_id": "valid-sequences",
             "n_horizon": 8,
-            "computation_time": 5.123518228530884,
-            "n_paths": 337,
+            "computation_time": 3.5923640727996826,
+            "n_paths": 114,
             "n_paths_per_initial_state": {
-                "OFF": 120,
-                "GENERATING_VACUUM": 54,
-                "IDLE": 34,
-                "STARTING_UP": 54,
-                "SHUTTING_DOWN": 54,
-                "ACTIVE": 21
+                "OFF": 25,
+                "GENERATING_VACUUM": 13,
+                "IDLE": 13,
+                "STARTING_UP": 28,
+                "SHUTTING_DOWN": 25,
+                "ACTIVE": 10
             },
             "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
                 "sample_time": 3600,
                 "vacuum_duration_time": 3600,
                 "brine_emptying_time": 1800,
@@ -179,23 +225,36 @@
                 "med_active",
                 "med_vacuum_state"
             ],
-            "paths_file_id": "med_n_8_9660d7a3-3c79-4100-98d1-165ddd36a979.csv",
-            "valid_inputs_file_id": "med_n_8_9660d7a3-3c79-4100-98d1-165ddd36a979.pkl"
+            "paths_file_id": "med_n_8_d14b7b5a-dcc7-4857-903a-f884ddd8a145.csv",
+            "valid_inputs_file_id": "med_n_8_d14b7b5a-dcc7-4857-903a-f884ddd8a145.pkl",
+            "generated_at": "2024-11-21T18:50:54.598381+00:00"
         },
         {
-            "alternative_id": "lightly-contrained",
+            "alternative_id": "valid-sequences",
             "n_horizon": 10,
-            "computation_time": 15.288058280944824,
-            "n_paths": 920,
+            "computation_time": 13.256409883499146,
+            "n_paths": 261,
             "n_paths_per_initial_state": {
-                "OFF": 347,
-                "GENERATING_VACUUM": 143,
-                "IDLE": 89,
-                "STARTING_UP": 143,
-                "SHUTTING_DOWN": 143,
-                "ACTIVE": 55
+                "OFF": 57,
+                "GENERATING_VACUUM": 29,
+                "IDLE": 29,
+                "STARTING_UP": 64,
+                "SHUTTING_DOWN": 57,
+                "ACTIVE": 25
             },
             "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
                 "sample_time": 3600,
                 "vacuum_duration_time": 3600,
                 "brine_emptying_time": 1800,
@@ -221,8 +280,9 @@
                 "med_active",
                 "med_vacuum_state"
             ],
-            "paths_file_id": "med_n_10_ed9397d6-d300-4887-a00f-98ee71d281c9.csv",
-            "valid_inputs_file_id": "med_n_10_ed9397d6-d300-4887-a00f-98ee71d281c9.pkl"
+            "paths_file_id": "med_n_10_6725791e-a2a0-4fda-9674-54f97216a5eb.csv",
+            "valid_inputs_file_id": "med_n_10_6725791e-a2a0-4fda-9674-54f97216a5eb.pkl",
+            "generated_at": "2024-11-21T18:51:04.262776+00:00"
         }
     ]
 }
