@@ -107,7 +107,7 @@ def evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p):
     
     # Test importing
     [import_results(output_path, system, n_horizon, 
-                    params={**asdict(params), **machine_init_args}, return_format=r) for r in return_formats]
+                    params={'valid_sequences': valid_sequences[system], **asdict(params), **machine_init_args}, return_format=r) for r in return_formats]
 
 if use_parallel:
     with ProcessPoolExecutor() as executor:
@@ -121,6 +121,11 @@ if use_parallel:
             future.result()
 else:
     for idx_n, n_horizon in enumerate(n_horizons):
-            for idx_s, (system, params_list) in enumerate(params_to_test.items()):
-                for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
-                    evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p)
+        for idx_s, (system, params_list) in enumerate(params_to_test.items()):
+            for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
+                evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p)
+                
+                # Test importing
+                [import_results(output_path, system, n_horizon, params={
+                    'valid_sequences': valid_sequences[system], **asdict(params), **machine_init_args
+                    }, return_format=r) for r in return_formats]

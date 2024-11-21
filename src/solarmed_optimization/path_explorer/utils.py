@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 from typing import Literal
 import uuid
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, fields, is_dataclass
 import pickle
+from datetime import datetime, timezone
 
 from loguru import logger
 import numpy as np
@@ -13,8 +14,9 @@ import pandas as pd
 from solarmed_modeling.fsms.utils import convert_to
 
 from solarmed_modeling.fsms import MedState, SfTsState
-from solarmed_modeling.fsms.med import MedFsm
-from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm as SfTsFsm
+from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
+from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm as SfTsFsm,
+                                         FsmInputs as SfTsFsmInputs)
 
 class SupportedSubsystemsStatesMapping(Enum):
     MED = MedState
@@ -23,6 +25,10 @@ class SupportedSubsystemsStatesMapping(Enum):
 class SupportedFsmsMapping(Enum):
     MED = MedFsm
     SFTS = SfTsFsm
+    
+class FsmInputsMapping(Enum):
+    MED = MedFsmInputs
+    SFTS = SfTsFsmInputs
 
 def export_results(paths: list[list[Enum]], output_path: Path, system: Literal['SFTS', 'MED'], 
                    params: dict[str, int], computation_time: float, id: str = None,
@@ -74,13 +80,14 @@ def export_results(paths: list[list[Enum]], output_path: Path, system: Literal['
     paths = [[state.value for state in path] for path in paths]
     paths_df = pd.DataFrame(paths, columns=[str(i) for i in range(len(paths[0]))])
     states_cls = SupportedSubsystemsStatesMapping[system].value
-    fsm_cls = SupportedFsmsMapping[system].value
+    # fsm_cls = SupportedFsmsMapping[system].value
     
     # Convert valid inputs to DataFrame
-    # TODO: Check this a hundred times
     # This is absurdly complex, we should just have inputs be another dataclass
-    method_signature = inspect.signature(fsm_cls.step)
-    input_ids: list[str] = [param.name for param in method_signature.parameters.values() if param.default == inspect.Parameter.empty and param.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD) and param.name != "self"]
+    # method_signature = inspect.signature(fsm_cls.step)
+    # input_ids: list[str] = [param.name for param in method_signature.parameters.values() if param.default == inspect.Parameter.empty and param.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD) and param.name != "self"]
+    input_ids: list[str] = [field.name for field in fields(FsmInputsMapping[system].value)]
+    
     # if valid_inputs is not None:
         # Flatten data and prepare for DataFrame
         # flattened_data = [[path_index, state_index, input_index, input_value] 
@@ -113,7 +120,8 @@ def export_results(paths: list[list[Enum]], output_path: Path, system: Literal['
         "parameters": params,
         "input_ids": input_ids,
         "paths_file_id": paths_file_id,
-        "valid_inputs_file_id": valid_inputs_file_id
+        "valid_inputs_file_id": valid_inputs_file_id,
+        "generated_at": datetime.now(timezone.utc).isoformat()
     }
 
     if output_path_metadata.exists():

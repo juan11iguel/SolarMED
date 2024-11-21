@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from loguru import logger
 import inspect
 from enum import Enum
@@ -14,30 +14,41 @@ import numpy as np
 import pandas as pd
 
 from solarmed_modeling.fsms import MedState, SfTsState, FsmParameters
-from solarmed_modeling.fsms.med import MedFsm
-from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm
+from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
+from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm,
+                                         FsmInputs as SfTsFsmInputs)
 from solarmed_optimization.utils import timer_decorator
 from .utils import export_results, filter_paths
 
 SupportedFSMTypes = MedFsm | SolarFieldWithThermalStorageFsm
 SupportedStates = MedState | SfTsState
 
+class FsmInputsMapping(Enum):
+    MED = MedFsmInputs
+    SFTS = SfTsFsmInputs
+    
+class FsmMapping(Enum):
+    MED = MedFsm
+    SFTS = SolarFieldWithThermalStorageFsm
+    
+class StateMapping(Enum):
+    MED = MedState
+    SFTS = SfTsState
+
 # def generate_default_inputs(system):
 # Define expected inputs to the step method, can't think of a cleaner way to only do it once and for every option
 expected_inputs_default = {}
 for system, default_value in zip(['MED', 'SFTS'], [0.0, 0.0]):
-    if system == 'MED':
-        machine_cls = MedFsm
-    elif system == 'SFTS':
-        machine_cls = SolarFieldWithThermalStorageFsm
-    else:
-        raise NotImplementedError(f'Unsupported system {system}')
+    # machine_cls = FsmMapping[system].value
 
-    args = list(inspect.signature(machine_cls.step).parameters.keys())
-    expected_inputs_default[system] = {arg: default_value for arg in args}
-    expected_inputs_default[system].pop('self')
+    # args = list(inspect.signature(machine_cls.step).parameters.keys())
+    # expected_inputs_default[system] = {arg: default_value for arg in args}
+    # expected_inputs_default[system].pop('self')
 
     # return expected_inputs_default
+    
+    inputs_cls = FsmInputsMapping[system].value
+    expected_inputs_default[system] = {field.name: default_value for field in fields(inputs_cls)}
 
 # expected_inputs_default = generate_default_inputs()
 
@@ -101,8 +112,8 @@ def get_transitions_with_inputs(model: SupportedFSMTypes, prior_inputs: list | n
 
 
 def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, current_path: list[SupportedStates],
-                       all_paths: list[list[SupportedStates]], max_step_idx: int, recursitron_cnt: int = 0,
-                       valid_inputs: list[list[list[float]]] = None) -> int | bool:
+                       all_paths: list[list[SupportedStates]], max_step_idx: int, fsm_inputs_cls: object,
+                       recursitron_cnt: int = 0, valid_inputs: list[list[list[float]]] = None) -> int | bool:
     """
     Recursive function that generates all possible paths for a given instance of the machine starting from its current state.
     It will explore every possible path from the current state up to a final state defined by the prediction horizon (`max_step_idx`). Then it will
@@ -117,7 +128,7 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
     :param current_step_idx: current step index
     :return:
     """
-
+    
     if len(current_path) == 0 and recursitron_cnt > max_step_idx:
         # Exit
         logger.info(f"Path exploration completed for initial state {current_state}")
@@ -159,7 +170,7 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
                                                                    prior_inputs=machines[-1].get_inputs(format='dict')):
         logger.info(f"Transition: {transition}")  # , expected inputs: {expected_inputs}")
         try:
-            machines[-1].step(**expected_inputs)
+            machines[-1].step(fsm_inputs_cls(**expected_inputs))
         except Exception as e:
             logger.error("ay mi madre")
             raise e
@@ -167,7 +178,9 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
         next_state = machines[-1].get_state()
         recursitron_cnt = generate_all_paths(machines=machines, current_state=next_state, 
                                              current_path=current_path, all_paths=all_paths, 
-                                             max_step_idx=max_step_idx, recursitron_cnt=recursitron_cnt,
+                                             max_step_idx=max_step_idx,
+                                             fsm_inputs_cls=fsm_inputs_cls, 
+                                             recursitron_cnt=recursitron_cnt,
                                              valid_inputs=valid_inputs)
 
     if recursitron_cnt == True:
@@ -190,7 +203,7 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
 
 
 def worker(args):
-    machine_cls, machine_init_args, max_step_idx, fsm_params, initial_state, include_valid_inputs = args
+    machine_cls, machine_init_args, max_step_idx, fsm_inputs_cls, fsm_params, initial_state, include_valid_inputs = args
     machines = [machine_cls(**machine_init_args, initial_state=initial_state, params=fsm_params)]
     
     all_paths = []
@@ -200,7 +213,9 @@ def worker(args):
     generate_all_paths(machines=machines, current_state=initial_state, 
                        current_path=[], all_paths=all_paths, 
                        valid_inputs=valid_inputs,
-                       max_step_idx=max_step_idx, recursitron_cnt=0)
+                       max_step_idx=max_step_idx, 
+                       fsm_inputs_cls=fsm_inputs_cls,
+                       recursitron_cnt=0)
     logger.info(f"Completed paths search (Deep First Search - DFS) for initial state {initial_state}, in total {len(all_paths)} paths were found")
 
     if include_valid_inputs:
@@ -252,15 +267,12 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
     valid_inputs: list[list[list[float]]] = None
 
     start_time = time.time()
-
-    if system == 'MED':
-        machine_cls: SupportedFSMTypes = MedFsm
-        state_cls: SupportedStates = MedState
-    elif system == 'SFTS':
-        machine_cls: SupportedFSMTypes = SolarFieldWithThermalStorageFsm
-        state_cls: SupportedStates = SfTsState
-    else:
-        raise NotImplementedError(f'Unsupported system {system}')
+    
+    assert system in ['MED', 'SFTS'], f"Unsupported system {system}"
+    
+    fsm_inputs_cls = FsmInputsMapping[system].value
+    machine_cls = FsmMapping[system].value
+    state_cls = StateMapping[system].value
 
     # Define the possible initial states
     if not initial_states:
@@ -280,14 +292,16 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
             generate_all_paths(machines=machines, current_state=initial_state, 
                                current_path=[], all_paths=all_paths, 
                                valid_inputs=valid_inputs, 
-                               max_step_idx=max_step_idx, recursitron_cnt=0)
+                               max_step_idx=max_step_idx, 
+                               fsm_inputs_cls=fsm_inputs_cls,
+                               recursitron_cnt=0)
             logger.info(f"Completed paths search (Deep first search?) for initial state {initial_state}, in total {len(all_paths)} paths were found")
 
     else:
         with Pool() as p:
             output = p.map(
                 worker,
-                [(machine_cls, machine_init_args, max_step_idx, fsm_params, initial_state, include_valid_inputs) for initial_state in initial_states]
+                [(machine_cls, machine_init_args, max_step_idx, fsm_inputs_cls, fsm_params, initial_state, include_valid_inputs) for initial_state in initial_states]
             )
             
             if include_valid_inputs:
