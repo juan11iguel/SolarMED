@@ -1,4 +1,8 @@
+from dataclasses import asdict
 from enum import Enum
+import math
+from typing import Literal
+import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 import plotly.express as px
@@ -202,3 +206,192 @@ def paths_per_initial_state_per_system_viz(metadata: dict, systems: list[str] = 
     figs = [generate_n_paths_per_initial_state_bar_plot(metadata, system=system, initial_states=initial_states) for system in systems]
     
     return figs
+
+def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: int, mod_eval_span: int,
+                             dec_var_updates, use_times: bool = False, height: int = 500,
+                             width: int = 900) -> go.Figure:
+    
+    """
+        start, episode_span, mod_eval_span, optim_window_span can be either samples or times, but they must be consistent
+    """
+    
+
+    step_mod_evals = optim_window_span // mod_eval_span 
+
+    if use_times:
+        xaxis_title = 'Time (s)'
+        title = '<b>Optimization scheme computation cycle<b>'
+        subtitle = f'<b>Time version |</b> T<sub>s,mod</sub>: {mod_eval_span}s | T<sub>episode</sub>: {episode_span/3600:.0f}hr'
+    
+    else:
+        xaxis_title = 'Samples'
+        title = '<b>Optimization scheme computation cycle<b>'
+        subtitle = f'<b>Samples version |</b> N<sub>horizon</sub>: {mod_eval_span} | N<sub>episode</sub>: {episode_span}'
+
+    fig = go.Figure()
+
+    # Model evaluations
+    x = np.arange(start=start, stop=start+optim_window_span, step=step_mod_evals)
+    y = np.full((optim_window_span), 1)
+    
+    ## Within prediction horizon
+    fig.add_trace(
+        go.Scatter(
+            name='Model evaluations',
+            x=x,
+            y=y,
+            mode='markers',
+            marker=dict(symbol='circle') # -open
+        )
+    )
+    ## Mirror scatter for points history
+    x = np.arange(start=0, stop=start-step_mod_evals, step=step_mod_evals)
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=np.full((len(x), ), 1),
+            name="Past model evaluations",
+            mode="markers",
+            showlegend=False,
+            meta={"step": step_mod_evals, "y": 1},
+            marker=dict(symbol='circle', color="rgba(153, 170, 187, 1)")
+        )
+    )
+
+    # Decision variable updates
+    for i, (dec_var_id, n_updates) in enumerate(asdict(dec_var_updates).items()):
+        
+        step_dec_var = math.ceil(optim_window_span / n_updates)
+        y_shift = 1.05 + i/len(asdict(dec_var_updates))
+        
+        x = np.round(np.linspace(start=start, stop=start+optim_window_span-step_dec_var, num=n_updates))
+        y = np.full((n_updates, ), y_shift)
+        
+        ## Within prediction horizon
+        fig.add_trace(
+            go.Scatter(
+                name=f"Updates {dec_var_id}",
+                x=x,
+                y=y,
+                mode='markers',
+                marker=dict(symbol='circle') # -open
+            )
+        )
+        
+        ## Mirror scatter for points history
+        # color = "rgba(153, 170, 187, 0)" if start == 0 else "rgba(153, 170, 187, 1)"
+        x = np.arange(start=0, stop=start, step=step_dec_var)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=np.full((len(x), ), y_shift),
+                name=f"Past updates {dec_var_id}",
+                mode="markers",
+                showlegend=False,
+                meta={"step": step_dec_var, "y": y_shift},
+                marker=dict(symbol='circle', color="rgba(153, 170, 187, 1)")
+            )
+        )
+
+    # Prediction horizon
+    # fig.add_trace(
+    #     go.Scatter(
+    #         name='Optimization window',
+    #         x=[start, start+optim_window_span-1],
+    #         y=np.full((2, ), y+0.1),
+    #         mode='lines',
+    #         line=dict(width=4),
+    #     )
+    # )
+    
+    fig.add_shape(
+        type="rect",
+        x0=start,
+        x1=start + optim_window_span - 1,
+        y0=.9,
+        y1=y_shift+0.1,
+        line=dict(width=0),
+        fillcolor="LightSkyBlue",
+        opacity=0.3,
+        layer="below",
+        name="Optimization window",
+        showlegend=True
+    )
+        
+        
+    # print(f"{optim_window_span=}")
+    # print(f"{episode_span=}")
+
+    # Update layout for the figure
+    fig.update_layout(
+        title=dict(
+            text=title,
+            subtitle=dict(
+                text=subtitle
+            ),
+        ),
+        xaxis_title=xaxis_title,
+        xaxis=dict(
+            showline=True,
+            linewidth=4,  # Thickness of the line
+            linecolor='black',
+            range=[-1, episode_span]
+        ),
+        yaxis=dict(
+            showticklabels=False,
+            showline=False,
+            showgrid=False,
+            tickvals=[],
+        ),
+        showlegend=True,
+        
+        template='ggplot2',
+        height=height,
+        width=width,
+    )
+    
+    return go.FigureWidget(fig)
+
+def update_cycle(fig: go.Figure, opt_step_idx: int, step_size: int) -> go.Figure:
+    """ Move optimization cycle to `opt_step_idx` """
+    # with fig.batch_update():
+        # if use_times:
+        #     shift = shift / sample_time_mod
+            
+    # Move points of interest
+    for data in fig.data:
+        if data.name.lower().startswith("past"):
+            continue
+        
+        diffs = np.diff(data.x)
+
+        # Reconstruct the original array by adding opt_step_idx to the cumulative sum of the differences
+        data.x = np.cumsum(np.insert(diffs, 0, opt_step_idx*step_size))
+        
+    # Move prediction horizon
+    horizon_shape = fig.layout.shapes[0]
+    span = horizon_shape.x1 - fig.layout.shapes[0].x0
+    horizon_shape.x0 = opt_step_idx*step_size
+    horizon_shape.x1 = horizon_shape.x0 + span
+    
+    # Leave trace of filled points of interest
+    with fig.batch_update():
+        for data in fig.data:
+            if not data.name.lower().startswith("past"):
+                continue
+            
+            # if horizon_shape.x0 <= 0:
+            #     data.marker.color = data.marker.color.replace("1)", "0)")
+                
+            # else:
+            # data.marker.color = data.marker.color.replace("0)", "1)")
+            # step = np.diff(data.x).mean()
+            # if np.isnan(step):
+            #     step = 1
+            x = np.arange(start=0, stop=horizon_shape.x0-1, step=data.meta["step"])
+            data.x = x
+            data.y = np.full((len(x), ), data.meta["y"])
+    
+    # print(f"opt_idx: {opt_step_idx}, trace: {fig.data[0].name}, {fig.data[0].x[0:5]=}")
+    
+    return fig
