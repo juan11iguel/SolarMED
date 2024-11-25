@@ -19,9 +19,10 @@ logger.disable("solarmed_optimization.path_explorer")
 use_parallel: bool = True
 output_path: Path = Path("results")
 # n_horizons: list[int] = [3, 3, 5, 8, 10, 12, 15] # Repeat the number of horizons to evaluate rewriting the results
-n_horizons: list[int] = [5, 8, 10]
+# n_horizons: list[int] = [5, 8, 10]
+n_horizons: list[int] = [4]
 return_formats: list[str] = ["value", "name", "enum"]
-sample_time: int = 1*3600 # 1
+sample_time: int = 1800 # 1*3600 # 1
 include_valid_inputs: bool = True
 
 params_to_test: dict[str, list[MedFsmParameters] | list[SfTsFsmParameters]] = {

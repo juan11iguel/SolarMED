@@ -263,7 +263,8 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
     """
 
     # Validation
-    assert save_results and output_path is not None, "If `save_results` is enabled, a valid output_path needs to be provided"
+    if save_results:
+        assert output_path is not None, "If `save_results` is enabled, a valid output_path needs to be provided"
     valid_inputs: list[list[list[float]]] = None
 
     start_time = time.time()
@@ -371,34 +372,6 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
         return all_paths, valid_inputs
     
     return all_paths
-
-
-
-def dump_as(paths: list[list[str]], file_path: Path, file_format: Literal['csv', 'json'] = 'csv'):
-    """
-    Save the paths to a CSV file or a JSON
-
-    :param paths: list of paths
-    :param file_path: path to the file
-    :return:
-    """
-    
-    warnings.warn(
-        "This function is deprecated, use export_results instead"
-    )
-
-    # Convert the state type elements to string using the name attribute
-    paths = [[state.name for state in path] for path in paths] # Terrible
-
-    if file_format == 'json':
-        with open(file_path.with_suffix('.json'), 'w') as f:
-            json.dump(paths, f, indent=4)
-
-    else:
-        df = pd.DataFrame(paths)
-        df.to_csv(file_path.with_suffix('csv'), index=False)
-
-    logger.info(f"Paths saved to {file_path}")
 
 
 if __name__ == '__main__':

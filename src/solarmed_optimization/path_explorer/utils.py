@@ -14,9 +14,11 @@ import pandas as pd
 from solarmed_modeling.fsms.utils import convert_to
 
 from solarmed_modeling.fsms import MedState, SfTsState
-from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
+from solarmed_modeling.fsms.med import (MedFsm, FsmInputs as MedFsmInputs,
+                                        FsmParameters as MedFsmParams)
 from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm as SfTsFsm,
-                                         FsmInputs as SfTsFsmInputs)
+                                         FsmInputs as SfTsFsmInputs,
+                                         FsmParameters as SfTsFsmParams)
 
 class SupportedSubsystemsStatesMapping(Enum):
     MED = MedState
@@ -29,6 +31,10 @@ class SupportedFsmsMapping(Enum):
 class FsmInputsMapping(Enum):
     MED = MedFsmInputs
     SFTS = SfTsFsmInputs
+    
+class FsmParamsMapping(Enum):
+    MED = MedFsmParams
+    SFTS = SfTsFsmParams
 
 def export_results(paths: list[list[Enum]], output_path: Path, system: Literal['SFTS', 'MED'], 
                    params: dict[str, int], computation_time: float, id: str = None,
@@ -176,6 +182,7 @@ def import_results(paths_path: Path,
                    params: dict[str, int],
                    return_format: Literal["value", "name", "enum"] = "enum", 
                    return_metadata: bool = False,
+                   generate_if_not_found: bool = False,
                   ) -> tuple[pd.DataFrame, list[list[list[float]]]] | tuple[pd.DataFrame, list[list[list[float]]], dict]:
 
     with open(paths_path / "metadata.json", 'r') as f:
@@ -189,29 +196,53 @@ def import_results(paths_path: Path,
 
     # extra_keys: set = set(metadata_dict[system][0]["parameters"].keys()) - set(params.keys())
     # Check if there is any existing parameter that matches the provided params
+    found_results: bool = False
     for item in metadata_dict[system]:
         # Remove any additional keys in item["parameters"] with respect to params
         # item_params = {key: item["parameters"][key] for key in set(params.keys())}
         if item["parameters"] == params and item["n_horizon"] == n_horizon:
+            found_results = True
             break
     else:
-        # If no match is found, append a new entry
-        raise ValueError(f"No data found for {system}, horizon={n_horizon} and parameters: {params}")
+        # If no match is found, generate results if generate_if_not_found
+        if not generate_if_not_found:
+            raise ValueError(f"No data found for {system}, horizon={n_horizon} and parameters: {params}")
 
+        # Generate results
+        logger.warning(f"Data for system {system} with n_horizon = {n_horizon} and parameters: {params} not found. Generating it...")
+        from solarmed_optimization.path_explorer import get_all_paths # Avoid circular import
+        
+        logger.disable("solarmed_optimization.path_explorer")
+        fsm_params = FsmParamsMapping[system].value(**{k: v for k, v in params.items() if k not in ["sample_time", "valid_sequences"]}) # Regulero
+        paths, valid_inputs = get_all_paths(
+            system=system,
+            machine_init_args={"sample_time": params["sample_time"]}, # regulero, si cambia esto se rompe
+            fsm_params = fsm_params,
+            valid_sequences=params["valid_sequences"],
+            max_step_idx=n_horizon,
+            use_parallel=True, 
+            save_results=True,
+            include_valid_inputs=True,
+            output_path=paths_path.absolute(),
+            id="automatically_generated_from_import_results",
+        )
+        paths_df = pd.DataFrame(paths, columns=[str(i) for i in range(len(paths[0]))])
+        logger.enable("solarmed_optimization.path_explorer")
 
-    paths_df = pd.read_csv(paths_path / item["paths_file_id"], index_col=0)
-    valid_inputs_path: Path = item.get("valid_inputs_file_id", None)
-    valid_inputs = None
-    if valid_inputs_path is not None:
-        valid_inputs_path = paths_path / valid_inputs_path
-        if valid_inputs_path.exists():
-            with open(valid_inputs_path, 'rb') as f:
-                valid_inputs = pickle.load(f)
+    if found_results:
+        paths_df = pd.read_csv(paths_path / item["paths_file_id"], index_col=0)
+        valid_inputs_path: Path = item.get("valid_inputs_file_id", None)
+        valid_inputs = None
+        if valid_inputs_path is not None:
+            valid_inputs_path = paths_path / valid_inputs_path
+            if valid_inputs_path.exists():
+                with open(valid_inputs_path, 'rb') as f:
+                    valid_inputs = pickle.load(f)
     
-    if return_format != "value":
-        state_cls = getattr(SupportedSubsystemsStatesMapping, system).value 
-        # Already stored as values
-        paths_df = paths_df.map(lambda state: convert_to(state, state_cls, return_format=return_format))
+    # if return_format != "value":
+    state_cls = getattr(SupportedSubsystemsStatesMapping, system).value 
+    # Already stored as values
+    paths_df = paths_df.map(lambda state: convert_to(state, state_cls, return_format=return_format))
     
     if return_metadata:
         return paths_df, valid_inputs, item
@@ -287,12 +318,22 @@ def filter_paths(paths: list[list], valid_sequence: list, aux_list: list = None)
         assert filtered_paths == [*paths[:-2]], "Filtering function not working correctly"
     """
     
-    assert isinstance(valid_sequence[0], Enum) or isinstance(valid_sequence[0], int), "Valid sequence should be a list of integers or Enums (that have integers as values)"
+    assert isinstance(valid_sequence[0], (Enum, int, float)), "Valid sequence should be a list of integers, Enums, or floats"
     # assert type(paths[0][0]) is type(valid_sequence[0]), "Paths and valid_sequence should have the same type"
+    if isinstance(valid_sequence[0], float) or isinstance(paths[0][0], float):
+        logger.info("Float values detected in valid_sequence or paths. Converting to integers")
     
     # Convert paths to values
-    paths_numeric: list[list[int]] = [[state.value for state in path] for path in paths] if isinstance(paths[0][0], Enum) else paths
-    valid_seq_numeric: list[int] = [state.value for state in valid_sequence] if isinstance(valid_sequence[0], Enum) else valid_sequence
+    paths_numeric = paths
+    if isinstance(paths[0][0], Enum):
+        paths_numeric: list[list[int]] = [[state.value for state in path] for path in paths]
+    elif isinstance(paths[0][0], float):
+        paths_numeric: list[list[int]] = [[int(state) for state in path] for path in paths]
+    valid_seq_numeric = valid_sequence
+    if isinstance(valid_sequence[0], Enum):
+        valid_seq_numeric: list[int] = [state.value for state in valid_sequence]
+    elif isinstance(valid_sequence[0], float):
+        valid_seq_numeric: list[int] = [int(state) for state in valid_sequence]
     
     if aux_list is None:
         # return [path for path in paths if is_valid_path(path, valid_sequence)]

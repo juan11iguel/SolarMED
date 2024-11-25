@@ -215,7 +215,6 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
         start, episode_span, mod_eval_span, optim_window_span can be either samples or times, but they must be consistent
     """
     
-
     step_mod_evals = optim_window_span // mod_eval_span 
 
     if use_times:
