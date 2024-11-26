@@ -486,6 +486,9 @@ class SolarMED(BaseModel):
     def serialize_actuators_consumptions(self, value: ActuatorsMaping) -> dict:
         return {k: {var: actuator.id for var, actuator in v.items()} for k, v in asdict(value).items()}
 
+    @field_serializer("med_vacuum_state")
+    def serialize_med_vacuum_state(self, value: MedVacuumState) -> int:
+        return value.value
 
     def model_post_init(self, ctx) -> None:
         """ Post initialization method, called after the model is created """
