@@ -223,15 +223,17 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
         subtitle = f'<b>Time version |</b> T<sub>s,mod</sub>: {mod_eval_span}s | T<sub>episode</sub>: {episode_span/3600:.0f}hr'
     
     else:
-        xaxis_title = 'Samples'
+        xaxis_title = 'Samples (at model sample time)'
         title = '<b>Optimization scheme computation cycle<b>'
         subtitle = f'<b>Samples version |</b> N<sub>horizon</sub>: {mod_eval_span} | N<sub>episode</sub>: {episode_span}'
 
     fig = go.Figure()
+    ytick_vals: list[float] = []
+    ytick_labels: list[str] = []
 
     # Model evaluations
     x = np.arange(start=start, stop=start+optim_window_span, step=step_mod_evals)
-    y = np.full((optim_window_span), 1)
+    y = np.full((optim_window_span), 1.05)
     
     ## Within prediction horizon
     fig.add_trace(
@@ -243,6 +245,8 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
             marker=dict(symbol='circle') # -open
         )
     )
+    ytick_vals.append(y[0])
+    ytick_labels.append("Model")
     ## Mirror scatter for points history
     x = np.arange(start=0, stop=start-step_mod_evals, step=step_mod_evals)
     fig.add_trace(
@@ -252,7 +256,7 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
             name="Past model evaluations",
             mode="markers",
             showlegend=False,
-            meta={"step": step_mod_evals, "y": 1},
+            meta={"step": step_mod_evals, "y": y[0]},
             marker=dict(symbol='circle', color="rgba(153, 170, 187, 1)")
         )
     )
@@ -261,7 +265,7 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
     for i, (dec_var_id, n_updates) in enumerate(asdict(dec_var_updates).items()):
         
         step_dec_var = math.ceil(optim_window_span / n_updates)
-        y_shift = 1.05 + i/len(asdict(dec_var_updates))
+        y_shift = 1.25 + i/len(asdict(dec_var_updates))
         
         x = np.round(np.linspace(start=start, stop=start+optim_window_span-step_dec_var, num=n_updates))
         y = np.full((n_updates, ), y_shift)
@@ -276,6 +280,8 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
                 marker=dict(symbol='circle') # -open
             )
         )
+        ytick_vals.append(y[0])
+        ytick_labels.append(dec_var_id)
         
         ## Mirror scatter for points history
         # color = "rgba(153, 170, 187, 0)" if start == 0 else "rgba(153, 170, 187, 1)"
@@ -309,11 +315,12 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
         x1=start + optim_window_span - 1,
         y0=.9,
         y1=y_shift+0.1,
-        line=dict(width=0),
+        line=dict(width=2, color="Blue"),
         fillcolor="LightSkyBlue",
         opacity=0.3,
-        layer="below",
+        layer="between",
         name="Optimization window",
+        label=dict(text="Optimization window", textposition="bottom center", font=dict(color="MediumSlateBlue", size=10)),
         showlegend=True
     )
         
@@ -337,12 +344,13 @@ def generate_optim_cycle_viz(start: int, episode_span: int, optim_window_span: i
             range=[-1, episode_span]
         ),
         yaxis=dict(
-            showticklabels=False,
+            showticklabels=True,
             showline=False,
             showgrid=False,
-            tickvals=[],
+            tickvals=ytick_vals,
+            ticktext=ytick_labels,
         ),
-        showlegend=True,
+        showlegend=False,
         
         template='ggplot2',
         height=height,
