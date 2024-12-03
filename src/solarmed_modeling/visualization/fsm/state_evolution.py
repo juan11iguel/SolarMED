@@ -27,7 +27,7 @@ node_colors = {
 def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, system_title: str = None,
                      edges_df: pd.DataFrame | list[pd.DataFrame] = None, width=1400, height=500,
                      title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30,
-                     highligth_step: int = None, state_col: str = None,
+                     highligth_step: int = None, state_cols: list[str] | str = None,
                      subtitle: str = None) -> go.FigureWidget:
 
     """
@@ -41,6 +41,11 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
     if edges_df is not None:
         assert type(nodes_df) is type(edges_df), "nodes_df and edges_df should both be lists (with same number of elements) or dataframes"
     
+    if state_cols is not None:
+        if not isinstance(state_cols, list):
+            state_cols = [state_cols]
+    
+        assert len(nodes_df) == len(state_cols), "The number of state_cols should be the same as the number of subsystems"
     # state_cls = getattr(SupportedSystemsStatesMapping, system).value
 
     # TODO: This is not generic, should be improved
@@ -138,7 +143,9 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             Yr_dash.append([])
 
             # TODO: Not generic, should be improved
-            if state_col is None:
+            if state_cols is not None:
+                state_col = state_cols[system_idx]
+            else:
                 state_col = 'med_state' if system_types[-1] == MedState else 'sf_ts_state'
             # Chapuza para tapar chapuza
             if state_col not in results_df.columns:
@@ -303,7 +310,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                 mode='lines+markers',
                 line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[idx].__name__],
                                             width=3, dash='dash'),
-                marker=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
+                marker=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[idx].__name__],
                         size=16)
                 # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
                 #             angleref="previous"),
