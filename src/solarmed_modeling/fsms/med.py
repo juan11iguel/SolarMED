@@ -58,7 +58,6 @@ class FsmInternalState:
     
     """
     # Vacuum
-    generating_vacuum: bool = False
     vacuum_generated: bool = False
     vacuum_elapsed_samples: int = 0
     

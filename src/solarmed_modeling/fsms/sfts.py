@@ -159,6 +159,10 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
             # qsf: float = None
             inputs: FsmInputs = None,
     ) -> None:
+        
+        # Chapuza to remove the recirculating_ts_cooldown_done callback if the recirculating_ts is not enabled
+        if not params.recirculating_ts_enabled and 'is_recirculating_ts_cooldown_done' in self._cooldown_callbacks:
+            self._cooldown_callbacks.remove('is_recirculating_ts_cooldown_done')
 
         # Call parent constructor
         super().__init__(name=name, initial_state=initial_state, sample_time=sample_time,
