@@ -103,6 +103,18 @@ class FsmInternalState:
     med: MedFsmInternalState = field(default_factory=lambda: MedFsmInternalState())
     sf_ts: SfTsFsmInternalState = field(default_factory=lambda: SfTsFsmInternalState())
     
+    # Additional
+    # med_state: MedState = MedState.OFF
+    # sfts_state =
+    
+    def __post_init__(self):
+        """ Make convenient to initialize this dataclass from dumped instances """
+        if not isinstance(self.med, MedFsmInternalState):
+            self.med = MedFsmInternalState(**self.med)
+        
+        if not isinstance(self.sf_ts, SfTsFsmInternalState):
+            self.sf_ts = SfTsFsmInternalState(**self.sf_ts)
+    
 @dataclass
 class EnvironmentParameters:
     cost_w: float = 3 # Cost of water, €/m³ 
@@ -533,18 +545,16 @@ class SolarMED(BaseModel):
         # Make a list of field names that are of type numeric (int, float, etc)
         # self.export_fields = [field for field in self.__fields__.keys() if isinstance(getattr(self, field), (int, float))]
 
-        # TODO: This needs to be improved to support partial initialization!!
         if self.use_finite_state_machine:
 
             # initial_sf_ts = SfTsState(str(self.sf_state.value) + str(self.ts_state.value))
-            initial_sf_ts = get_sfts_state(sf_state = self.sf_state, 
-                                           ts_state = self.ts_state)
-            # self.current_state = SolarMedState(str(self.sf_state.value) + str(self.ts_state.value) + str(self.med_state.value))
+            # initial_sf_ts = get_sfts_state(sf_state = self.sf_state, 
+            #                                ts_state = self.ts_state)
             self.current_state = self.get_state()
 
             self._sf_ts_fsm: SolarFieldWithThermalStorageFsm = SolarFieldWithThermalStorageFsm(
                 name='SF-TS', 
-                initial_state=initial_sf_ts, 
+                initial_state=self.sf_ts_state, 
                 sample_time=self.sample_time,
                 params=self.fsms_params.sf_ts,
                 internal_state=self.fsms_internal_states.sf_ts,
@@ -645,6 +655,7 @@ class SolarMED(BaseModel):
         
         # Initialize variables
         self.penalty = 0
+        self.qts_dis
 
         # Set operating mode
         if self.use_finite_state_machine:
