@@ -1,85 +1,155 @@
-from typing import Self
-import numpy.typing as npt
+from typing import get_args
+from dataclasses import dataclass, fields
+from enum import Enum
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, model_validator
-from loguru import logger
 
-class EnvVarsSolarMED(BaseModel):
+
+@dataclass
+class EnvironmentVariables:
     """
     Simple class to make sure that the required environment variables are passed
+    
+    All the variables should be 1D arrays with as many elements as the horizon of the optimization problem
     """
-    Tmed_c_in: npt.NDArray[np.float64]  # Seawater temperature
-    Tamb: npt.NDArray[np.float64]  # Ambient temperature
-    I: npt.NDArray[np.float64]  # Solar radiation
-    wmed_f: npt.NDArray[np.float64] = None  # Seawater flow rate
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    @model_validator(mode='after')
-    def check_no_nans_in_fields(self) -> Self:
-        for field_name in self.model_fields:
-            field_values = getattr(self, field_name)
-            if np.isnan(field_values).any():
-                raise ValueError(f'No NaNs are allowed in the input data. Found {np.sum(np.isnan(field_values))} NaNs in {field_name}')
-
-        return self
-
-    def model_dump_at_index(self, idx: int) -> dict:
-        return {k: v[idx] for k, v in self.dict().items()}
-
-    def to_dataframe(self):
-        return pd.DataFrame(self.dict())
-
-
-class CostVarsSolarMED(BaseModel):
+    # n_horizon: int
+    
+    Tmed_c_in: np.ndarray[float]  # Seawater temperature
+    Tamb: np.ndarray[float]  # Ambient temperature
+    I: np.ndarray[float]  # Solar radiation
+    
+    cost_w: np.ndarray[float] # Cost of water, €/m³ 
+    cost_e: np.ndarray[float] # Cost of electricity, €/kWhe
+    
+    wmed_f: np.ndarray[float] = None  # Seawater salinity
+    
+    def __post_init__(self):
+        # Validate that all the environment variables have the same length
+        assert all([len(getattr(self, var_id)) == len(self.Tmed_c_in) for var_id in ["Tamb", "I", "cost_w", "cost_e"]]), \
+            "All the environment variables should have the same length, which should be the number of model evaluations in the optimization window (optim_window_size // sample_time_mod)"
+    
+    
+@dataclass
+class DecisionVariables:
     """
-    Simple class to make sure that the required cost variables are passed
+    Simple class to make sure that the required decision variables are passed
+    to the model instance with the correct type
     """
-    costs_w: npt.NDArray[np.float64]  # Water cost
-    costs_e: npt.NDArray[np.float64]  # Electricity cost
+    # Logical / integers
+    sf_active: bool | np.ndarray[bool] #  Solar field state (off, active)
+    ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
+    med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
+    med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
+    # Real
+    qsf: float | np.ndarray[float] #  Solar field flow -> Actual optimization output will be the outlet temperature (`Tsf,out`) after evaluating the inverse solar field model.
+    qts_src: float | np.ndarray[float] #  Thermal storage recharge flow.
+    qmed_s: float | np.ndarray[float] #  MED heat source flow.
+    qmed_f: float | np.ndarray[float] #  MED feed flow.
+    Tmed_s_in: float | np.ndarray[float] #  MED heat source inlet temperature.
+    Tmed_c_out: float | np.ndarray[float] #  MED condenser outlet temperature.
+    
+    def __post_init__(self) -> None:
+        # Ensure attributes are of correct type
+        for field in fields(self):
+            value: np.ndarray | bool | float | int = getattr(self, field.name)
+            _type = get_args(field.type)[0]
+            if isinstance(value, np.ndarray):
+                setattr(self, field.name, value.astype(_type))
+            else:
+                setattr(self, field.name, _type(value))
+                
+def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: bool = False) -> DecisionVariables | dict:
+    """ Dump decision variables at a given index """
+    
+    # Precioso, equivale a: {field.name: field.type( field.value[idx] )}
+    dump = {field.name: get_args(field.type)[0]( getattr(dec_vars, field.name)[idx] ) for field in fields(dec_vars)}
+    
+    if return_dict:
+        return dump
+    return DecisionVariables(**dump)
+    
+@dataclass
+class DecisionVariablesUpdates:
+    """ Number of decision variable updates in the optimization window """
+    
+    sf_active: int # 
+    ts_active: int # 
+    med_active: int # 
+    med_vac_state: int # 
+    qsf: int # 
+    qts_src: int # 
+    qmed_s: int # 
+    qmed_f: int # 
+    Tmed_s_in: int # 
+    Tmed_c_out: int # 
+    
+    def __post_init__(self):
+        # Validate that SfTs FSM related decision varaiables have the same number of updates
+        assert self.sf_active == self.ts_active, "Solar field and thermal storage logical variables should have the same number of updates"
+        
+        # Validate that MED FSM related decision variables have the same number of updates
+        assert self.med_active == self.med_vac_state, "MED logical variables should have the same number of updates"
+        
+        # TODO: Would be good to validate that the number of updates is within:
+        # 1 <= n_uptes <= optim_window_size / sample_time_mod (=n_evals_mod)
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+# Check errors during development
+# assert [field.name for field in fields(DecisionVariables)] == [field.name for field in fields(DecisionVariablesUpdates)], \
+#     "Attributes of DecisionVariables should exactly match attributes in DecisionVariableUpdates"
 
-    def to_dataframe(self):
-        return pd.DataFrame(self.dict())
 
-
-class DecVarsSolarMED(BaseModel):
+class VarIdsOptimToFsmsMapping(Enum):
     """
-    Simple class to make sure that the correct decision variables are passed.
+    Mapping between optimization integer decision variable ids and finite state
+    machines ones. 
+    Using an Enum allows for bi-directional lookups compared to a dictionary
+    
+    Structure:
+    optim_var_id = fsm_var_id
+    
+    Examples:
+    # Convert from optim id to fsm id
+    print(f"optim_id: sf_active -> fsm id: {VarIdsOptimToFsmsMapping.sf_active.value}")
 
-    It should be updated if any change is made to the SolarMED step method signature.
-
-    mts_src: float,  # Thermal storage decision variables
-    - Tsf_out: float,  # Solar field decision variables
-    - mmed_s: float, mmed_f: float, Tmed_s_in: float, Tmed_c_out: float, med_vacuum_state: int[0,1,2] | MedVacuumState[OFF,LOW,HIGH] #
+    # Convert from fsm id to optim id
+    print(f"fsm id: qsf -> optim_id: {VarIdsOptimToFsmsMapping('qsf').name}")
     """
-    mts_src: npt.NDArray[np.float64]  # Thermal storage recirculation flow rate
-    Tsf_out: npt.NDArray[np.float64]  # Solar field outlet temperature
-    mmed_s: npt.NDArray[np.float64]  # MED heat source flow rate
-    mmed_f: npt.NDArray[np.float64]  # MED feedwater flow rate
-    Tmed_s_in: npt.NDArray[np.float64]  # MED heat source inlet temperature
-    Tmed_c_out: npt.NDArray[np.float64]  # MED condenser outlet temperature
-    med_vacuum_state: npt.NDArray[np.int8]  # MED vacuum system state (0: OFF, 1: LOW, 2: HIGH)
+    sf_active = "qsf"
+    ts_active = "qts_src"
+    med_active = "med_active"
+    med_vac_state = "med_vacuum_state"
+    
+class OptimVarIdstoModelVarIdsMapping(Enum):
+    """
+    Mapping between optimization decision variable ids and model variable ids.
+    Using an Enum allows for bi-directional lookups compared to a dictionary
+    
+    Maybe we could include here only variables that differ, and by default assume
+    that the variable ids are the same in the optimization and the model
+    
+    Structure:
+    optim_var_id = model_var_id
+    
+    Examples:
+    # Convert from optim id to model id
+    print(f"optim_id: qsf -> model id: {OptimVarIdstoModelVarIdsMapping.qsf.value}")
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    # Convert from model id to optim id
+    print(f"model id: qts_src -> optim_id: {OptimVarIdstoModelVarIdsMapping('qts_src').name}")
+    """
+    sf_active = "sf_active"
+    ts_active = "ts_active"
+    med_active = "med_active"
+    med_vac_state = "med_vacuum_state"
+    qsf = "qsf"
+    qts_src = "qts_src"
+    qmed_s = "qmed_s"
+    qmed_f = "qmed_f"
+    Tmed_s_in = "Tmed_s_in"
+    Tmed_c_out = "Tmed_c_out"
 
-    def model_dump_at_index(self, idx: int | tuple[int, int]) -> dict:
-
-        if isinstance(idx, int):
-            return {k: v[idx] for k, v in self.dict().items()}
-        elif isinstance(idx, tuple):
-            return {k: v[idx[0]:idx[1]] for k, v in self.dict().items()}
-
-    def to_dataframe(self):
-        return pd.DataFrame(self.dict())
-
-# def on_fitness(ga_instance: pygad.GA, population_fitness: np.ndarray):
-#     """
-#     Callback that is evaluated after the fitness function is evaluated for all the population
-#     Here we already know the best candidate, since computing the prediction horizon is expensive,
-#     can we retrieve its outputs
-#     UPDATE: Implemented on the fitness function itself
-#     """
-#     pass
+@dataclass
+class FsmData:
+    metadata: dict
+    paths_df: pd.DataFrame
+    valid_inputs: list[list[list[float]]]
