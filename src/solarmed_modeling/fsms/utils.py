@@ -1,27 +1,36 @@
 from enum import Enum
 from typing import Literal
 from . import MedState, SfTsState, SolarMedState, SolarFieldState, ThermalStorageState
-from .med import MedFsm
-from .sfts import SolarFieldWithThermalStorageFsm, get_sfts_state
+from .med import MedFsm, FsmInputs as MedFsmInputs
+from .sfts import (SolarFieldWithThermalStorageFsm, get_sfts_state,
+                   FsmInputs as SfTsFsmInputs)
 
 SupportedFSMTypes = SolarFieldWithThermalStorageFsm | MedFsm
+SupportedSubsystemsLiteral = Literal['MED', 'SFTS']
+SupportedSystemsStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMedState | SfTsState    
+SupportedSystemsLiteral = Literal['MED', 'SFTS', 'SolarMED']
 
 class SupportedSubsystemsStatesMapping(Enum):
+    """ Mapping of system key to corresponding state Enum """
     MED = MedState
     SFTS = SfTsState
+
 class SupportedSubsystemsFsmsMapping(Enum):
+    """ Mapping of system key to corresponding FSM class """
     MED = MedFsm
     SFTS = SolarFieldWithThermalStorageFsm
-    
-SupportedSubsystemsLiteral = Literal['MED', 'SFTS']
 
+class FsmInputsMapping(Enum):
+    """ Mapping of system key to corresponding inputs dataclass """
+    MED = MedFsmInputs
+    SFTS = SfTsFsmInputs
+    
 class SupportedSystemsStatesMapping(Enum):
+    """ Mapping of system key to corresponding state Enum """
     MED = MedState
     SFTS = SfTsState
     SolarMED = SolarMedState
 
-SupportedSystemsStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMedState | SfTsState    
-SupportedSystemsLiteral = Literal['MED', 'SFTS', 'SolarMED']
 
 def convert_to(
     state: str | int | Enum, 

@@ -1,21 +1,24 @@
 import copy
-from dataclasses import asdict
+from dataclasses import asdict, fields
 import numpy as np
 import pandas as pd
 import math
 from enum import Enum
 from loguru import logger
 import plotly.graph_objs as go
+from plotly.subplots import make_subplots
 
 from solarmed_modeling.fsms import (MedState, 
                                     SfTsState, 
                                     SolarMedState)
-from solarmed_modeling.fsms.utils import SupportedSystemsStatesType, SupportedFSMTypes
+from solarmed_modeling.fsms.utils import (SupportedSystemsStatesType, 
+                                          SupportedFSMTypes,
+                                          SupportedSystemsStatesMapping,
+                                          FsmInputsMapping)
                                         # (SupportedSystemsLiteral,
                                         # SupportedSystemsStatesMapping,)
-                                          
+                     
 from . import Node, generate_edges, generate_edges_dataframe, get_coordinates_edge
-
 
 node_colors = {
     str(MedState.__name__): "#c061cb", # Cuidado de no quitar el str() porque sino no se modifica la propia clase
@@ -28,7 +31,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                      edges_df: pd.DataFrame | list[pd.DataFrame] = None, width=1400, height=500,
                      title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30,
                      highligth_step: int = None, state_cols: list[str] | str = None,
-                     subtitle: str = None) -> go.FigureWidget:
+                     subtitle: str = None, valid_inputs: bool = False) -> go.FigureWidget:
 
     """
 
@@ -69,6 +72,9 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         nodes_df = [nodes_df]
     if not isinstance(edges_df, list) and edges_df is not None:
         edges_df = [edges_df]
+        
+    # Infer system types keys from state column of nodes_df
+    system_type_keys: list[str] = [SupportedSystemsStatesMapping(type(node_df.iloc[0]["state"])).name for node_df in nodes_df]
 
     # Step size given max_samples
     step_size = 1
@@ -82,7 +88,17 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         # supported https://help.plot.ly/adding-HTML-and-links-to-charts/#step-2-the-essentials
         title += f'<br><span style="font-size: 11px; font-color:"orange">(States shown every {step_size} samples, aliasing is likely to occur)</span></br>'
 
-    fig = go.FigureWidget()
+    xrange = np.arange(Np, step=step_size)
+
+    if not valid_inputs:
+        fig = make_subplots(rows=1, cols=1)
+    else:
+        fig = make_subplots(
+            rows=2, cols=1,
+            row_heights=[1/4, 3/4],
+            shared_xaxes=True,
+            vertical_spacing=0.02
+        )
 
     # fig.add_trace(
     #     go.Scatter(
@@ -93,6 +109,27 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
     #         hoverinfo='none'
     #     )
     # )
+    
+    # Add empty scatter for valid inputs if enabled
+    if valid_inputs:
+        fig.update_yaxes(title="Inputs", row=1, col=1)
+        
+        for system_key in system_type_keys:
+            inputs_enum = FsmInputsMapping[system_key].value
+            for field in fields(inputs_enum):
+                fig.add_trace(
+                    go.Scatter(
+                        name=f"{field.name}", # [{field.type}]
+                        x=xrange,
+                        y=None,
+                        hoverinfo='name+x+y',
+                        stackgroup='inputs',
+                        showlegend=True,
+                        legendgroup="inputs",
+                    ),
+                    row=1, col=1
+                )
+
 
     system_types = []
     system_types_with_value = []
@@ -176,7 +213,9 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                             mode='markers',
                             marker=dict(symbol='circle-dot', size=40, color="#f5c211", ),
                             line=None,
-                        )
+                            showlegend=False,
+                        ),
+                        row=1 if not valid_inputs else 2, col=1,
                     )
             # Terrible, just for the last that was not included in the loop:
             if highligth_step is not None and idx == highligth_step:
@@ -186,7 +225,9 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                         mode='markers',
                         marker=dict(symbol='circle-dot', size=40, color="#f5c211", ),
                         line=None,
-                    )
+                        showlegend=False,
+                    ),
+                    row=1 if not valid_inputs else 2, col=1,
                 )
 
 
@@ -225,7 +266,9 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                     marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
                     text=edges_df[system_idx]['transition_id'].values,
                     hoverinfo='text',
-                )
+                    showlegend=False,
+                ),
+                row=1 if not valid_inputs else 2, col=1,
             )
 
             fig.add_trace(
@@ -235,8 +278,10 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                     mode='lines+markers',
                     line=dict(color='rgb(210,210,210)', width=1, dash='dash'),
                     marker=dict(symbol='arrow', size=10, color='rgb(210,210,210)', angleref="previous"),
-                    hoverinfo='none'
-                )
+                    hoverinfo='none',
+                    showlegend=False,
+                ),
+                row=1 if not valid_inputs else 2, col=1,
             )
 
         # Add nodes
@@ -260,12 +305,14 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                 marker=dict(symbol='circle-dot', size=20, color=node_colors[system_types[-1].__name__]),
                 line=dict(color='rgb(50,50,50)', width=0.5),
                 text=n_df['state_name'].values,
-                hoverinfo='text'
-            )
+                hoverinfo='text',
+                showlegend=False,
+            ),
+            row=1 if not valid_inputs else 2, col=1,
         )
 
         # for system_ in system_types_with_value:
-        ticktext += [f"- {state.name}" for state in system_types_with_value[-1]]
+        ticktext += [f"{state.name} —" for state in system_types_with_value[-1]]
         tickvals += [state.value + last_val for state in system_types_with_value[-1]]
 
         last_val += len(system_types_with_value[-1])
@@ -282,10 +329,12 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
                       width=3, dash='solid'),
             marker=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
-                        size=16)
+                        size=16),
+            showlegend=False,
             # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
             #             angleref="previous"),
-        )
+        ),
+        row=1 if not valid_inputs else 2, col=1,
     )
     # Empty scatter to be used for highlighting departing edges
     fig.add_trace(
@@ -293,11 +342,13 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             x=Xr[-1] if len(Xr) > 1 else None, y=Yr[-1] if len(Yr) > 1 else None,
             hoverinfo='none',
             mode='lines+markers',
+            showlegend=False,
             line=dict(color='#AD72F3' if len(system_types) == 1 else node_colors[system_types[1].__name__],
                                             width=3, dash='solid'),
             # marker=dict(symbol='arrow', size=10, color='#AD72F3' if len(system_types) == 1 else node_colors[system_types[1].__name__]
             #             , angleref="previous"),
-        )
+        ),
+        row=1 if not valid_inputs else 2, col=1,
     )
 
     # Add scatter for result dashed lines
@@ -308,13 +359,15 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                 y=Yr_dash[idx],
                 hoverinfo='none',
                 mode='lines+markers',
+                showlegend=False,
                 line=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[idx].__name__],
                                             width=3, dash='dash'),
                 marker=dict(color='#06C892' if len(system_types) == 1 else node_colors[system_types[idx].__name__],
                         size=16)
                 # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
                 #             angleref="previous"),
-            )
+            ),
+            row=1 if not valid_inputs else 2, col=1,
         )
 
     axis_conf = dict(
@@ -332,10 +385,19 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
     fig.update_yaxes(
         ticktext=ticktext,
         tickvals=tickvals,
+        showticklabels=True,
+        # showtickmarkers=True,
+        **axis_conf,
+        row=1 if not valid_inputs else 2, col=1,
     )
 
     fig.update_xaxes(
-        tickvals=np.arange(Np, step=step_size),
+        tickvals=xrange,
+        zeroline=False,
+        showline=False,
+        showgrid=False,
+        showticklabels=True,
+        row=1 if not valid_inputs else 2, col=1,
     )
 
     xaxis_title = 'Samples'
@@ -359,18 +421,20 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             x=0,
             xanchor= 'left',
         ),
-        showlegend=False,
+        legend=dict(
+            x=1,  # Position on x-axis (right-most)
+            y=1.05,  # Position above the plot area
+            xanchor='right',  # Anchor legend box to the right
+            yanchor='bottom',  # Anchor legend box to the bottom
+            traceorder='normal',
+            bordercolor='rgba(0,0,0,0)',
+            borderwidth=0
+        ),
+        showlegend=True if valid_inputs else False,
         autosize=False,
         width=width,
         height=height,
-        xaxis=dict(
-            zeroline=False,
-            showline=False,
-            showgrid=False,
-            showticklabels=True,
-            title=xaxis_title
-        ),
-        yaxis=axis_conf,
+        # yaxis=axis_conf,
         margin=dict(
             l=40,
             r=40,
@@ -389,8 +453,16 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         #     )
         # ]
     )
+    
+    axis_id = "xaxis" if not valid_inputs else "xaxis2"
+    fig.layout.update(
+        {axis_id: dict(title=xaxis_title)}
+    )
+    
+    # for data in fig.data:
+    #     data.xaxis = 'x'
 
-    return fig
+    return go.FigureWidget(fig)
 
 
 def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: list[SupportedSystemsStatesType] = None, show_edges: bool = False,
