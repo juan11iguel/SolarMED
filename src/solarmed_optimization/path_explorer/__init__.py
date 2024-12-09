@@ -1,54 +1,55 @@
-from dataclasses import asdict, fields
-from loguru import logger
+from dataclasses import asdict
 import inspect
+from loguru import logger
 from enum import Enum
 import copy
 from typing import Literal
 from multiprocessing import Pool
 from pathlib import Path
-import json
 import time
-import warnings
-
 import numpy as np
-import pandas as pd
 
-from solarmed_modeling.fsms import MedState, SfTsState, FsmParameters
-from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
-from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm,
-                                         FsmInputs as SfTsFsmInputs)
+from solarmed_modeling.fsms import FsmParameters # MedState, SfTsState, 
+# from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
+# from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm,
+#                                          FsmInputs as SfTsFsmInputs)
+from solarmed_modeling.fsms.utils import (FsmInputsMapping, 
+                                          SupportedFSMTypes,
+                                          SupportedSubsystemsStatesType as SupportedStates,
+                                          SupportedSubsystemsStatesMapping as StateMapping,
+                                          SupportedSubsystemsFsmsMapping as FsmMapping)
 from solarmed_optimization.utils import timer_decorator
 from .utils import export_results, filter_paths
 
-SupportedFSMTypes = MedFsm | SolarFieldWithThermalStorageFsm
-SupportedStates = MedState | SfTsState
+# SupportedFSMTypes = MedFsm | SolarFieldWithThermalStorageFsm
+# SupportedStates = MedState | SfTsState
 
-class FsmInputsMapping(Enum):
-    MED = MedFsmInputs
-    SFTS = SfTsFsmInputs
+# class FsmInputsMapping(Enum):
+#     MED = MedFsmInputs
+#     SFTS = SfTsFsmInputs
     
-class FsmMapping(Enum):
-    MED = MedFsm
-    SFTS = SolarFieldWithThermalStorageFsm
+# class FsmMapping(Enum):
+#     MED = MedFsm
+#     SFTS = SolarFieldWithThermalStorageFsm
     
-class StateMapping(Enum):
-    MED = MedState
-    SFTS = SfTsState
+# class StateMapping(Enum):
+#     MED = MedState
+#     SFTS = SfTsState
 
 # def generate_default_inputs(system):
 # Define expected inputs to the step method, can't think of a cleaner way to only do it once and for every option
-expected_inputs_default = {}
-for system, default_value in zip(['MED', 'SFTS'], [0.0, 0.0]):
-    # machine_cls = FsmMapping[system].value
+# expected_inputs_default = {}
+# for system, default_value in zip(['MED', 'SFTS'], [0.0, 0.0]):
+#     # machine_cls = FsmMapping[system].value
 
-    # args = list(inspect.signature(machine_cls.step).parameters.keys())
-    # expected_inputs_default[system] = {arg: default_value for arg in args}
-    # expected_inputs_default[system].pop('self')
+#     # args = list(inspect.signature(machine_cls.step).parameters.keys())
+#     # expected_inputs_default[system] = {arg: default_value for arg in args}
+#     # expected_inputs_default[system].pop('self')
 
-    # return expected_inputs_default
+#     # return expected_inputs_default
     
-    inputs_cls = FsmInputsMapping[system].value
-    expected_inputs_default[system] = {field.name: default_value for field in fields(inputs_cls)}
+#     inputs_cls = FsmInputsMapping[system].value
+#     expected_inputs_default[system] = {field.name: default_value for field in fields(inputs_cls)}
 
 # expected_inputs_default = generate_default_inputs()
 
@@ -71,42 +72,68 @@ def get_transitions_with_inputs(model: SupportedFSMTypes, prior_inputs: list | n
     outputs = []
     for trigger in model.machine.get_triggers(model.get_state()):
 
-        if isinstance(model, MedFsm):
-            system = 'MED'
-        elif isinstance(model, SolarFieldWithThermalStorageFsm):
-            system = 'SFTS'
-        else:
-            raise NotImplementedError(f'Unsupported system {type(model).__name__}')
+        # if isinstance(model, MedFsm):
+        #     system = 'MED'
+        # elif isinstance(model, SolarFieldWithThermalStorageFsm):
+        #     system = 'SFTS'
+        # else:
+        #     raise NotImplementedError(f'Unsupported system {type(model).__name__}')
 
-        expected_inputs = copy.deepcopy(expected_inputs_default[system])
+        # No defaults
+        # expected_inputs = copy.deepcopy(expected_inputs_default[system])
+        expected_inputs = asdict(model.default_inputs)
 
         # First the inputs need to be retrieved
         condition_objs = model.machine.get_transitions(trigger=trigger)[0].conditions
+        valid_transition: bool = True
         for condition_obj in condition_objs:
             condition = getattr(model, condition_obj.func)
+            
+            method_args = set(inspect.signature(condition).parameters.keys())
+            required_args = {'return_invalid_inputs', 'return_valid_inputs'}
+
+            # Ensure either both arguments are implemented or neither
+            if method_args & required_args not in (set(), required_args):
+                raise AssertionError(
+                    f"Condition {condition_obj.func} must implement both {required_args.keys()}, "
+                    "or neither."
+                )
+            # Else
+            
+            # If method does not implemented returning inputs, just check if the condition is valid
+            if not method_args & required_args:
+                # Just check cooldown conditions
+                # Other conditions should be allowed, since even if the transitions can yet no be performed,
+                # we should account for it in the list of possible transitions
+                if "cooldown" in condition_obj.func:
+                    # Only change valid_transition if the condition is not met
+                    valid_transition = False if not condition() else valid_transition
+                continue
 
             # print(f"{trigger} | {condition_obj.func}: {'invalid' if condition_obj.target == False else 'valid'}")
-
-            try:
-                if not condition_obj.target:
-                    inputs = condition(return_invalid_inputs=True)
-                else:
-                    inputs = condition(return_valid_inputs=True)
-            except TypeError:
-                # logger.debug(f"Condition {condition_obj.func} does not implement return_invalid_inputs or return_valid_inputs logic, this is interpreted as condition not dependant on inputs and is skipped")
-                pass
+            # try:
+            if not condition_obj.target:
+                inputs = condition(return_invalid_inputs=True)
             else:
-                # Update expected_inputs with new obtained values, how to ensure the insertion order is correct?
-                # For example, when going from shutting down to OFF, inputs need to be invalid, and vacuum OFF but not LOW
-                # When going from shutting down to IDLE, inputs need to be invalid, and vacuum LOW not OFF
-                # Depending on the order of the condition definitions, the resulting expected inputs might be different
-                for key, new_value in inputs.items():
-                    expected_inputs[key] = new_value
+                inputs = condition(return_valid_inputs=True)
+            # except TypeError:
+            #     # logger.debug(f"Condition {condition_obj.func} does not implement return_invalid_inputs or return_valid_inputs logic, this is interpreted as condition not dependant on inputs and is skipped")
+            #     pass
+            # else:
+            # Update expected_inputs with new obtained values, how to ensure the insertion order is correct?
+            # For example, when going from shutting down to OFF, inputs need to be invalid, and vacuum OFF but not LOW
+            # When going from shutting down to IDLE, inputs need to be invalid, and vacuum LOW not OFF
+            # Depending on the order of the condition definitions, the resulting expected inputs might be different
+            for key, new_value in inputs.items():
+                expected_inputs[key] = new_value
 
-        outputs.append((trigger, expected_inputs))
+        # Add the transition to the list of outputs only if the transition is valid
+        if valid_transition:
+            outputs.append((trigger, expected_inputs))
 
     # Add the transition to stay in the same state
-    outputs.append(('none', prior_inputs))
+    stay_in_st_inputs = asdict(model.get_inputs_for_current_state()) if prior_inputs is None else prior_inputs
+    outputs.append(('none', stay_in_st_inputs))
 
     return outputs
 
@@ -168,7 +195,7 @@ def generate_all_paths(machines: list[SupportedFSMTypes], current_state: Enum, c
 
     for transition, expected_inputs in get_transitions_with_inputs(machines[-1],
                                                                    prior_inputs=machines[-1].get_inputs(format='dict')):
-        logger.info(f"Transition: {transition}")  # , expected inputs: {expected_inputs}")
+        logger.info(f"Transition: {transition}, expected inputs: {expected_inputs}")
         try:
             machines[-1].step(fsm_inputs_cls(**expected_inputs))
         except Exception as e:
@@ -372,34 +399,3 @@ def get_all_paths(system: Literal['MED', 'SFTS'], machine_init_args: dict, max_s
         return all_paths, valid_inputs
     
     return all_paths
-
-
-if __name__ == '__main__':
-
-    max_step_idx = 12
-    machine_init_args = dict(sample_time=1)
-    systems_to_evaluate: list[str] = ['SFTS', 'MED']
-    
-    for system in systems_to_evaluate:
-
-        logger.info(f"Evaluating possible paths for system: {system}")
-        
-        if system == 'MED':
-            machine_init_args.update(
-                vacuum_duration_time=3,
-                brine_emptying_time=1,
-                startup_duration_time=1
-            )
-
-        start_time = time.time()
-        all_paths = get_all_paths(
-            system=system,
-            machine_init_args=machine_init_args,
-            max_step_idx=max_step_idx,
-            # initial_states=[MedState.IDLE, MedState.OFF],
-            use_parallel=True
-        )
-
-        dump_as(all_paths, Path(f'results/all_paths_{system}'), file_format='json')
-        
-        logger.info(f"Finished evaluation of system {system}, took {time.time()-start_time:.2f} seconds")
