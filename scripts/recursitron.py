@@ -9,7 +9,7 @@ from solarmed_optimization.path_explorer import get_all_paths
 from solarmed_optimization.path_explorer.utils import import_results
 from concurrent.futures import ProcessPoolExecutor
 
-"""WARNING
+""" WARNING
 Depending on the FSM parameters and the max_step_idx, the number of paths can grow exponentially
 and produce more paths than stars in the universe :)
 """
@@ -20,10 +20,15 @@ use_parallel: bool = True
 output_path: Path = Path("results")
 # n_horizons: list[int] = [3, 3, 5, 8, 10, 12, 15] # Repeat the number of horizons to evaluate rewriting the results
 # n_horizons: list[int] = [5, 8, 10]
-n_horizons: list[int] = [4]
+n_horizons: list[int] = [8]
 return_formats: list[str] = ["value", "name", "enum"]
-sample_time: int = 1800 # 1*3600 # 1
+sample_time: int = 3600 # 1*3600 # 1
 include_valid_inputs: bool = True
+
+initial_states: dict[str, list[MedState | SfTsState]] = {
+    "MED": [state for state in MedState], # [MedState.OFF]
+    "SFTS": [state for state in SfTsState if state.name != "RECIRCULATING_TS"],
+}
 
 params_to_test: dict[str, list[MedFsmParameters] | list[SfTsFsmParameters]] = {
     'MED': [
@@ -101,7 +106,8 @@ def evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p):
         output_path=output_path.absolute(),
         id=alt_id,
         include_valid_inputs=include_valid_inputs,
-        valid_sequences=valid_sequences[system]
+        valid_sequences=valid_sequences[system],
+        initial_states=initial_states[system],
     )
     
     logger.info(f"Finished evaluation of system {system}, took {time.time()-start_time:.2f} seconds")
@@ -110,17 +116,22 @@ def evaluate_paths(system, params, alt_id, n_horizon, idx_s, idx_n, idx_p):
     [import_results(output_path, system, n_horizon, 
                     params={'valid_sequences': valid_sequences[system], **asdict(params), **machine_init_args}, return_format=r) for r in return_formats]
 
-if use_parallel:
-    with ProcessPoolExecutor() as executor:
-        futures = []
-        for idx_n, n_horizon in enumerate(n_horizons):
-            for idx_s, (system, params_list) in enumerate(params_to_test.items()):
-                for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
-                    futures.append(executor.submit(evaluate_paths, system, params, alt_id, n_horizon, idx_s, idx_n, idx_p))
-        
-        for future in futures:
-            future.result()
-else:
+def main():
+    
+    if use_parallel:
+        with ProcessPoolExecutor() as executor:
+            futures = []
+            for idx_n, n_horizon in enumerate(n_horizons):
+                for idx_s, (system, params_list) in enumerate(params_to_test.items()):
+                    for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
+                        futures.append(executor.submit(evaluate_paths, system, params, alt_id, n_horizon, idx_s, idx_n, idx_p))
+            
+            for future in futures:
+                future.result()
+                
+        return
+    
+    # Else
     for idx_n, n_horizon in enumerate(n_horizons):
         for idx_s, (system, params_list) in enumerate(params_to_test.items()):
             for idx_p, (params, alt_id) in enumerate(zip(params_list, alternative_ids[system])):
@@ -130,3 +141,6 @@ else:
                 [import_results(output_path, system, n_horizon, params={
                     'valid_sequences': valid_sequences[system], **asdict(params), **machine_init_args
                     }, return_format=r) for r in return_formats]
+                
+if __name__ == "__main__":
+    main()
