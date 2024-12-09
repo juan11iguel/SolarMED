@@ -1,4 +1,5 @@
-from typing import Literal
+from enum import Enum
+from typing import Literal, Type
 from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
@@ -85,13 +86,13 @@ class FsmInputs(BaseFsmInputs):
     med_active: bool
     med_vacuum_state: MedVacuumState
     
-    def __post_init__(self):
-        super().__post_init__()
+    # def __post_init__(self):
+    #     super().__post_init__()
         
-        # Make sure med_vacuum_state is of the correct type
-        self.med_vacuum_state: MedVacuumState = self._convert_to(self.med_vacuum_state,
-                                                                state_cls=MedVacuumState,
-                                                                return_format="enum")
+    #     # Make sure med_vacuum_state is of the correct type
+    #     self.med_vacuum_state: MedVacuumState = self._convert_to(self.med_vacuum_state,
+    #                                                             state_cls=MedVacuumState,
+    #                                                             return_format="enum")
         
     # def dump_as_array(self):
         
@@ -109,6 +110,7 @@ class MedFsm(BaseFsm):
     params: FsmParameters # to have type hints
     internal_state: FsmInternalState # to have type hints
     _state_type: MedState = MedState  # State type
+    _inputs_cls: Type = FsmInputs # Inputs class
     _cooldown_callbacks: list[str] = ['is_active_cooldown_done', 'is_off_cooldown_done']
     _counter_callbacks: list[str] = ['is_vacuum_done', 'is_startup_done', 'is_brine_empty']
 
@@ -148,18 +150,18 @@ class MedFsm(BaseFsm):
         # self.qmed_f = qmed_f
         # self.Tmed_s_in = Tmed_s_in
         # self.Tmed_c_out = Tmed_c_out
-        if self.inputs is None:
-            self.inputs = FsmInputs(
-                med_active = False,
-                med_vacuum_state=MedVacuumState.OFF
-            )
+        # if self.inputs is None:
+        #     self.inputs = FsmInputs(
+        #         med_active = False,
+        #         med_vacuum_state=MedVacuumState.OFF
+        #     )
             # if med_vacuum_state is not None:
             #     
             # else:
             #     self.inputs.med_vacuum_state = 
 
-        inputs_array = self.update_inputs_array()
-        self.inputs_array_prior = inputs_array
+        # inputs_array = self.update_inputs_array()
+        # self.inputs_array_prior = inputs_array
 
         if initial_state in [MedState.ACTIVE, MedState.STARTING_UP]:
             self.internal_state.brine_empty = False
@@ -185,7 +187,7 @@ class MedFsm(BaseFsm):
                                     conditions=['is_vacuum_done'], unless=['is_off_vacuum', 'are_inputs_active'])#, after='set_vacuum_done')
         # To avoid staying more than strictly needed in this transitionary state
         self.machine.add_transition('generating_vacuum_interrupted', source=st.GENERATING_VACUUM, dest=st.IDLE,
-                                    conditions=['is_off_vacuum'])
+                                    conditions=['is_off_vacuum', 'is_low_vacuum'])
         # self.machine.add_transition('cancel_generating_vacuum', source=st.GENERATING_VACUUM, dest=st.OFF,
         #                             conditions=['is_off_vacuum']) # Removed to reduce the FSM posibilities
         ## Start-up
@@ -204,6 +206,20 @@ class MedFsm(BaseFsm):
         self.machine.add_transition('finish_suspend', source=st.SHUTTING_DOWN, dest=st.IDLE,
                                     conditions=['is_brine_empty'], unless=['is_off_vacuum'])# , after='set_brine_empty')
 
+        # # State inputs sets
+        self.states_inputs_set: dict[str|int, FsmInputs] = {
+            "OFF": FsmInputs(med_active=False, med_vacuum_state=0),
+            "GENERATING_VACUUM": FsmInputs(med_active=False, med_vacuum_state=2),
+            "IDLE": FsmInputs(med_active=False, med_vacuum_state=1),
+            "STARTING_UP": FsmInputs(med_active=True, med_vacuum_state=1),
+            "SHUTTING_DOWN": FsmInputs(med_active=False, med_vacuum_state=1),
+            "ACTIVE": FsmInputs(med_active=True, med_vacuum_state=1),
+        }
+
+        # Validate inputs or set default values 
+        self.validate_or_set_inputs()
+        
+        # Additional
         self.customize_fsm_style()
 
     def customize_fsm_style(self) -> None:

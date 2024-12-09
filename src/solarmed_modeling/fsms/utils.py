@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Literal
-from . import MedState, SfTsState, SolarMedState, SolarFieldState, ThermalStorageState
+from . import MedState, SfTsState, SolarMedState, SolarFieldState, ThermalStorageState, FsmInputs
 from .med import MedFsm, FsmInputs as MedFsmInputs
 from .sfts import (SolarFieldWithThermalStorageFsm, get_sfts_state,
                    FsmInputs as SfTsFsmInputs)

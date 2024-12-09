@@ -663,7 +663,7 @@ class SolarMED(BaseModel):
             # sf_ts_fsm0 = copy.deepcopy(self._sf_ts_fsm)
             # med_fsm0 = copy.deepcopy(self._med_fsm)
 
-            self._sf_ts_fsm.step(inputs=SfTsFsmInputs(qsf= self.qsf_sp, qts_src= self.qts_src_sp))
+            self._sf_ts_fsm.step(inputs=SfTsFsmInputs(sf_active= self.qsf_sp, ts_active= self.qts_src_sp))
             self._med_fsm.step(
                 inputs=MedFsmInputs(
                     med_active= np.all(np.array([self.qmed_s_sp, self.qmed_f_sp, self.Tmed_s_in_sp, self.Tmed_c_out_sp]) > 0), 

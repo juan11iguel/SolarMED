@@ -31,7 +31,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                      edges_df: pd.DataFrame | list[pd.DataFrame] = None, width=1400, height=500,
                      title: str = None, results_df: pd.DataFrame = None, max_samples: int = 30,
                      highligth_step: int = None, state_cols: list[str] | str = None,
-                     subtitle: str = None, valid_inputs: bool = False) -> go.FigureWidget:
+                     subtitle: str = None, show_inputs_subplot: bool = False) -> go.FigureWidget:
 
     """
 
@@ -90,7 +90,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
 
     xrange = np.arange(Np, step=step_size)
 
-    if not valid_inputs:
+    if not show_inputs_subplot:
         fig = make_subplots(rows=1, cols=1)
     else:
         fig = make_subplots(
@@ -111,7 +111,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
     # )
     
     # Add empty scatter for valid inputs if enabled
-    if valid_inputs:
+    if show_inputs_subplot:
         fig.update_yaxes(title="Inputs", row=1, col=1)
         
         for system_key in system_type_keys:
@@ -121,7 +121,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                     go.Scatter(
                         name=f"{field.name}", # [{field.type}]
                         x=xrange,
-                        y=None,
+                        y=results_df[field.name].values.astype(float) if results_df is not None else None,
                         hoverinfo='name+x+y',
                         stackgroup='inputs',
                         showlegend=True,
@@ -215,7 +215,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                             line=None,
                             showlegend=False,
                         ),
-                        row=1 if not valid_inputs else 2, col=1,
+                        row=1 if not show_inputs_subplot else 2, col=1,
                     )
             # Terrible, just for the last that was not included in the loop:
             if highligth_step is not None and idx == highligth_step:
@@ -227,7 +227,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                         line=None,
                         showlegend=False,
                     ),
-                    row=1 if not valid_inputs else 2, col=1,
+                    row=1 if not show_inputs_subplot else 2, col=1,
                 )
 
 
@@ -268,7 +268,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                     hoverinfo='text',
                     showlegend=False,
                 ),
-                row=1 if not valid_inputs else 2, col=1,
+                row=1 if not show_inputs_subplot else 2, col=1,
             )
 
             fig.add_trace(
@@ -281,7 +281,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                     hoverinfo='none',
                     showlegend=False,
                 ),
-                row=1 if not valid_inputs else 2, col=1,
+                row=1 if not show_inputs_subplot else 2, col=1,
             )
 
         # Add nodes
@@ -308,7 +308,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                 hoverinfo='text',
                 showlegend=False,
             ),
-            row=1 if not valid_inputs else 2, col=1,
+            row=1 if not show_inputs_subplot else 2, col=1,
         )
 
         # for system_ in system_types_with_value:
@@ -334,7 +334,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
             #             angleref="previous"),
         ),
-        row=1 if not valid_inputs else 2, col=1,
+        row=1 if not show_inputs_subplot else 2, col=1,
     )
     # Empty scatter to be used for highlighting departing edges
     fig.add_trace(
@@ -348,7 +348,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             # marker=dict(symbol='arrow', size=10, color='#AD72F3' if len(system_types) == 1 else node_colors[system_types[1].__name__]
             #             , angleref="previous"),
         ),
-        row=1 if not valid_inputs else 2, col=1,
+        row=1 if not show_inputs_subplot else 2, col=1,
     )
 
     # Add scatter for result dashed lines
@@ -367,7 +367,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                 # marker=dict(symbol='arrow', size=10, color='#06C892' if len(system_types) == 1 else node_colors[system_types[0].__name__],
                 #             angleref="previous"),
             ),
-            row=1 if not valid_inputs else 2, col=1,
+            row=1 if not show_inputs_subplot else 2, col=1,
         )
 
     axis_conf = dict(
@@ -388,7 +388,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         showticklabels=True,
         # showtickmarkers=True,
         **axis_conf,
-        row=1 if not valid_inputs else 2, col=1,
+        row=1 if not show_inputs_subplot else 2, col=1,
     )
 
     fig.update_xaxes(
@@ -397,7 +397,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         showline=False,
         showgrid=False,
         showticklabels=True,
-        row=1 if not valid_inputs else 2, col=1,
+        row=1 if not show_inputs_subplot else 2, col=1,
     )
 
     xaxis_title = 'Samples'
@@ -430,7 +430,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             bordercolor='rgba(0,0,0,0)',
             borderwidth=0
         ),
-        showlegend=True if valid_inputs else False,
+        showlegend=True if show_inputs_subplot else False,
         autosize=False,
         width=width,
         height=height,
@@ -454,7 +454,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
         # ]
     )
     
-    axis_id = "xaxis" if not valid_inputs else "xaxis2"
+    axis_id = "xaxis" if not show_inputs_subplot else "xaxis2"
     fig.layout.update(
         {axis_id: dict(title=xaxis_title)}
     )
@@ -466,7 +466,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
 
 
 def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: list[SupportedSystemsStatesType] = None, show_edges: bool = False,
-                                 highligth_step: int = None, width: int = None, height: int = None,
+                                 highligth_step: int = None, width: int = None, height: int = None, show_inputs_subplot: bool = False,
                                  title: str = None, subtitle: str = None, model: SupportedFSMTypes = None) -> go.Figure | go.FigureWidget:
 
     """
@@ -545,7 +545,8 @@ def plot_episode_state_evolution(df: pd.DataFrame, subsystems_state_cls: list[Su
         width=1200 if width is None else width,
         highligth_step=highligth_step,
         title=title,
-        subtitle=subtitle
+        subtitle=subtitle,
+        show_inputs_subplot=show_inputs_subplot,
     )
 
     if model is not None:

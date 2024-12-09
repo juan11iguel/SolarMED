@@ -1,4 +1,5 @@
 import copy
+import itertools
 from dataclasses import asdict, dataclass, fields
 import inspect
 from typing import Callable, Literal, Type
@@ -9,6 +10,8 @@ from loguru import logger
 import numpy as np
 import pandas as pd
 from transitions.extensions import GraphMachine as Machine
+
+CombinationType = dict[str, bool | int]
 
 # States definition
 class SolarFieldState(Enum):
@@ -99,8 +102,20 @@ class FsmInputs:
     def __post_init__(self, ):        
         assert all([value is not None for value in list(asdict(self).values())]), "Input value(s) cannot be None"
         
+        # Make sure inputs are of the correct type
         from solarmed_modeling.fsms.utils import convert_to # Avoid circular import  
-        self._convert_to = convert_to      
+        self._convert_to = convert_to
+        
+        for field in fields(self):
+            
+            if issubclass(field.type, Enum):
+                value = self._convert_to(getattr(self, field.name),
+                                         state_cls=field.type,
+                                         return_format="enum")
+            else:
+                value = field.type( getattr(self, field.name) )
+            
+            setattr(self, field.name, value)
         
     def dump_as_dict(self, format: Literal["enum", "value", "name"] = "enum") -> dict:
         """Dump the inputs as a dictionary
@@ -132,6 +147,73 @@ class FsmInputs:
         
         return np.array(list(output.values()), dtype=float)
 
+def generate_combinations(inputs_cls: FsmInputs) -> CombinationType:
+    """
+    Generate all possible combinations of input values.
+    
+    Args:
+    - inputs_cls: A class with fields representing the input variables. Their domains will
+    be inferred from the field types (bool and discrete integer values from Enums).
+    
+    Returns:
+    - A list of dictionaries, where each dictionary represents a unique combination of input values.
+    """
+    # keys, domains = zip(*asdict(inputs_cls).items())
+    keys = []
+    domains = []
+    for field in fields(inputs_cls):
+        keys.append(field.name)
+        domains.append(
+            [True, False] if field.type is bool else 
+                [member.value for member in field.type] # Enum
+        )
+        
+    combinations = [
+        dict(zip(keys, values))
+        for values in itertools.product(*domains)
+    ]
+    return combinations
+
+
+def evaluate_conditions(combination: CombinationType, conditions: list[CombinationType]) -> bool:
+    """
+    Check if a combination satisfies any of the given conditions.
+    
+    Args:
+    - combination: A dictionary representing a specific input combination.
+    - conditions: A list of conditions, where each condition is a list of dictionaries.
+    
+    Returns:
+    - True if the combination satisfies any condition, False otherwise.
+    """
+    for condition in conditions:
+        if all(all(combination.get(var, None) == val for var, val in clause.items()) for clause in condition):
+            return True
+    return False
+
+
+def filter_invalid_combinations(inputs_cls: FsmInputs, conditions: list[CombinationType]) -> list[CombinationType]:
+    """
+    Generate the table of all input combinations and filter out those that satisfy conditions.
+    
+    Args:
+    - variables: A dictionary mapping variable names to their possible values.
+    - conditions: A list of conditions, where each condition is a list of dictionaries.
+    
+    Returns:
+    - A list of dictionaries representing the invalid combinations.
+    """
+    # Step 1: Generate all possible combinations
+    combinations = generate_combinations(inputs_cls)
+
+    # Step 2: Filter out combinations that satisfy any condition
+    invalid_combinations = [
+        combo for combo in combinations
+        if not evaluate_conditions(combo, conditions)
+    ]
+    
+    return invalid_combinations
+
 class BaseFsm:
 
     """
@@ -150,20 +232,34 @@ class BaseFsm:
     
     - If for a transition, there are two or more conditions with counters, they need to use different last_checked_sample, otherwise
     only the first condition increase its number of elapsed samples.
+    
+    # About validation or setting default input values to remain at a given state
+    # ---------------------------------------------------------------------------
+    # In order to ensure that only one set of inputs is valid to stay in the same state,
+    # we can create dummy transitions that start and go to the same state when "invalids"
+    # set or input are given, or that when multiple combinations are obtained, have a
+    # policy to choose one, such as the taking the lowest values
+    # Another option is to just set is to hardcode the set of inputs for each state and
+    # machine in the child class
+    # For now, go with the last one
     """
     # Here we could include all attributes even though set in __init__ just for 
     # clarity and type hinting
 
+    states_inputs_set: dict[str|int, FsmInputs] = None
     warn_different_inputs_but_no_state_change: bool = False
+    inputs: FsmInputs = None
     _last_checked_sample: dict[str, int] = None  #  Automatically initialized in the constructor given the _cooldown_callbacks and _counter_callbacks lists
     _state_type: Enum = None  # To be defined in the child class, type of the FSM state, should be an Enum like class
+    _inputs_cls: Type[FsmInputs] = None  # To be defined in the child class, class of the inputs
     _cooldown_callbacks: list[str] = None  # To be defined in the child class, list of methods to call at the begining of a new step (prepare_event) and registered in the last_checked_sample dict
     _counter_callbacks: list[str] = None  # To be defined in the child class, list of methods to register in the last_checked_sample dict
     
     def __init__(self, sample_time: int, name: str, initial_state: str | Enum, 
                  params: FsmParameters, internal_state: FsmInternalState, 
                  inputs: FsmInputs = None,
-                 current_sample: int = 0) -> None:
+                 current_sample: int = 0,
+                 ) -> None:
         
         from solarmed_modeling.fsms.utils import convert_to # Avoid circular import
         self.convert_to = convert_to
@@ -188,8 +284,8 @@ class BaseFsm:
         self.initial_internal_state = copy.deepcopy(internal_state) # mutable?
         initial_state = convert_to(initial_state, self._state_type, return_format='enum')
         self.initial_state = initial_state
-        self.inputs: FsmInputs = inputs
-
+        self.inputs = inputs
+        
         # State machine initialization
         self.machine: Machine = Machine(
             model=self, initial=initial_state, auto_transitions=False, show_conditions=True,
@@ -198,6 +294,22 @@ class BaseFsm:
             before_state_change='inform_exit_state', after_state_change='inform_enter_state',
             prepare_event=self._cooldown_callbacks
         )
+        
+    def validate_or_set_inputs(self, ) -> None:
+        
+        # Check if the inputs are compatible with the current state or set them to the expected ones
+        expected_inputs = self.get_inputs_for_current_state()
+        if self.inputs is not None:
+            # Check inputs are compatible with current state
+            assert self.inputs == expected_inputs, f"Inputs {self.inputs} are not compatible with current state {self.state.name}. Expected inputs: {expected_inputs}"
+        else:
+            # Set inputs to the expected ones
+            self.inputs = expected_inputs
+        # self.inputs: FsmInputs = self.inputs
+
+        # Store inputs in an array, needs to be updated every time the inputs change (step)
+        inputs_array: np.ndarray[float] = self.update_inputs_array()
+        self.inputs_array_prior: np.ndarray[float] = inputs_array
 
     @property
     def state(self) -> Enum:
@@ -305,7 +417,7 @@ class BaseFsm:
             check_transition = getattr(self, check_id)
             if check_transition():
                 if transition_trigger_id is not None:
-                    raise ValueError("WDYM More than one transition is valid")
+                    raise ValueError(f"WDYM More than one transition is valid: {transition_trigger_id}, {candidate}")
 
                 transition_trigger_id = candidate
 
@@ -438,3 +550,39 @@ class BaseFsm:
 
             with open(output_path, 'bw') as f:
                 return self.machine.get_graph().draw(f, format=fmt, prog='dot')
+            
+    def get_inputs_for_current_state(self, return_stay_in_state_combinations: bool = False) -> FsmInputs:
+        
+        # stay_in_st_inputs: list[list[dict]] = []
+        # for trigger in self.machine.get_triggers(self.state):
+        #     condition_objs = self.machine.get_transitions(trigger=trigger)[0].conditions
+        #     # inv_inps: dict[str, int | bool] = {} # 
+        #     inv_inps: list[dict] = []
+        #     for condition_obj in condition_objs:
+        #         if "cooldown" in condition_obj.func:
+        #             # Skip cooldown conditions
+        #             continue
+                
+        #         condition = getattr(self, condition_obj.func)
+
+        #         if not condition_obj.target:
+        #             inv_inp = condition(return_invalid_inputs=True)
+        #         else:
+        #             inv_inp = condition(return_valid_inputs=True)
+        #         # inv_inps.update(inv_inp)
+        #         inv_inps.append(inv_inp)
+                
+        #     print(f"Transition {trigger}, invalid inputs: {inv_inps}")   
+        #     stay_in_st_inputs.append(inv_inps)
+        
+        # stay_in_st_combos = filter_invalid_combinations(inputs_cls=self._inputs_cls, conditions=stay_in_st_inputs)
+        # # assert len(stay_in_st_combos) == 1, f"More than one valid input combination for state {self.state.name}. Wrong definition of FSM transitions: {stay_in_st_combos}"
+        # # if len(stay_in_st_combos) > 1:
+        # #     logger.warning(f"More than one valid input combination for state {self.state.name}. Wrong definition of FSM transitions: {stay_in_st_combos}")
+        
+        # # return stay_in_st_inputs
+        # if return_stay_in_state_combinations:
+        #     return stay_in_st_combos
+        # return self._inputs_cls(**stay_in_st_combos[0])
+        
+        return self.states_inputs_set[self.state.name]

@@ -1,4 +1,5 @@
-from typing import Literal
+from enum import Enum
+from typing import Literal, Type
 from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
@@ -70,8 +71,8 @@ class FsmInputs(BaseFsmInputs):
     - return a dict representation: FsmInputs.asdict()
     - return a list of input values: list(FsmInputs.asdict().values()) -> [qsf_value, qts_src_value]
     """
-    qsf: float # Solar field recirculation flow rate (m³/h)
-    qts_src: float # Thermal storage heat source recirculation flow rate (m³/h)
+    sf_active: bool # Solar field recirculation flow rate (m³/h)
+    ts_active: bool # Thermal storage heat source recirculation flow rate (m³/h)
     
 def get_sfts_state(sf_state: int | SolarFieldState | str, ts_state: int | ThermalStorageState | str,
                    return_format: Literal["name", "value", "enum"] = "enum") -> SfTsState | str | int:
@@ -139,10 +140,12 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
     """
     Finite State Machine for the Solar Field with Thermal Storage (SF-TS) unit.
     """
-
+    
     params: FsmParameters # to have type hints
     internal_state: FsmInternalState # to have type hints
+    inputs: FsmInputs # to have type hints
     _state_type: SfTsState = SfTsState # State type
+    _inputs_cls: Type = FsmInputs # Inputs class
     _cooldown_callbacks: list[str] = ['is_idle_cooldown_done', 'is_recirculating_ts_cooldown_done']
 
     def __init__(
@@ -160,6 +163,9 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
             inputs: FsmInputs = None,
     ) -> None:
         
+        if not params.recirculating_ts_enabled and initial_state == SfTsState.RECIRCULATING_TS:
+            raise ValueError("`recirculating_ts_enabled` is not enabled, can't start in state {initial_state.name}")
+        
         # Chapuza to remove the recirculating_ts_cooldown_done callback if the recirculating_ts is not enabled
         if not params.recirculating_ts_enabled and 'is_recirculating_ts_cooldown_done' in self._cooldown_callbacks:
             self._cooldown_callbacks.remove('is_recirculating_ts_cooldown_done')
@@ -176,11 +182,6 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         # Store inputs in an array, needs to be updated every time the inputs change (step)
         # self.inputs.qts_src: float = qts_src if qts_src is not None else 0.0
         # self.inputs.qsf: float = qsf if qsf is not None else 0.0
-        if self.inputs is None:
-            self.inputs = FsmInputs(qsf=0.0, qts_src=0.0)
-
-        inputs_array: np.ndarray[float] = self.update_inputs_array()
-        self.inputs_array_prior: np.ndarray[float] = inputs_array
 
         # States
         st = self._state_type # alias
@@ -190,6 +191,14 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
             self.machine.add_state(st.RECIRCULATING_TS, on_exit=['set_recirculating_ts_cooldown_start'])
         self.machine.add_state(st.HEATING_UP_SF, on_enter=['stop_pump_ts'])
         self.machine.add_state(st.SF_HEATING_TS)
+        
+        # State inputs sets
+        self.states_inputs_set: dict[str|int, FsmInputs] = {
+            "IDLE": FsmInputs(sf_active=False, ts_active=False),
+            "HEATING_UP_SF": FsmInputs(sf_active=True, ts_active=False),
+            "SF_HEATING_TS": FsmInputs(sf_active=True, ts_active=True),
+            "RECIRCULATING_TS": FsmInputs(sf_active=False, ts_active=True),
+        }
 
         # Transitions
         if self.params.recirculating_ts_enabled:
@@ -197,28 +206,41 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
                                         conditions=['is_pump_ts_on', 'is_recirculating_ts_cooldown_done', 'is_idle_cooldown_done'], unless=['is_pump_sf_on'])
             self.machine.add_transition('stop_recirculating_ts', source=st.RECIRCULATING_TS, dest=st.IDLE, 
                                         unless=['is_pump_ts_on'])
+            self.machine.add_transition('stop_sf_heating_ts_and_recirculate', source=st.SF_HEATING_TS, dest=st.RECIRCULATING_TS, 
+                                        unless=['is_pump_ts_on'])
+        # else:
+        #     # Alternative transitions when recirculating_ts is not enabled
+        #     self.machine.add_transition('invalid_stop_sf_heating_ts', source=st.SF_HEATING_TS, dest=st.IDLE, 
+        #                                 unless=['is_pump_sf_on'])
+        #     self.machine.add_transition('invalid_start_recirculating_ts', source=st.IDLE, dest=st.IDLE, 
+        #                             conditions=['is_pump_ts_on'], unless=['is_pump_sf_on'])
+            
+        
         self.machine.add_transition('start_recirculating_sf', source=st.IDLE, dest=st.HEATING_UP_SF, 
-                                    conditions=['is_pump_sf_on', 'is_idle_cooldown_done'])
+                                    conditions=['is_pump_sf_on', 'is_idle_cooldown_done'], unless=['is_pump_ts_on'])
         self.machine.add_transition('stop_recirculating_sf', source=st.HEATING_UP_SF, dest=st.IDLE, 
                                     unless=['is_pump_sf_on'])
-        self.machine.add_transition('start_sf_heating_ts', source=st.HEATING_UP_SF, dest=st.SF_HEATING_TS, 
-                                    conditions=['is_pump_ts_on', 'is_pump_sf_on'])
+        self.machine.add_transition('start_sf_heating_ts', source=[st.HEATING_UP_SF, st.IDLE], dest=st.SF_HEATING_TS, 
+                                    conditions=['is_pump_ts_on', 'is_pump_sf_on', 'is_idle_cooldown_done'])
         self.machine.add_transition('stop_sf_heating_ts', source=st.SF_HEATING_TS, dest=st.HEATING_UP_SF, 
                                     conditions=['is_pump_sf_on'], unless=['is_pump_ts_on'])
         self.machine.add_transition('shutdown', source=st.SF_HEATING_TS, dest=st.IDLE, 
                                     unless=['is_pump_sf_on', 'is_pump_ts_on'])
 
+        # Validate inputs or set default values 
+        self.validate_or_set_inputs()
+        
         # Additional
         self.customize_fsm_style()
 
     # State machine actions - callbacks of states and transitions
     def stop_pump_ts(self, *args) -> None:
         """ Stop the pump for the thermal storage """
-        self.inputs.qts_src = 0
+        self.inputs.ts_active = False
 
     def stop_pump_sf(self, *args) -> None:
         """ Stop the pump for the solar field """
-        self.inputs.qsf = 0
+        self.inputs.sf_active = 0
 
     def stop_pumps(self, *args) -> None:
         """ Stop both pumps """
@@ -244,33 +266,39 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         """ Check if the pump for the solar field is on """
 
         if return_valid_inputs:
-            return dict(qsf = 1.0)
+            return dict(sf_active = True)
         elif return_invalid_inputs:
-            return dict(qsf = 0.0)
+            return dict(sf_active = False)
 
-        output: bool = False
-        if self.inputs.qsf is not None:
-            output = self.inputs.qsf > 0
+        # output: bool = False
+        # # It can't be None
+        # if self.inputs.qsf is not None:
+        #     output = self.inputs.qsf > 0
 
         # Prioritize Tsf_out, but if it has no valid value, check qsf
         # if output == False and self.inputs.qsf is not None:
         #     output = self.inputs.qsf > 0
 
-        return output
+        return self.inputs.sf_active
 
     # Thermal storage
     def is_pump_ts_on(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
         """ Check if the pump for the thermal storage is on """
 
         if return_valid_inputs:
-            return dict(qts_src = 1.0)
+            return dict(ts_active = True)
         elif return_invalid_inputs:
-            return dict(qts_src = 0.0)
+            return dict(ts_active = False)
 
-        return self.inputs.qts_src > 0 if self.inputs.qts_src is not None else False
+        # return self.inputs.qts_src > 0 if self.inputs.qts_src is not None else False
+        return self.inputs.ts_active
     
-    def is_idle_cooldown_done(self, *args, ) -> bool:
+    def is_idle_cooldown_done(self, *args, **kwargs) -> bool:
         """ Check if the idle cooldown is done """
+        
+        # if "return_valid_inputs" in kwargs or "return_invalid_inputs" in kwargs:
+        #     return dict()
+        
         if self.internal_state.idle_cooldown_done:
             return True
         
@@ -284,8 +312,12 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         
         return cooldown_done
     
-    def is_recirculating_ts_cooldown_done(self, *args, ) -> bool:
+    def is_recirculating_ts_cooldown_done(self, *args, **kwargs) -> bool:
         """ Check if the recirculating_ts cooldown is done """
+        
+        # if "return_valid_inputs" in kwargs or "return_invalid_inputs" in kwargs:
+        #     return dict()
+        
         if self.internal_state.recirculating_ts_cooldown_done:
             return True
         
