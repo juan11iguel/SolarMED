@@ -42,13 +42,12 @@
         {
             "alternative_id": "valid-sequences",
             "n_horizon": 8,
-            "computation_time": 2.817394256591797,
-            "n_paths": 731,
+            "computation_time": 5.635705947875977,
+            "n_paths": 2584,
             "n_paths_per_initial_state": {
-                "IDLE": 265,
-                "HEATING_UP_SF": 200,
-                "SF_HEATING_TS": 265,
-                "RECIRCULATING_TS": 1
+                "IDLE": 987,
+                "HEATING_UP_SF": 610,
+                "SF_HEATING_TS": 987
             },
             "parameters": {
                 "valid_sequences": [
@@ -71,12 +70,12 @@
                 }
             },
             "input_ids": [
-                "qsf",
-                "qts_src"
+                "sf_active",
+                "ts_active"
             ],
-            "paths_file_id": "sfts_n_8_38107bc4-dc26-4c3e-b69d-3c1b376b03fe.csv",
-            "valid_inputs_file_id": "sfts_n_8_38107bc4-dc26-4c3e-b69d-3c1b376b03fe.pkl",
-            "generated_at": "2024-11-21T18:50:53.824471+00:00"
+            "paths_file_id": "sfts_n_8_aa62e752-0928-4816-93b0-43dc428bdfff.csv",
+            "valid_inputs_file_id": "sfts_n_8_aa62e752-0928-4816-93b0-43dc428bdfff.pkl",
+            "generated_at": "2024-12-09T16:25:34.914735+00:00"
         },
         {
             "alternative_id": "valid-sequences",
@@ -198,13 +197,12 @@
         {
             "alternative_id": "valid-sequences",
             "n_horizon": 4,
-            "computation_time": 0.13187146186828613,
-            "n_paths": 23,
+            "computation_time": 0.16157770156860352,
+            "n_paths": 44,
             "n_paths_per_initial_state": {
-                "IDLE": 9,
-                "HEATING_UP_SF": 6,
-                "SF_HEATING_TS": 7,
-                "RECIRCULATING_TS": 1
+                "IDLE": 19,
+                "HEATING_UP_SF": 11,
+                "SF_HEATING_TS": 14
             },
             "parameters": {
                 "valid_sequences": [
@@ -227,12 +225,12 @@
                 }
             },
             "input_ids": [
-                "qsf",
-                "qts_src"
+                "sf_active",
+                "ts_active"
             ],
-            "paths_file_id": "sfts_n_4_1f5a2c45-4c16-4434-9d3d-2efe5051290e.csv",
-            "valid_inputs_file_id": "sfts_n_4_1f5a2c45-4c16-4434-9d3d-2efe5051290e.pkl",
-            "generated_at": "2024-11-25T12:57:17.090323+00:00"
+            "paths_file_id": "sfts_n_4_839eb006-0f13-45c3-98b5-dffe4428da98.csv",
+            "valid_inputs_file_id": "sfts_n_4_839eb006-0f13-45c3-98b5-dffe4428da98.pkl",
+            "generated_at": "2024-12-09T10:38:39.209469+00:00"
         },
         {
             "alternative_id": "automatically_generated_from_import_results",
@@ -333,15 +331,15 @@
         {
             "alternative_id": "valid-sequences",
             "n_horizon": 8,
-            "computation_time": 3.5923640727996826,
-            "n_paths": 114,
+            "computation_time": 2.5308632850646973,
+            "n_paths": 137,
             "n_paths_per_initial_state": {
-                "OFF": 25,
-                "GENERATING_VACUUM": 13,
-                "IDLE": 13,
-                "STARTING_UP": 28,
-                "SHUTTING_DOWN": 25,
-                "ACTIVE": 10
+                "OFF": 24,
+                "GENERATING_VACUUM": 11,
+                "IDLE": 34,
+                "STARTING_UP": 23,
+                "SHUTTING_DOWN": 24,
+                "ACTIVE": 21
             },
             "parameters": {
                 "valid_sequences": [
@@ -381,9 +379,9 @@
                 "med_active",
                 "med_vacuum_state"
             ],
-            "paths_file_id": "med_n_8_d14b7b5a-dcc7-4857-903a-f884ddd8a145.csv",
-            "valid_inputs_file_id": "med_n_8_d14b7b5a-dcc7-4857-903a-f884ddd8a145.pkl",
-            "generated_at": "2024-11-21T18:50:54.598381+00:00"
+            "paths_file_id": "med_n_8_0cd78c86-4ca7-4cee-a1ab-1886f8e10bde.csv",
+            "valid_inputs_file_id": "med_n_8_0cd78c86-4ca7-4cee-a1ab-1886f8e10bde.pkl",
+            "generated_at": "2024-12-09T16:25:31.806080+00:00"
         },
         {
             "alternative_id": "valid-sequences",
@@ -553,15 +551,15 @@
         {
             "alternative_id": "valid-sequences",
             "n_horizon": 4,
-            "computation_time": 0.22825384140014648,
-            "n_paths": 16,
+            "computation_time": 0.5025956630706787,
+            "n_paths": 26,
             "n_paths_per_initial_state": {
-                "OFF": 4,
-                "GENERATING_VACUUM": 1,
-                "IDLE": 1,
-                "STARTING_UP": 5,
+                "OFF": 5,
+                "GENERATING_VACUUM": 3,
+                "IDLE": 3,
+                "STARTING_UP": 6,
                 "SHUTTING_DOWN": 3,
-                "ACTIVE": 2
+                "ACTIVE": 6
             },
             "parameters": {
                 "valid_sequences": [
@@ -601,9 +599,9 @@
                 "med_active",
                 "med_vacuum_state"
             ],
-            "paths_file_id": "med_n_4_d7919113-08b5-4fec-8eec-4a3ee1bf72f9.csv",
-            "valid_inputs_file_id": "med_n_4_d7919113-08b5-4fec-8eec-4a3ee1bf72f9.pkl",
-            "generated_at": "2024-11-25T12:57:17.185997+00:00"
+            "paths_file_id": "med_n_4_772e5d05-1018-4c2a-89c9-bf344c55af76.csv",
+            "valid_inputs_file_id": "med_n_4_772e5d05-1018-4c2a-89c9-bf344c55af76.pkl",
+            "generated_at": "2024-12-09T10:38:39.032125+00:00"
         },
         {
             "alternative_id": "automatically_generated_from_import_results",
