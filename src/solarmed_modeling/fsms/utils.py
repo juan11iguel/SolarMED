@@ -6,6 +6,7 @@ from .sfts import (SolarFieldWithThermalStorageFsm, get_sfts_state,
                    FsmInputs as SfTsFsmInputs)
 
 SupportedFSMTypes = SolarFieldWithThermalStorageFsm | MedFsm
+SupportedSubsystemsStatesType = SfTsState | MedState
 SupportedSubsystemsLiteral = Literal['MED', 'SFTS']
 SupportedSystemsStatesType = MedState | SolarFieldState | ThermalStorageState | SolarMedState | SfTsState    
 SupportedSystemsLiteral = Literal['MED', 'SFTS', 'SolarMED']
