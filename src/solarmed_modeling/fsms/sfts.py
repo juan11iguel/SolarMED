@@ -199,6 +199,7 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
             "SF_HEATING_TS": FsmInputs(sf_active=True, ts_active=True),
             "RECIRCULATING_TS": FsmInputs(sf_active=False, ts_active=True),
         }
+        self.default_inputs: FsmInputs = self.states_inputs_set["IDLE"]
 
         # Transitions
         if self.params.recirculating_ts_enabled:

@@ -246,7 +246,8 @@ class BaseFsm:
     # Here we could include all attributes even though set in __init__ just for 
     # clarity and type hinting
 
-    states_inputs_set: dict[str|int, FsmInputs] = None
+    states_inputs_set: dict[str|int, FsmInputs] = None # Dictionary with the expected inputs to remain on each state, needs to be defined in init of every child class
+    default_inputs: FsmInputs = None # FsmInputs instance of default input values, used to fill undefined input values when exploring transitions
     warn_different_inputs_but_no_state_change: bool = False
     inputs: FsmInputs = None
     _last_checked_sample: dict[str, int] = None  #  Automatically initialized in the constructor given the _cooldown_callbacks and _counter_callbacks lists

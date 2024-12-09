@@ -178,16 +178,27 @@ class MedFsm(BaseFsm):
         self.machine.add_state(st.STARTING_UP, on_enter=['set_brine_non_empty'])
         self.machine.add_state(st.ACTIVE, on_exit=["set_active_cooldown_start"])# , on_enter=["set_active_cooldown_done"])#, on_exit=['reset_startup'])
         self.machine.add_state(st.SHUTTING_DOWN) #, on_exit=['set_brine_empty'])
+        
+        ## State inputs sets
+        self.states_inputs_set: dict[str|int, FsmInputs] = {
+            "OFF": FsmInputs(med_active=False, med_vacuum_state=0),
+            "GENERATING_VACUUM": FsmInputs(med_active=False, med_vacuum_state=2),
+            "IDLE": FsmInputs(med_active=False, med_vacuum_state=1),
+            "STARTING_UP": FsmInputs(med_active=True, med_vacuum_state=1),
+            "SHUTTING_DOWN": FsmInputs(med_active=False, med_vacuum_state=1),
+            "ACTIVE": FsmInputs(med_active=True, med_vacuum_state=1),
+        }
+        self.default_inputs: FsmInputs = self.states_inputs_set["OFF"]
 
         # Transitions
         ## Vacuum
         self.machine.add_transition('start_generating_vacuum', source=st.OFF, dest=st.GENERATING_VACUUM,
                                     conditions=['is_high_vacuum', 'is_off_cooldown_done'], after=['set_vacuum_start'])
         self.machine.add_transition('finish_generating_vacuum', source=st.GENERATING_VACUUM, dest=st.IDLE,
-                                    conditions=['is_vacuum_done'], unless=['is_off_vacuum', 'are_inputs_active'])#, after='set_vacuum_done')
+                                    conditions=['is_vacuum_done'], unless=['are_inputs_active'])#, after='set_vacuum_done')
         # To avoid staying more than strictly needed in this transitionary state
-        self.machine.add_transition('generating_vacuum_interrupted', source=st.GENERATING_VACUUM, dest=st.IDLE,
-                                    conditions=['is_off_vacuum', 'is_low_vacuum'])
+        self.machine.add_transition('generating_vacuum_interrupted', source=st.GENERATING_VACUUM, dest=st.OFF,
+                                    unless=['is_high_vacuum', 'is_vacuum_done'])
         # self.machine.add_transition('cancel_generating_vacuum', source=st.GENERATING_VACUUM, dest=st.OFF,
         #                             conditions=['is_off_vacuum']) # Removed to reduce the FSM posibilities
         ## Start-up
@@ -200,21 +211,15 @@ class MedFsm(BaseFsm):
                                     unless=['are_inputs_active'])#, after='set_startup_done')
         ## Shutdown
         self.machine.add_transition('start_shutdown', source=st.ACTIVE, dest=st.SHUTTING_DOWN,
+                                    conditions=["is_off_vacuum"],
+                                    unless=['are_inputs_active'], after='set_brine_emptying_start')
+        self.machine.add_transition('start_suspend', source=st.ACTIVE, dest=st.SHUTTING_DOWN,
+                                    conditions=["is_low_vacuum"],
                                     unless=['are_inputs_active'], after='set_brine_emptying_start')
         self.machine.add_transition('finish_shutdown', source=[st.SHUTTING_DOWN, st.IDLE], dest=st.OFF,
                                     conditions=['is_off_vacuum', 'is_brine_empty'])  # Since destination is OFF already resets FSM
         self.machine.add_transition('finish_suspend', source=st.SHUTTING_DOWN, dest=st.IDLE,
-                                    conditions=['is_brine_empty'], unless=['is_off_vacuum'])# , after='set_brine_empty')
-
-        # # State inputs sets
-        self.states_inputs_set: dict[str|int, FsmInputs] = {
-            "OFF": FsmInputs(med_active=False, med_vacuum_state=0),
-            "GENERATING_VACUUM": FsmInputs(med_active=False, med_vacuum_state=2),
-            "IDLE": FsmInputs(med_active=False, med_vacuum_state=1),
-            "STARTING_UP": FsmInputs(med_active=True, med_vacuum_state=1),
-            "SHUTTING_DOWN": FsmInputs(med_active=False, med_vacuum_state=1),
-            "ACTIVE": FsmInputs(med_active=True, med_vacuum_state=1),
-        }
+                                    conditions=['is_low_vacuum', 'is_brine_empty'])#, unless=['is_off_vacuum'])# , after='set_brine_empty')
 
         # Validate inputs or set default values 
         self.validate_or_set_inputs()

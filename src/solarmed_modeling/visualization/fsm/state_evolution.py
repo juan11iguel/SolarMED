@@ -121,7 +121,7 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
                     go.Scatter(
                         name=f"{field.name}", # [{field.type}]
                         x=xrange,
-                        y=results_df[field.name].values.astype(float) if results_df is not None else None,
+                        y=results_df.iloc[xrange][field.name].values.astype(float) if results_df is not None else None,
                         hoverinfo='name+x+y',
                         stackgroup='inputs',
                         showlegend=True,
