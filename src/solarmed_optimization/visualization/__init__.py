@@ -14,7 +14,8 @@ from solarmed_modeling.fsms.utils import get_solarmed_individual_states
 
 def highlight_path(fig: go.Figure, paths_df: pd.DataFrame, paths_values_df: pd.DataFrame, 
                    selected_path_idx: int, initial_state: Enum, nodes_df: pd.DataFrame, 
-                   base_title: str, shift: int = None, nodes_comp_dfs: list[pd.DataFrame] = None) -> go.Figure:
+                   base_title: str, shift: int = None, nodes_comp_dfs: list[pd.DataFrame] = None,
+                   valid_inputs: list[list[list[float]]] = None) -> go.Figure:
     if initial_state is None:
         return
     
@@ -36,6 +37,8 @@ def highlight_path(fig: go.Figure, paths_df: pd.DataFrame, paths_values_df: pd.D
         path_idx = path_idxs_matching_initial_state[-1]
     path = paths_df.iloc[path_idx]
     path_str: list[str] = [state.name for state in paths_df.iloc[path_idx]]
+    if valid_inputs is not None:
+        val_inp: list[list[float]] = valid_inputs[path_idx]
     
     print(f"Actual number of available paths: {len(path_idxs_matching_initial_state)}")
     print(f"Selected path {path_idx}: {path_str}")
@@ -79,6 +82,11 @@ def highlight_path(fig: go.Figure, paths_df: pd.DataFrame, paths_values_df: pd.D
             y2 += y_aux
         
     with fig.batch_update():
+        # Add valid inputs for path
+        if valid_inputs is not None:
+            fig.data[0].y = np.array(val_inp)[:,0]
+            fig.data[1].y = np.array(val_inp)[:,1]
+        
         # First deactivate departing highlights
         fig.data[-2].x = x2
         fig.data[-2].y = y2
