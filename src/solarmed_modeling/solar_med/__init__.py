@@ -655,7 +655,6 @@ class SolarMED(BaseModel):
         
         # Initialize variables
         self.penalty = 0
-        self.qts_dis
 
         # Set operating mode
         if self.use_finite_state_machine:
@@ -666,8 +665,8 @@ class SolarMED(BaseModel):
             self._sf_ts_fsm.step(inputs=SfTsFsmInputs(sf_active= self.qsf_sp, ts_active= self.qts_src_sp))
             self._med_fsm.step(
                 inputs=MedFsmInputs(
-                    med_active= np.all(np.array([self.qmed_s_sp, self.qmed_f_sp, self.Tmed_s_in_sp, self.Tmed_c_out_sp]) > 0), 
-                    med_vacuum_state= self.med_vacuum_state
+                    med_active=all(np.array([self.qmed_s_sp, self.qmed_f_sp, self.Tmed_s_in_sp, self.Tmed_c_out_sp]) > 0), 
+                    med_vacuum_state=self.med_vacuum_state
                 )
             )
                 # qmed_s=self.qmed_s_sp, qmed_f=self.qmed_f_sp, Tmed_s_in=self.Tmed_s_in_sp,

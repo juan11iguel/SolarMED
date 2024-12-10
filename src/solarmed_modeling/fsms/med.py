@@ -107,6 +107,7 @@ class MedFsm(BaseFsm):
     Finite State Machine for the Multi-Effect Distillation (MED) unit.
     """
 
+    inputs: FsmInputs # to have type hints
     params: FsmParameters # to have type hints
     internal_state: FsmInternalState # to have type hints
     _state_type: MedState = MedState  # State type
@@ -203,7 +204,8 @@ class MedFsm(BaseFsm):
         #                             conditions=['is_off_vacuum']) # Removed to reduce the FSM posibilities
         ## Start-up
         self.machine.add_transition('start_startup', source=[st.IDLE, st.GENERATING_VACUUM], dest=st.STARTING_UP,
-                                    conditions=['is_vacuum_done', 'are_inputs_active', 'is_active_cooldown_done'], after='set_startup_start')
+                                    conditions=['is_vacuum_done', 'are_inputs_active', 'is_active_cooldown_done'], 
+                                    after='set_startup_start')
         self.machine.add_transition('finish_startup', source=st.STARTING_UP, dest=st.ACTIVE,
                                     conditions=['are_inputs_active', 'is_startup_done'])
         # To avoid staying more than strictly needed in this transitionary state
@@ -411,7 +413,7 @@ class MedFsm(BaseFsm):
             # Should not be HIGH! since it will still return a valid transition in some cases
             return dict(med_vacuum_state = MedVacuumState.OFF)
             
-        return self.inputs.med_vacuum_state == MedVacuumState.LOW
+        return self.inputs.med_vacuum_state in [MedVacuumState.LOW, MedVacuumState.HIGH]
                     
     def is_off_vacuum(self, *args, return_valid_inputs: bool = False, return_invalid_inputs: bool = False) -> bool | dict:
         """ Check if the vacuum is off """

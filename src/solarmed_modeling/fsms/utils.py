@@ -1,9 +1,13 @@
 from enum import Enum
 from typing import Literal
 from . import MedState, SfTsState, SolarMedState, SolarFieldState, ThermalStorageState, FsmInputs
-from .med import MedFsm, FsmInputs as MedFsmInputs
-from .sfts import (SolarFieldWithThermalStorageFsm, get_sfts_state,
-                   FsmInputs as SfTsFsmInputs)
+from .med import (MedFsm, 
+                  FsmInputs as MedFsmInputs,
+                  FsmParameters as MedFsmParams)
+from .sfts import (SolarFieldWithThermalStorageFsm, 
+                   get_sfts_state,
+                   FsmInputs as SfTsFsmInputs,
+                   FsmParameters as SfTsFsmParams)
 
 SupportedFSMTypes = SolarFieldWithThermalStorageFsm | MedFsm
 SupportedSubsystemsStatesType = SfTsState | MedState
@@ -31,7 +35,10 @@ class SupportedSystemsStatesMapping(Enum):
     MED = MedState
     SFTS = SfTsState
     SolarMED = SolarMedState
-
+    
+class FsmParamsMapping(Enum):
+    MED = MedFsmParams
+    SFTS = SfTsFsmParams
 
 def convert_to(
     state: str | int | Enum, 
