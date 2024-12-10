@@ -273,3 +273,35 @@ def evaluate_model(model: SolarMED,
         return df_mod#, ics # ic temporary to validate
     else:
         raise ValueError(f"Invalid mode: {mode}")
+    
+    
+def add_bounds_to_dataframe(df: pd.DataFrame, problem, target: Literal['optim_step', 'optim_window'], df_idx: int = 0) -> pd.DataFrame:
+                            #target_size: int, source_size: int = None, 
+    
+    for var_idx, var_id in enumerate(problem.dec_var_ids):
+        if f"lower_bounds_{var_id}" not in df.columns:
+            df[f"upper_bounds_{var_id}"] = np.nan
+            df[f"lower_bounds_{var_id}"] = np.nan
+                
+        if target == "optim_step":
+            source_size = problem.n_updates_per_opt_step[var_idx]
+            target_size = problem.n_evals_mod_in_opt_step
+        else:
+            source_size = getattr(problem.dec_var_updates, var_id)
+            target_size = problem.n_evals_mod_in_hor_window
+                
+        if var_id in problem.dec_var_int_ids:
+            discrete_bounds = problem.integer_dec_vars_mapping[var_id][:source_size]
+            upper_bounds_eval = [np.max(db) for db in discrete_bounds]
+            lower_bounds_eval = [np.min(db) for db in discrete_bounds]
+        else:
+            upper_bounds_eval = problem.box_bounds_upper[var_idx][:source_size]
+            lower_bounds_eval = problem.box_bounds_lower[var_idx][:source_size]
+        
+        lower_bounds_eval = forward_fill_resample(lower_bounds_eval, target_size=target_size)
+        upper_bounds_eval = forward_fill_resample(upper_bounds_eval, target_size=target_size)
+        
+        df.loc[df_idx:df_idx+target_size, f"upper_bounds_{var_id}"] = upper_bounds_eval
+        df.loc[df_idx:df_idx+target_size, f"lower_bounds_{var_id}"] = lower_bounds_eval
+        
+    return df

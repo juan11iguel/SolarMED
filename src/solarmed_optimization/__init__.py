@@ -114,8 +114,8 @@ class VarIdsOptimToFsmsMapping(Enum):
     # Convert from fsm id to optim id
     print(f"fsm id: qsf -> optim_id: {VarIdsOptimToFsmsMapping('qsf').name}")
     """
-    sf_active = "qsf"
-    ts_active = "qts_src"
+    sf_active = "sf_active"
+    ts_active = "ts_active"
     med_active = "med_active"
     med_vac_state = "med_vacuum_state"
     

@@ -58,6 +58,8 @@ class MinlpProblem:
     n_evals_mod_in_opt_step: int = None # Number of model evaluations per optimization step
     sample_time_mod: int = None # Model sample time
     sample_time_opt: int = None # Optimization sample time
+    box_bounds_lower: list[np.ndarray[float | int]] = None # Lower bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
+    box_bounds_upper: list[np.ndarray[float | int]] = None # Upper bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
     
     def __init__(self, 
                  model: SolarMED,
@@ -97,6 +99,7 @@ class MinlpProblem:
         paths_df, valid_inputs, metadata = import_results(
             paths_path=fsm_data_path, system=system, n_horizon=n_horizon,
             return_metadata=True, return_format="value", generate_if_not_found=True,
+            initial_states=[state for state in model._med_fsm._state_type],
             params={
                 'valid_sequences': fsm_valid_sequences[system], 
                 "sample_time": optim_window_time // n_horizon,
@@ -111,6 +114,7 @@ class MinlpProblem:
         paths_df, valid_inputs, metadata = import_results(
             paths_path=fsm_data_path, system=system, n_horizon=n_horizon,
             return_metadata=True, return_format="value", generate_if_not_found=True,
+            initial_states=[state for state in model._sf_ts_fsm._state_type if state.name != "RECIRCULATING_TS"],
             params={
                 'valid_sequences': fsm_valid_sequences[system], 
                 "sample_time": optim_window_time // n_horizon,
@@ -126,7 +130,7 @@ class MinlpProblem:
                     - Number of updates per dec.var: {[getattr(self.dec_var_updates, var_id) for var_id in self.dec_var_ids]}
                     - other...""")
 
-    def get_bounds(self, readable_format: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    def get_bounds(self, readable_format: bool = False, debug: bool = False) -> tuple[np.ndarray, np.ndarray]:
         """This method will return the box-bounds of the problem. 
         - Infinities in the bounds are allowed.
         - The order of elements in the bounds should match the order of the variables in the decision vector (`dec_var_ids`)
@@ -180,12 +184,18 @@ class MinlpProblem:
                 # Find unique valid inputs per step from all possible paths
                 for step_idx in range(n_updates): # For every step
                     discrete_bounds = np.unique(valid_inputs_from_state[:, step_idx, input_idx])
-                    print(f"{optim_input_id=}, {step_idx=}, {discrete_bounds=}")
                     # Update mapping
                     integer_dec_vars_mapping[optim_input_id][step_idx] = discrete_bounds
                     # Update bounds
                     box_bounds_upper[input_idx_in_dec_vars][step_idx] = len(discrete_bounds)-1
                     box_bounds_lower[input_idx_in_dec_vars][step_idx] = 0
+                    # print(f"{optim_input_id=}, {step_idx=}, {discrete_bounds=}, bbox=[{box_bounds_lower[input_idx_in_dec_vars][step_idx]}, {box_bounds_upper[input_idx_in_dec_vars][step_idx]}]")
+                
+                if debug:
+                    vals_str = [f"{i}: {db} --> [{lb}, {ub}]" for i, (db, lb, ub) in enumerate(zip(integer_dec_vars_mapping[optim_input_id], 
+                                                                                        box_bounds_lower[input_idx_in_dec_vars], 
+                                                                                        box_bounds_upper[input_idx_in_dec_vars]))]
+                    print(f"IB | {self.model.get_state().name} | {optim_input_id}: {vals_str}")
 
         # Real variables bounds
         # Done manually for now
@@ -210,7 +220,7 @@ class MinlpProblem:
                 # integer_upper_value: np.ndarray[int] = box_bounds_upper[aux_logical_input_idx_in_dec_vars]
                 # integer_lower_value: np.ndarray[int] = box_bounds_lower[aux_logical_input_idx_in_dec_vars]
                 
-                print(f"{self.model.get_state().name} | {aux_logical_var_id}: {integer_upper_value=}, {integer_lower_value=}")
+                # print(f"{self.model.get_state().name} | {aux_logical_var_id}: {integer_upper_value=}, {integer_lower_value=}")
                 
                 if len(integer_upper_value) < n_updates:
                     integer_upper_value = forward_fill_resample(integer_upper_value, n_updates)
@@ -272,6 +282,9 @@ class MinlpProblem:
         # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(dec_var_ids, box_bounds_lower)]}")
         # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(dec_var_ids, box_bounds_upper)]}")
         # print(f"{integer_dec_vars_mapping=}")
+        
+        self.box_bounds_lower = box_bounds_lower
+        self.box_bounds_upper = box_bounds_upper
 
         # Finally, concatenate each array to get the final bounds
         if not readable_format:

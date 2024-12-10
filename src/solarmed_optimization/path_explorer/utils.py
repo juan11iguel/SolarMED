@@ -10,30 +10,28 @@ from datetime import datetime, timezone
 from loguru import logger
 import numpy as np
 import pandas as pd
-from solarmed_modeling.fsms.utils import convert_to
+from solarmed_modeling.fsms.utils import (convert_to,
+                                          SupportedSubsystemsFsmsMapping as SupportedFsmsMapping,
+                                          FsmInputsMapping,
+                                          FsmParamsMapping,
+                                          SupportedSubsystemsStatesMapping,
+                                          SupportedSubsystemsStatesType)
 
-from solarmed_modeling.fsms import MedState, SfTsState
-from solarmed_modeling.fsms.med import (MedFsm, FsmInputs as MedFsmInputs,
-                                        FsmParameters as MedFsmParams)
-from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm as SfTsFsm,
-                                         FsmInputs as SfTsFsmInputs,
-                                         FsmParameters as SfTsFsmParams)
-
-class SupportedSubsystemsStatesMapping(Enum):
-    MED = MedState
-    SFTS = SfTsState
+# class SupportedSubsystemsStatesMapping(Enum):
+#     MED = MedState
+#     SFTS = SfTsState
     
-class SupportedFsmsMapping(Enum):
-    MED = MedFsm
-    SFTS = SfTsFsm
+# class SupportedFsmsMapping(Enum):
+#     MED = MedFsm
+#     SFTS = SfTsFsm
     
-class FsmInputsMapping(Enum):
-    MED = MedFsmInputs
-    SFTS = SfTsFsmInputs
+# class FsmInputsMapping(Enum):
+#     MED = MedFsmInputs
+#     SFTS = SfTsFsmInputs
     
-class FsmParamsMapping(Enum):
-    MED = MedFsmParams
-    SFTS = SfTsFsmParams
+# class FsmParamsMapping(Enum):
+#     MED = MedFsmParams
+#     SFTS = SfTsFsmParams
 
 def export_results(paths: list[list[Enum]], output_path: Path, system: Literal['SFTS', 'MED'], 
                    params: dict[str, int], computation_time: float, id: str = None,
@@ -182,12 +180,19 @@ def import_results(paths_path: Path,
                    return_format: Literal["value", "name", "enum"] = "enum", 
                    return_metadata: bool = False,
                    generate_if_not_found: bool = False,
+                   initial_states: list[SupportedSubsystemsStatesType] = None,
                   ) -> tuple[pd.DataFrame, list[list[list[float]]]] | tuple[pd.DataFrame, list[list[list[float]]], dict]:
 
-    with open(paths_path / "metadata.json", 'r') as f:
-        metadata_dict = json.load(f)
+    try:
+        with open(paths_path / "metadata.json", 'r') as f:
+            metadata_dict = json.load(f)
+    except FileNotFoundError:
+        if generate_if_not_found:
+           metadata_dict = { system: [] } 
+        else:
+            raise
         
-    if system not in metadata_dict.keys():
+    if system not in metadata_dict.keys() and not generate_if_not_found:
         raise ValueError(f"No results found for system {system} with horizon")
     
     if is_dataclass(params):
@@ -218,6 +223,7 @@ def import_results(paths_path: Path,
             machine_init_args={"sample_time": params["sample_time"]}, # regulero, si cambia esto se rompe
             fsm_params = fsm_params,
             valid_sequences=params["valid_sequences"],
+            initial_states=initial_states,
             max_step_idx=n_horizon,
             use_parallel=True, 
             save_results=True,
