@@ -597,6 +597,7 @@ class SolarMED(BaseModel):
             qmed_s: float, qmed_f: float, Tmed_s_in: float, Tmed_c_out: float,  # MED decision variables
             Tmed_c_in: float, Tamb: float, I: float, wmed_f: float = None,  # Environment variables
             med_vacuum_state: int | MedVacuumState = 2,  # Optional, to provide the MED vacuum state (OFF, LOW, HIGH)
+            compute_fitness: bool = False,
     ) -> None:
 
         """
@@ -665,7 +666,7 @@ class SolarMED(BaseModel):
             self._sf_ts_fsm.step(inputs=SfTsFsmInputs(sf_active= self.qsf_sp, ts_active= self.qts_src_sp))
             self._med_fsm.step(
                 inputs=MedFsmInputs(
-                    med_active=all(np.array([self.qmed_s_sp, self.qmed_f_sp, self.Tmed_s_in_sp, self.Tmed_c_out_sp]) > 0), 
+                    med_active= all(np.array([self.qmed_s_sp, self.qmed_f_sp, self.Tmed_s_in_sp, self.Tmed_c_out_sp]) > 0), 
                     med_vacuum_state=self.med_vacuum_state
                 )
             )
@@ -693,6 +694,9 @@ class SolarMED(BaseModel):
 
         # Solve model for current step
         self.solve_step()
+        
+        if compute_fitness:
+            self.evaluate_fitness_function()
 
         # Re-evaluate FSM once the models have been solved
         # Do we really want to be doing this?
