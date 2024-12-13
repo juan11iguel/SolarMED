@@ -91,10 +91,10 @@ class ModelParameters:
         """ Make it convenient to initialize this dataclass from dumped instances """
         
         for fld in fields(self):
-            value = getattr(self, field.name)
-            # if not isinstance(value, field.type):
+            value = getattr(self, fld.name)
+            # if not isinstance(value, fld.type):
             if isinstance(value, dict):
-                setattr(self, field.name, field.type(**value))
+                setattr(self, fld.name, fld.type(**value))
                 
 @dataclass
 class FixedModelParameters:
