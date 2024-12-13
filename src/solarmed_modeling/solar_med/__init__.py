@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, fields
 import re
 import numpy as np
 import pandas as pd
@@ -86,34 +86,67 @@ class ModelParameters:
     sf: SfModParams   = field(default_factory=lambda: SfModParams())
     ts: TsModParams   = field(default_factory=lambda: TsModParams())
     hex: HexModParams = field(default_factory=lambda: HexModParams())
-
+    
+    def __post_init__(self):
+        """ Make it convenient to initialize this dataclass from dumped instances """
+        
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if not isinstance(value, field.type):
+                setattr(self, field.name, field.type(**value))
+                
 @dataclass
 class FixedModelParameters:
     med: MedFixedModParams = field(default_factory=lambda: MedFixedModParams())
     sf: SfFixedModParams = field(default_factory=lambda: SfFixedModParams())
     ts: TsFixedModParams = field(default_factory=lambda: TsFixedModParams())
     
+    def __post_init__(self):
+        """ Make it convenient to initialize this dataclass from dumped instances """
+        
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if not isinstance(value, field.type):
+                setattr(self, field.name, field.type(**value))
+    
 @dataclass
 class FsmParameters:
     med: MedFsmParams = field(default_factory=lambda: MedFsmParams())
     sf_ts: SfTsFsmParams = field(default_factory=lambda: SfTsFsmParams())
+    
+    def __post_init__(self):
+        """ Make it convenient to initialize this dataclass from dumped instances """
+        
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if not isinstance(value, field.type):
+                setattr(self, field.name, field.type(**value))
     
 @dataclass
 class FsmInternalState:
     med: MedFsmInternalState = field(default_factory=lambda: MedFsmInternalState())
     sf_ts: SfTsFsmInternalState = field(default_factory=lambda: SfTsFsmInternalState())
     
+    def __post_init__(self):
+        """ Make it convenient to initialize this dataclass from dumped instances """
+        
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if not isinstance(value, field.type):
+                setattr(self, field.name, field.type(**value))
+    
     # Additional
     # med_state: MedState = MedState.OFF
     # sfts_state =
     
     def __post_init__(self):
-        """ Make convenient to initialize this dataclass from dumped instances """
-        if not isinstance(self.med, MedFsmInternalState):
-            self.med = MedFsmInternalState(**self.med)
+        """ Make it convenient to initialize this dataclass from dumped instances """
         
-        if not isinstance(self.sf_ts, SfTsFsmInternalState):
-            self.sf_ts = SfTsFsmInternalState(**self.sf_ts)
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if not isinstance(value, field.type):
+                setattr(self, field.name, field.type(**value))
+
     
 @dataclass
 class EnvironmentParameters:
@@ -401,7 +434,8 @@ class SolarMED(BaseModel):
     model_config = ConfigDict(
         validate_assignment=True,  # So that fields are validated, not only when created, but every time they are set
         arbitrary_types_allowed=True,
-        extra='forbid'
+        extra='forbid',
+        protected_namespaces = ()
     )
 
     @computed_field(title="Export fields df", description="Fields to export into a dataframe", json_schema_extra={"var_type": None})

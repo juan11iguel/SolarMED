@@ -36,6 +36,7 @@ class FixedModelParameters:
     Tmin: float = 10 # Minimum temperature of the solar field [ºC]
     qsf_min: float = 0.372 # Minimum (operating) flow rate [m³/h]. Taken from [20240925-20240927 aquasol-librescada]
     qsf_max: float = 8.928 # Maximum flow rate [m³/h]. Taken from [20240925-20240927 aquasol-librescada]
+    delay_span: int = 600 # Max. time to keep previous inputs to accound for their delayed influence on the output [seconds]
 
 
 def calculate_total_pipe_length(q: float, n: int, sample_time:int = 10, equivalent_pipe_area:float = 7.85e-5) -> float:
