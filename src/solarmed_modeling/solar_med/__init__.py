@@ -90,9 +90,10 @@ class ModelParameters:
     def __post_init__(self):
         """ Make it convenient to initialize this dataclass from dumped instances """
         
-        for field in fields(self):
+        for fld in fields(self):
             value = getattr(self, field.name)
-            if not isinstance(value, field.type):
+            # if not isinstance(value, field.type):
+            if isinstance(value, dict):
                 setattr(self, field.name, field.type(**value))
                 
 @dataclass
@@ -104,10 +105,11 @@ class FixedModelParameters:
     def __post_init__(self):
         """ Make it convenient to initialize this dataclass from dumped instances """
         
-        for field in fields(self):
-            value = getattr(self, field.name)
-            if not isinstance(value, field.type):
-                setattr(self, field.name, field.type(**value))
+        for fld in fields(self):
+            value = getattr(self, fld.name)
+            # if not isinstance(value, fld.type):
+            if isinstance(value, dict):
+                setattr(self, fld.name, fld.type(**value))
     
 @dataclass
 class FsmParameters:
@@ -117,10 +119,11 @@ class FsmParameters:
     def __post_init__(self):
         """ Make it convenient to initialize this dataclass from dumped instances """
         
-        for field in fields(self):
-            value = getattr(self, field.name)
-            if not isinstance(value, field.type):
-                setattr(self, field.name, field.type(**value))
+        for fld in fields(self):
+            value = getattr(self, fld.name)
+            # if not isinstance(value, fld.type):
+            if isinstance(value, dict):
+                setattr(self, fld.name, fld.type(**value))
     
 @dataclass
 class FsmInternalState:
@@ -130,22 +133,11 @@ class FsmInternalState:
     def __post_init__(self):
         """ Make it convenient to initialize this dataclass from dumped instances """
         
-        for field in fields(self):
-            value = getattr(self, field.name)
-            if not isinstance(value, field.type):
-                setattr(self, field.name, field.type(**value))
-    
-    # Additional
-    # med_state: MedState = MedState.OFF
-    # sfts_state =
-    
-    def __post_init__(self):
-        """ Make it convenient to initialize this dataclass from dumped instances """
-        
-        for field in fields(self):
-            value = getattr(self, field.name)
-            if not isinstance(value, field.type):
-                setattr(self, field.name, field.type(**value))
+        for fld in fields(self):
+            value = getattr(self, fld.name)
+            # if not isinstance(value, fld.type):
+            if isinstance(value, dict):
+                setattr(self, fld.name, fld.type(**value))
 
     
 @dataclass

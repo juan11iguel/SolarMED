@@ -1,8 +1,5 @@
-from enum import Enum
 from typing import Literal, Type
-from dataclasses import dataclass, field
-import numpy as np
-import pandas as pd
+from dataclasses import dataclass, field, fields
 from loguru import logger
 import math
 
@@ -41,6 +38,14 @@ class FsmParameters:
     
     startup_conditions: FsmStartupConditions = field(default_factory=lambda: FsmStartupConditions())
     shutdown_conditions: FsmShutdownConditions = field(default_factory=lambda: FsmShutdownConditions())
+
+    def __post_init__(self):
+        """ Make it convenient to initialize this dataclass from dumped instances """
+        
+        for fld in fields(self):
+            value = getattr(self, fld.name)
+            if isinstance(value, dict):
+                setattr(self, fld.name, fld.type(**value))
 
 @dataclass
 class FsmInternalState:
