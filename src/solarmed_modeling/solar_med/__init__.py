@@ -699,8 +699,6 @@ class SolarMED(BaseModel):
                 # qmed_s=self.qmed_s_sp, qmed_f=self.qmed_f_sp, Tmed_s_in=self.Tmed_s_in_sp,
                 # Tmed_c_out=self.Tmed_c_out_sp,
 
-            self.update_current_state()
-            logger.debug(f"SolarMED state after inputs validation: {self.current_state}")
 
             # If the finite state machines are used, they need to set the values of: sf_active, ts_active and med_active
             # before evaluating the step
@@ -711,10 +709,17 @@ class SolarMED(BaseModel):
             # Check MED state
             self.med_active = True if self.qmed_s_sp > 0 and self.qmed_f_sp > 0 and self.Tmed_s_in_sp > 0 and self.Tmed_c_out_sp > 0 else False
             # Check solar field state
-            self.sf_active = True if self.Tsf_out_sp > 0 or self.qsf > 0 else False
+            self.sf_active = True if self.qsf_sp > 0 else False
             # Check heat exchanger state / thermal storage state
             self.ts_active = True if self.qts_src_sp > 0 else False
+            
+            self.med_state: MedState = MedState.ACTIVE if self.med_active else MedState.OFF 
+            self.sf_state: SolarFieldState = SolarFieldState(self.sf_active)
+            self.ts_state: ThermalStorageState = ThermalStorageState(self.ts_active) 
+            self.sf_ts_state = get_sfts_state(sf_state=self.sf_state, ts_state=self.ts_state)
 
+        self.update_current_state()
+        logger.debug(f"SolarMED state after inputs validation: {self.current_state}")
         # After the validation, variables are either zero or within the limits (>0),
         # based on this, the step method in the individual state machines are called
 
@@ -831,7 +836,8 @@ class SolarMED(BaseModel):
         self.sf_state, self.ts_state = get_sf_ts_individual_states(sfts_state=self.sf_ts_state)
 
     def update_current_state(self) -> None:
-        self.update_internal_states()
+        if self.use_finite_state_machine:
+            self.update_internal_states()
         self.current_state = self.get_state()
 
 
