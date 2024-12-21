@@ -55,7 +55,10 @@ def process_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     df.index = df.index.round('s')
-    df = df.tz_localize('UTC')
+    try:
+        df = df.tz_localize('UTC')
+    except TypeError:
+        df = df.tz_convert('UTC')
     if 'time.1' in df.columns:
         df.drop(columns='time.1', inplace=True)
 
@@ -170,8 +173,9 @@ def data_preprocessing(paths: list[str | Path] | str | Path, vars_config: dict, 
     df = unit_conversion(df, vars_config, input_unit_key='units_scada', output_unit_key='units_model')
 
     ## Filter out nans until first value in Tts
-    logger.warning(f"Removing {df['Tts_h_t'].isna().sum()} NaNs from the dataframe")
-    df = df[df['Tts_h_t'].notna()]
+    if "Tts_h_t" in df:
+        logger.warning(f"Removing {df['Tts_h_t'].isna().sum()} NaNs from the dataframe")
+        df = df[df['Tts_h_t'].notna()]
 
     return df
 
