@@ -17,7 +17,8 @@ plt_colors = plotly.colors.qualitative.Plotly
 gray_colors = plotly.colors.sequential.Greys[2:][::-1]
 
 def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, df_aux: pd.DataFrame | None = None, episode_samples: int = None) -> go.Figure:
-        
+    # TODO: Use grid_specs to define the layout (spacing between plots)
+    
     def get_bounds_values(df: pd.DataFrame, var: str) -> tuple[np.ndarray, np.ndarray]:
         var_id = OptimVarIdstoModelVarIdsMapping(var).name
         
@@ -61,7 +62,11 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
 
 
     # Create subplots with shared x-axis
-    fig = make_subplots(rows=problem.n_dec_vars, cols=1, shared_xaxes=True, vertical_spacing=0.01)
+    subplot_titles = [None] * problem.n_dec_vars
+    subplot_titles[0] = "Decision variables"
+    subplot_titles.append("Fitness evolution")
+    fig = make_subplots(rows=problem.n_dec_vars +1, cols=1, shared_xaxes=True, 
+                        vertical_spacing=0.01, subplot_titles=subplot_titles)
 
     # Iterate over decision variables to create individual plots
     for i, var in enumerate(problem.dec_var_model_ids):
@@ -127,6 +132,28 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
                 ),
                 row=i+1, col=1
             )
+            ## Fitness
+            if i == 0:
+                fig.add_trace(
+                    go.Scatter(
+                        x=df_hor.index,
+                        y=df_hor["net_profit"],
+                        mode='markers+lines',
+                        name=f"Predicted fitness at step {hor_idx}",
+                        fill="tozeroy" if hor_idx == len(df_hors_)-1 else None,
+                        fillcolor=f"{color[:-4]}0.3)",
+                        line=dict(
+                            color=color, 
+                            width=width,
+                        ),
+                        # marker=dict(color=gray_colors[len(df_hors_)-hor_idx]),
+                        marker_symbol="triangle-up",
+                        marker_size=marker_size, #marker_sizes.tolist(),
+                        marker_color=color,
+                    ),
+                    row=problem.n_dec_vars+1, col=1
+                ) 
+        
         ## Add upper and lower bounds as dashed lines
         if len(df_hors_) > 0:
             lb, ub = get_bounds_values(df_hors_[-1], var)
@@ -157,6 +184,7 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
                 ),
                 row=i+1, col=1
             )
+        
             
         # Experimental/simulated data trace
         if df_mod is None:
@@ -204,7 +232,6 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
                 row=i+1, col=1
             )
         
-        
         if len(df_hors_) > 0:
             fig.update_yaxes(title_text=var_id.replace("_", ","), row=i+1, col=1,) #autorange="reversed"
             if  df_hors_[-1].iloc[0][var].dtype == bool:
@@ -215,6 +242,44 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
                     row=i+1, col=1,
                 )
         
+    # Add fitness evolution plot
+    var_id: str = "net_profit"
+    # Experimental/simulated data trace
+    if df_mod is None:
+        # Add an empty trace so the subplots are created
+        fig.add_trace(go.Scatter(name=var_id), row=problem.n_dec_vars+1, col=1)
+    else:
+        # TODO: We should fill gaps with nans, otherwise the plot will connect the dots
+        indexer = df_mod[var_id] >= 0
+        fig.add_trace(
+            go.Scatter(
+                x=df_mod.index[indexer],
+                y=df_mod.loc[indexer, var_id],
+                mode='markers+lines',
+                name=var_id,
+                fill="tozeroy",
+                fillcolor=f"rgba{str(hex_to_rgb(plt_colors[7]))[:-1]}, 0.5)",
+                marker=dict(color=plt_colors[2], symbol="triangle-up", size=8),
+                line_color=plt_colors[2],
+            ),
+            row=problem.n_dec_vars+1, col=1
+        )
+        indexer = df_mod[var_id] < 0
+        fig.add_trace(
+            go.Scatter(
+                x=df_mod.index[indexer],
+                y=df_mod.loc[indexer, var_id],
+                mode='markers+lines',
+                name=var_id,
+                fill="tozeroy",
+                fillcolor=f"rgba{str(hex_to_rgb(plt_colors[1]))[:-1]}, 0.5)",
+                marker=dict(color=plt_colors[1], symbol="triangle-down", size=8),
+                showlegend=False,
+                line_color=plt_colors[1],
+            ),
+            row=problem.n_dec_vars+1, col=1
+        )
+            
     # Add optimization horizon window
     start = 0
     end = optim_window_size
@@ -250,7 +315,7 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
         height=100 * problem.n_dec_vars,  # Adjust height based on number of subplots
         showlegend=False,
         title=dict(
-            text='Decision variables',
+            text='Optimization variables evolution',
             # x=0.5,
             # xanchor='center',
             font = (dict(size=16, weight='bold'))
@@ -276,7 +341,7 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
         title="Time (hh:mm)",
         # TODO: We can't depend on df_aux for defining the axis range
         range=[0, end_idx] if full_xaxis_range else [0, len(xtick_vals)],
-        row=problem.n_dec_vars, col=1,
+        row=problem.n_dec_vars+1, col=1,
         # tick0=df_mod.index.start if df_mod is not None else 0,
         # dtick=optim_step_size,
     )
@@ -284,7 +349,7 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
         fig.update_xaxes(row=i, col=1,
                          tick0=df_mod.index.start if df_mod is not None else 0,
                          dtick=optim_step_size,)
-        for i in range(problem.n_dec_vars+1)
+        for i in range(problem.n_dec_vars+2) # TODO: Should use some parameter
     ]
 
     # for data in fig.data:
@@ -301,6 +366,10 @@ def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: p
     
     # output_path = Path("./results/dec_vars_evolution")
     output_path.mkdir(exist_ok=True)
+    
+    # Delete all files in the output directory
+    for file in output_path.iterdir():
+        file.unlink()
 
     for i in range(len(df_hors)):
         fig = plot_dec_vars_evolution(

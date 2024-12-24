@@ -1,19 +1,26 @@
 import math
 from pathlib import Path
 from dataclasses import dataclass, asdict, fields
-from solarmed_optimization.path_explorer.utils import import_results
-from solarmed_optimization.utils import forward_fill_resample, downsample_by_segments
 import numpy as np
 from typing import Type, get_args
 from loguru import logger
 
 from solarmed_modeling.solar_med import SolarMED
+from solarmed_modeling.fsms import SolarMedState
+
 from solarmed_optimization import (EnvironmentVariables,
                                    DecisionVariables,
                                    DecisionVariablesUpdates,
                                    VarIdsOptimToFsmsMapping,
                                    OptimVarIdstoModelVarIdsMapping,
                                    FsmData)
+from solarmed_optimization.path_explorer.utils import import_results
+from solarmed_optimization.utils import (forward_fill_resample, 
+                                         downsample_by_segments,
+                                         evaluate_model,
+                                         fitness_logger)
+
+np.set_printoptions(precision=1, suppress=True)
 
 # Step from SolarMED
 # def step(
@@ -25,8 +32,9 @@ from solarmed_optimization import (EnvironmentVariables,
 #     med_vacuum_state: int | MedVacuumState = 2,  # Optional, to provide the MED vacuum state (OFF, LOW, HIGH)
 # ) -> None:    
 
+
 @dataclass
-class MinlpProblem:
+class BaseMinlpProblem:
     """
     x: decision vector.
     - shape: ( n inputs x n horizon )
@@ -37,15 +45,17 @@ class MinlpProblem:
     - Environment variables: See `EnvironmentVariables`
     """
 
-    model: SolarMED  # SolarMED model instance
+    # model: SolarMED  # SolarMED model instance
     optim_window_size: int  # Optimization window size in seconds
     env_vars: EnvironmentVariables # Environment variables
     dec_var_updates: DecisionVariablesUpdates # Decision variables updates
     fsm_med_data: FsmData # FSM data for the MED system
     fsm_sfts_data: FsmData # FSM data for the SFTS systems
+    use_inequality_contraints: bool = False # Whether to use inequality constraints or not
     
     # Computed attributes
-    x: np.ndarray[float] = None # Decision variables values vector
+    # x: np.ndarray[float] = None # Decision variables values vector
+    initial_state: SolarMedState = None # System initial state
     dec_var_ids: list[str] = None # All decision variables ids
     dec_var_int_ids: list[str] = None # Logical / integer decision variables ids
     dec_var_real_ids: list[str] = None  # Real decision variables ids
@@ -68,16 +78,26 @@ class MinlpProblem:
                  dec_var_updates: DecisionVariablesUpdates,
                  env_vars: EnvironmentVariables,
                  fsm_valid_sequences: dict[ str, list[list] ],
-                 fsm_data_path: Path = Path("../results"),):
+                 fsm_data_path: Path = Path("../results"),
+                ):
 
         self.optim_window_size = optim_window_time
         self.dec_var_updates = dec_var_updates
         self.env_vars = env_vars
         
         self.model_dict = model.dump_instance()
-        self.model = SolarMED(**self.model_dict) # To make sure we don't modify the original instance
+        # Add fields not included in the dump_instance method
+        self.model_dict.update(dict(
+            # Initial states
+            ## FSM states
+            fsms_internal_states=model.fsms_internal_states,
+            med_state=model.med_state,
+            sf_ts_state=model.sf_ts_state,
+        ))
+        # self.model = SolarMED(**self.model_dict) # To make sure we don't modify the original instance
         
-        self.sample_time_mod = self.model.sample_time
+        self.initial_state: SolarMedState = model.get_state()
+        self.sample_time_mod = model.sample_time
         self.sample_time_opt = sample_time_opt
         self.n_evals_mod_in_hor_window: int = int(optim_window_time // self.sample_time_mod)
         self.n_evals_mod_in_opt_step: int = int(sample_time_opt // self.sample_time_mod)
@@ -125,12 +145,36 @@ class MinlpProblem:
 
     def __post_init__(self, ) -> None:
         logger.info(f"""{self.get_name()} initialized.
-                    - Size of decision vector: {self.size_dec_vector} elements
-                    - Decision variable ids: {self.dec_var_ids}
-                    - Number of updates per dec.var: {[getattr(self.dec_var_updates, var_id) for var_id in self.dec_var_ids]}
-                    - other...""")
+                    {self.get_extra_info()}""")
 
-    def get_bounds(self, readable_format: bool = False, debug: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    def get_name(self) -> str:
+        """ Get problem’s name """
+        return "SolarMED MINLP problem"
+
+    def get_extra_info(self) -> str:
+        """ Get problem’s extra info. """
+        
+        # TODO: It would be cool to do some qualitative estimation of some aspects such as:
+        # - Irradiance availability along prediciton horizon (high, none, low, medium, high-intermitent, etc)
+        # - Storage starting energy level (approx. hours of med operation at three-levels of temperature) 
+        lower_bounds, upper_bounds = self.get_bounds()
+        
+        return f"""
+    -\t Size of decision vector: {self.size_dec_vector} elements
+    -\t Decision variable ids: {self.dec_var_ids}
+    -\t Decision variable types: {self.dec_var_dtypes}
+    -\t Number of updates per dec.var along optim. horizon: {[getattr(self.dec_var_updates, var_id) for var_id in self.dec_var_ids]}
+    -\t Model sample time: {self.sample_time_mod} seconds
+    -\t Optimization step time: {self.sample_time_opt/60:.1f} minutes
+    -\t Optimization horizon time: {self.optim_window_size/3600:.1f} hours
+    -\t Number of model evals in optim. window: {self.n_evals_mod_in_hor_window}
+    -\t Number of model evals in optim. step: {self.n_evals_mod_in_opt_step}
+    -\t System initial state: {self.initial_state.name}
+    -\t Lower bounds: {lower_bounds}
+    -\t Upper bounds: {upper_bounds}"""
+    
+    
+def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False, debug: bool = False) -> np.ndarray[float | int] | tuple[np.ndarray[float | int], np.ndarray[float | int]]:
         """This method will return the box-bounds of the problem. 
         - Infinities in the bounds are allowed.
         - The order of elements in the bounds should match the order of the variables in the decision vector (`dec_var_ids`)
@@ -152,19 +196,19 @@ class MinlpProblem:
         # To simplify, use a list of arrays with shape (n_updates(i), ) to build bounds, later reshape it to (sum(n_updates(i)))
         # Initialization
         integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = {
-            var_id: np.full((getattr(self.dec_var_updates, var_id), ), list[int], dtype=object) for var_id in self.dec_var_int_ids
+            var_id: np.full((getattr(problem_instance.dec_var_updates, var_id), ), list[int], dtype=object) for var_id in problem_instance.dec_var_int_ids
         }
         box_bounds_lower: list[np.ndarray[float | int]] = [
-            np.full((n_updates, ), np.nan, dtype=float) for n_updates in asdict(self.dec_var_updates).values()
+            np.full((n_updates, ), np.nan, dtype=object) for n_updates in asdict(problem_instance.dec_var_updates).values()
         ]
         box_bounds_upper: list[np.ndarray[float | int]] = [
-            np.full((n_updates, ), np.nan, dtype=float) for n_updates in asdict(self.dec_var_updates).values()
+            np.full((n_updates, ), np.nan, dtype=object) for n_updates in asdict(problem_instance.dec_var_updates).values()
         ]
 
         # Handle logical / integer variables for both FSMs
         # For each FSM, get the possible paths from the initial state and the valid inputs, to set its bounds and mappings
-        for initial_state, fsm_data in zip([self.model._sf_ts_fsm.state, self.model._med_fsm.state],
-                                           [self.fsm_sfts_data, self.fsm_med_data]):
+        for initial_state, fsm_data in zip([problem_instance.model_dict["sf_ts_state"], problem_instance.model_dict["med_state"]],
+                                           [problem_instance.fsm_sfts_data, problem_instance.fsm_med_data]):
             
             paths_df = fsm_data.paths_df
             valid_inputs = fsm_data.valid_inputs
@@ -178,8 +222,8 @@ class MinlpProblem:
             # Get the unique discrete values for each input
             for input_idx, fsm_input_id in enumerate(input_ids): # For every input in the FSM
                 optim_input_id = VarIdsOptimToFsmsMapping(fsm_input_id).name
-                input_idx_in_dec_vars = self.dec_var_ids.index(optim_input_id)
-                n_updates = getattr(self.dec_var_updates, optim_input_id)
+                input_idx_in_dec_vars = problem_instance.dec_var_ids.index(optim_input_id)
+                n_updates = getattr(problem_instance.dec_var_updates, optim_input_id)
 
                 # Find unique valid inputs per step from all possible paths
                 for step_idx in range(n_updates): # For every step
@@ -195,7 +239,7 @@ class MinlpProblem:
                     vals_str = [f"{i}: {db} --> [{lb}, {ub}]" for i, (db, lb, ub) in enumerate(zip(integer_dec_vars_mapping[optim_input_id], 
                                                                                         box_bounds_lower[input_idx_in_dec_vars], 
                                                                                         box_bounds_upper[input_idx_in_dec_vars]))]
-                    print(f"IB | {self.model.get_state().name} | {optim_input_id}: {vals_str}")
+                    print(f"IB | {problem_instance.model_dict['sf_ts_state'].value}{problem_instance.model_dict['med_state'].value} | {optim_input_id}: {vals_str}")
 
         # Real variables bounds
         # Done manually for now
@@ -207,8 +251,8 @@ class MinlpProblem:
             Set the bounds for a real variable in the decision vector
             No need to pass the bounds arrays or return them, as they are modified in place (mutable)
             """
-            input_idx_in_dec_vars = self.dec_var_ids.index(var_id)
-            n_updates = getattr(self.dec_var_updates, var_id)
+            input_idx_in_dec_vars = problem_instance.dec_var_ids.index(var_id)
+            n_updates = getattr(problem_instance.dec_var_updates, var_id)
             if aux_logical_var_id is not None:
                 # aux_logical_input_idx_in_dec_vars = self.dec_var_ids.index(aux_logical_var_id)
                 integer_mapping = integer_dec_vars_mapping[aux_logical_var_id]
@@ -239,29 +283,29 @@ class MinlpProblem:
         # Thermal storage
         set_real_var_bounds(
             var_id = 'qts_src', 
-            lower_limit = self.model.fixed_model_params.ts.qts_src_min, 
-            upper_limit = self.model.fixed_model_params.ts.qts_src_max, 
+            lower_limit = problem_instance.model_dict["fixed_model_params"]["ts"]["qts_src_min"], 
+            upper_limit = problem_instance.model_dict["fixed_model_params"]["ts"]["qts_src_max"], 
             aux_logical_var_id = 'ts_active',
             integer_dec_vars_mapping=integer_dec_vars_mapping,
         )
         # Solar field
         set_real_var_bounds(
             var_id = 'qsf', 
-            lower_limit = self.model.fixed_model_params.sf.qsf_min, 
-            upper_limit = self.model.fixed_model_params.sf.qsf_max, 
+            lower_limit = problem_instance.model_dict["fixed_model_params"]["sf"]["qsf_min"], 
+            upper_limit = problem_instance.model_dict["fixed_model_params"]["sf"]["qsf_max"], 
             aux_logical_var_id = 'sf_active',
             integer_dec_vars_mapping=integer_dec_vars_mapping,
         )
         # MED
         set_real_var_bounds(
             var_id = 'Tmed_s_in', 
-            lower_limit = self.model.fixed_model_params.med.Tmed_s_min, 
-            upper_limit = self.model.fixed_model_params.med.Tmed_s_max, 
+            lower_limit = problem_instance.model_dict["fixed_model_params"]["med"]["Tmed_s_min"], 
+            upper_limit = problem_instance.model_dict["fixed_model_params"]["med"]["Tmed_s_max"], 
             aux_logical_var_id = 'med_active',
             integer_dec_vars_mapping=integer_dec_vars_mapping,
         )
         
-        Tmed_c_in = downsample_by_segments(source_array=self.env_vars.Tmed_c_in, target_size=self.dec_var_updates.Tmed_c_out)
+        Tmed_c_in = downsample_by_segments(source_array=problem_instance.env_vars.Tmed_c_in, target_size=problem_instance.dec_var_updates.Tmed_c_out)
         set_real_var_bounds(
             var_id = 'Tmed_c_out',
             lower_limit = Tmed_c_in, 
@@ -272,8 +316,8 @@ class MinlpProblem:
         for var_id in ['qmed_s', 'qmed_f']:
             set_real_var_bounds(
                 var_id = var_id, 
-                lower_limit = getattr(self.model.fixed_model_params.med, f"{var_id}_min"), 
-                upper_limit = getattr(self.model.fixed_model_params.med, f"{var_id}_max"), 
+                lower_limit = problem_instance.model_dict["fixed_model_params"]["med"][f"{var_id}_min"], 
+                upper_limit = problem_instance.model_dict["fixed_model_params"]["med"][f"{var_id}_max"], 
                 aux_logical_var_id = 'med_active',
                 integer_dec_vars_mapping=integer_dec_vars_mapping,
             )
@@ -283,71 +327,48 @@ class MinlpProblem:
         # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(dec_var_ids, box_bounds_upper)]}")
         # print(f"{integer_dec_vars_mapping=}")
         
-        self.box_bounds_lower = box_bounds_lower
-        self.box_bounds_upper = box_bounds_upper
+        problem_instance.box_bounds_lower = box_bounds_lower
+        problem_instance.box_bounds_upper = box_bounds_upper
 
         # Finally, concatenate each array to get the final bounds
         if not readable_format:
             box_bounds_lower = np.concatenate(box_bounds_lower)
             box_bounds_upper = np.concatenate(box_bounds_upper)
-        self.integer_dec_vars_mapping = integer_dec_vars_mapping
+        problem_instance.integer_dec_vars_mapping = integer_dec_vars_mapping
 
-        # print(f"{box_bounds_lower=}")
-        # print(f"{box_bounds_upper=}")
+        print(f"{box_bounds_lower=}")
+        print(f"{box_bounds_upper=}")
 
         return box_bounds_lower, box_bounds_upper
     
-    def fitness(self, x: np.ndarray | int) -> np.ndarray[float] | list[float]:
-
-        model: SolarMED = SolarMED(**self.model_dict)
-        benefit: np.ndarray[float] = np.zeros((self.n_evals_mod_in_hor_window, ))
-        decision_dict: dict[str, np.ndarray] = {}
+def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float] | np.ndarray[int]) -> list[float]:
+    print(f"{x=}")
+    
+    model: SolarMED = SolarMED(**problem_instance.model_dict)
+    # benefit: np.ndarray[float] = np.zeros((problem_instance.n_evals_mod_in_hor_window, ))
+    decision_dict: dict[str, np.ndarray] = {}
+    
+    # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
+    cnt = 0
+    for var_id in problem_instance.dec_var_ids:
+        num_updates = getattr(problem_instance.dec_var_updates, var_id)
+        decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=problem_instance.n_evals_mod_in_hor_window)
+        cnt += num_updates
+    
+    dec_vars = DecisionVariables(**decision_dict)
+    benefit, ics = evaluate_model(model = model, 
+                                 n_evals_mod = problem_instance.n_evals_mod_in_hor_window,
+                                 mode = "optimization",
+                                 dec_vars = dec_vars, 
+                                 env_vars = problem_instance.env_vars,
+                                 model_dec_var_ids=problem_instance.dec_var_model_ids,)
+    
+    # ics = []
+    # benefit = np.random.rand(problem_instance.n_evals_mod_in_hor_window)
         
-        # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
-        cnt = 0
-        for var_id, num_updates in asdict(self.dec_var_updates).items():
-            decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=self.n_evals_mod_in_hor_window)
-            cnt += num_updates
-        
-        # TODO: All of this evaluation should be performed in a different function
-        # not part of the class so it can be reused in different problem formulations
-        dv = DecisionVariables(**decision_dict) 
-        for step_idx in range(self.n_evals_mod_in_hor_window):
-            
-            model.step(
-                # Decision variables
-                ## Thermal storage
-                qts_src = dv.qts_src[step_idx] * dv.ts_active[step_idx],
-                
-                ## Solar field
-                qsf = dv.qsf[step_idx] * dv.sf_active[step_idx],
-                
-                ## MED
-                qmed_s = dv.qmed_s[step_idx] * dv.med_active[step_idx],
-                qmed_f = dv.qmed_f[step_idx] * dv.med_active[step_idx],
-                Tmed_s_in = dv.Tmed_s_in[step_idx],
-                Tmed_c_out = dv.Tmed_c_out[step_idx],
-                med_vacuum_state = int(dv.med_vac_state[step_idx]),
-                
-                ## Environment
-                I=self.env_vars.I[step_idx],
-                Tamb=self.env_vars.Tamb[step_idx],
-                Tmed_c_in=self.env_vars.Tmed_c_in[step_idx],
-                wmed_f=self.env_vars.wmed_f[step_idx] if self.env_vars.wmed_f is not None else None,
-            )
-            
-            benefit[step_idx] = model.evaluate_fitness_function(
-                cost_e=self.env_vars.cost_e[step_idx],
-                cost_w=self.env_vars.cost_w[step_idx]
-            )
-            
-        # TODO: Add inequality constraints, at least for logical variables
-        return np.sum(benefit)        
-
-    def get_name(self) -> str:
-        """ Problem’s name """
-        return "SolarMED MINLP problem"
-
-    def get_extra_info(self) -> str:
-        """ Problem’s extra info. """
-        return "\tDimensions: " + str(self.dim)
+    # if problem_instance.use_inequality_contraints:
+    #     return [np.sum(benefit), *ics]
+    # else:
+    print(f"{np.sum(benefit)=}")
+    return [np.sum(benefit)]
+    
