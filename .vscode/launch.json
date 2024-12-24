@@ -12,6 +12,14 @@
             "program": "${workspaceFolder}/scripts/recursitron.py",
             "console": "integratedTerminal",
             "justMyCode": false,
+        },
+        {
+            "name": "minlp",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/minlp.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
         }
     ]
 }
