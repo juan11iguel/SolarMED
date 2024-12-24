@@ -1,9 +1,18 @@
 from typing import get_args
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field, is_dataclass
 from enum import Enum
 import numpy as np
 import pandas as pd
 
+from solarmed_modeling.solar_med import (SolarMED, 
+                                         EnvironmentParameters,
+                                         ModelParameters,
+                                         FixedModelParameters,
+                                         FsmParameters,
+                                         FsmInternalState)
+from solarmed_modeling.fsms import MedState, SfTsState
+from solarmed_modeling.fsms.med import FsmParameters as MedFsmParams
+from solarmed_modeling.fsms.sfts import FsmParameters as SftsFsmParams
 
 @dataclass
 class EnvironmentVariables:
@@ -35,11 +44,6 @@ class DecisionVariables:
     Simple class to make sure that the required decision variables are passed
     to the model instance with the correct type
     """
-    # Logical / integers
-    sf_active: bool | np.ndarray[bool] #  Solar field state (off, active)
-    ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
-    med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
-    med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
     # Real
     qsf: float | np.ndarray[float] #  Solar field flow -> Actual optimization output will be the outlet temperature (`Tsf,out`) after evaluating the inverse solar field model.
     qts_src: float | np.ndarray[float] #  Thermal storage recharge flow.
@@ -47,6 +51,11 @@ class DecisionVariables:
     qmed_f: float | np.ndarray[float] #  MED feed flow.
     Tmed_s_in: float | np.ndarray[float] #  MED heat source inlet temperature.
     Tmed_c_out: float | np.ndarray[float] #  MED condenser outlet temperature.
+    # Logical / integers
+    sf_active: bool | np.ndarray[bool] #  Solar field state (off, active)
+    ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
+    med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
+    med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
     
     def __post_init__(self) -> None:
         # Ensure attributes are of correct type
@@ -153,3 +162,69 @@ class FsmData:
     metadata: dict
     paths_df: pd.DataFrame
     valid_inputs: list[list[list[float]]]
+    
+@dataclass
+class ProblemSamples:
+    # Times to samples transformation
+    n_evals_mod_in_hor_window: int # Number of model evalations along the optimization window
+    n_evals_mod_in_opt_step: int # Number of model evaluations in one optimization step
+    episode_samples: int # Number of samples in one episode
+    optim_window_samples: int # Number of samples in the optimization window
+    max_opt_steps: int # Max number of steps for the optimization scheme
+    span: int # Number of previous samples to keep track of
+    default_n_dec_var_updates: int # Default number of decision variable updates in the optimization window (depends on sample_time_opt)
+    max_dec_var_updates: int # Maximum number of decision variable updates in the optimization window (depends on sample_time_mod)
+    min_dec_var_updates: int  = 1 # Minimum number of decision variable updates in the optimization window
+    
+
+@dataclass
+class ProblemParameters:
+    sample_time_mod: int = 400 # Model sample time, seconds
+    sample_time_opt: int = 1800 # Optimization evaluations period, seconds
+    optim_window_time: int = 3600 * 3 # Optimization window size, seconds
+    episode_duration: int = None # By default use len(df)
+    idx_start: int = None # By default estimate from sf fixed_mod_params.delay_span
+    env_params: EnvironmentParameters = field(default_factory=lambda: EnvironmentParameters())
+    fixed_model_params: FixedModelParameters = field(default_factory=lambda: FixedModelParameters())
+    model_params: ModelParameters = field(default_factory=lambda: ModelParameters())
+    fsm_params: FsmParameters = field(default_factory=lambda: FsmParameters(
+        med=MedFsmParams(
+            vacuum_duration_time = 1*3600, # 1 hour
+            brine_emptying_time = 30*60,   # 30 minutes
+            startup_duration_time = 20*60, # 20 minutes
+            off_cooldown_time = 12*3600,   # 12 hours
+            active_cooldown_time = 3*3600, # 3 hours
+        ),
+        sf_ts=SftsFsmParams(
+            recirculating_ts_enabled = False,
+            idle_cooldown_time = 1*3600,   # 1 hour
+        )
+    ))
+    fsm_internal_states: FsmInternalState = field(default_factory=lambda: FsmInternalState())
+    fsm_valid_sequences: dict[ str, list[list[int]] ] = field(default_factory=lambda: {
+        'MED': [
+            [MedState.IDLE.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
+            [MedState.GENERATING_VACUUM.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
+        ],
+        'SFTS': [
+            [SfTsState.HEATING_UP_SF.value, SfTsState.SF_HEATING_TS.value],
+        ]
+    })
+    dec_var_updates: DecisionVariablesUpdates = None
+    
+    def __post_init__(self):
+        """ Make convenient to initialize this dataclass from dumped instances """
+        for fld in fields(self):
+            if is_dataclass(fld.type):
+                value = getattr(self, fld.name)
+                if isinstance(value, dict):
+                # if not isinstance(value, fld.type) and value is not None:
+                    setattr(self, fld.name, fld.type(**value))
+
+
+@dataclass
+class ProblemData:
+    df: pd.DataFrame
+    problem_params: ProblemParameters
+    problem_samples: ProblemSamples 
+    model: SolarMED
