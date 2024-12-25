@@ -698,7 +698,7 @@ class SolarMED(BaseModel):
             )
                 # qmed_s=self.qmed_s_sp, qmed_f=self.qmed_f_sp, Tmed_s_in=self.Tmed_s_in_sp,
                 # Tmed_c_out=self.Tmed_c_out_sp,
-
+            self.update_current_state()
 
             # If the finite state machines are used, they need to set the values of: sf_active, ts_active and med_active
             # before evaluating the step
@@ -718,7 +718,7 @@ class SolarMED(BaseModel):
             self.ts_state: ThermalStorageState = ThermalStorageState(self.ts_active) 
             self.sf_ts_state = get_sfts_state(sf_state=self.sf_state, ts_state=self.ts_state)
 
-        self.update_current_state()
+            self.update_current_state()
         logger.debug(f"SolarMED state after inputs validation: {self.current_state}")
         # After the validation, variables are either zero or within the limits (>0),
         # based on this, the step method in the individual state machines are called
