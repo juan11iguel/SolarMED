@@ -18,7 +18,18 @@ environment issue.
 ### Conda environment
 
 ```bash
+conda init zsh
+```
+
+Create and install dependencies using the `environment.yml` file:
+
+```bash
 conda env create -f environment.yml
+```
+
+And then activate it using the name specified in the `environment.yml` file:
+
+```bash
 conda activate solarmed-optimization
 ```
 

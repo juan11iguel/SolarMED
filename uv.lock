@@ -529,7 +529,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -620,8 +620,8 @@ wheels = [
 
 [[package]]
 name = "jax"
-version = "0.4.39.dev20241223+108762379"
-source = { git = "https://github.com/jax-ml/jax?rev=108762379d410f5a6714843c44776bde0878c78e#108762379d410f5a6714843c44776bde0878c78e" }
+version = "0.4.38"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jaxlib" },
     { name = "ml-dtypes" },
@@ -629,26 +629,26 @@ dependencies = [
     { name = "opt-einsum" },
     { name = "scipy" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/fb/e5/c4aa9644bb96b7f6747bd7c9f8cda7665ca5e194fa2542b2dea3ff730701/jax-0.4.38.tar.gz", hash = "sha256:43bae65881628319e0a2148e8f81a202fbc2b8d048e35c7cb1df2416672fa4a8", size = 1930034 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/22/49/b4418a7a892c0dd64442bbbeef54e1cdfe722dfc5a7bf0d611d3f5f90e99/jax-0.4.38-py3-none-any.whl", hash = "sha256:78987306f7041ea8500d99df1a17c33ed92620c2268c4c3677fb24e06712be64", size = 2236864 },
+]
 
 [[package]]
 name = "jaxlib"
-version = "0.4.39.dev20241223"
-source = { path = "auxiliar_material/jaxlib-0.4.39.dev20241223-cp311-cp311-manylinux2014_x86_64.whl" }
+version = "0.4.38"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ml-dtypes" },
     { name = "numpy" },
     { name = "scipy" },
 ]
 wheels = [
-    { filename = "jaxlib-0.4.39.dev20241223-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:37b6cdbce5e60c4a2c510a4ff433fa8e5ab02cbefc449a090e2ec5e66a41e2e2" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ml-dtypes", specifier = ">=0.2.0" },
-    { name = "numpy", specifier = ">=1.25" },
-    { name = "scipy", specifier = ">=1.10" },
-    { name = "scipy", marker = "python_full_version >= '3.12'", specifier = ">=1.11.1" },
+    { url = "https://files.pythonhosted.org/packages/b0/6a/b9fba73eb5e758e40a514919e096a039d27dc0ab4776a6cc977f5153a55f/jaxlib-0.4.38-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:b67fdeabd6dfed08b7768f3bdffb521160085f8305669bd197beef61d08de08b", size = 99679916 },
+    { url = "https://files.pythonhosted.org/packages/44/2a/3458130d44d44038fd6974e7c43948f68408f685063203b82229b9b72c1a/jaxlib-0.4.38-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:3fb0eaae7369157afecbead50aaf29e73ffddfa77a2335d721bd9794f3c510e4", size = 79488377 },
+    { url = "https://files.pythonhosted.org/packages/94/96/7d9a0b9f35af4727df44b68ade4c6f15163840727d1cb47251b1ea515e30/jaxlib-0.4.38-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:43db58c4c427627296366a56c10318e1f00f503690e17f94bb4344293e1995e0", size = 93241543 },
+    { url = "https://files.pythonhosted.org/packages/a3/2d/68f85037e60c981b37b18b23ace458c677199dea4722ddce541b48ddfc63/jaxlib-0.4.38-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:2751ff7037d6a997d0be0e77cc4be381c5a9f9bb8b314edb755c13a6fd969f45", size = 101751923 },
+    { url = "https://files.pythonhosted.org/packages/cc/24/a9c571c8a189f58e0b54b14d53fc7f5a0a06e4f1d7ab9edcf8d1d91d07e7/jaxlib-0.4.38-cp311-cp311-win_amd64.whl", hash = "sha256:35226968fc9de6873d1571670eac4117f5ed80e955f7a1775204d1044abe16c6", size = 64255189 },
 ]
 
 [[package]]
@@ -1064,7 +1064,7 @@ wheels = [
 [[package]]
 name = "med-model-r2023b"
 version = "23.2"
-source = { directory = "../../root/.cache/uv/git-v0/checkouts/497bfdd6e6ad95ba/8fed693/MED_model_installers/linux_python311_for_redistribution_files_only" }
+source = { git = "https://github.com/juan11iguel/solarMED-modeling?subdirectory=MED_model_installers%2Flinux_python311_for_redistribution_files_only&branch=main#8fed693d1e8e2ba120113855c5cf2a74963ca27b" }
 
 [[package]]
 name = "mistune"
@@ -1853,8 +1853,6 @@ source = { editable = "." }
 dependencies = [
     { name = "evox" },
     { name = "ipyparallel" },
-    { name = "jax" },
-    { name = "jaxlib" },
     { name = "loguru" },
     { name = "lxml" },
     { name = "matplotlib" },
@@ -1876,8 +1874,6 @@ dev = [
 requires-dist = [
     { name = "evox", specifier = ">=0.9.0" },
     { name = "ipyparallel", specifier = ">=9.0.0" },
-    { name = "jax", git = "https://github.com/jax-ml/jax?rev=108762379d410f5a6714843c44776bde0878c78e" },
-    { name = "jaxlib", path = "auxiliar_material/jaxlib-0.4.39.dev20241223-cp311-cp311-manylinux2014_x86_64.whl" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "lxml", specifier = ">=5.3.0" },
     { name = "matplotlib", specifier = ">=3.9.3" },
@@ -2000,7 +1996,7 @@ name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
 wheels = [

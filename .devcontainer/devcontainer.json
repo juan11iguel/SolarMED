@@ -1,7 +1,10 @@
 {
 	"name": "SolarMED - optimization",
 	"build": {
-		"dockerfile": "../Dockerfile.base"
+		"dockerfile": "../Dockerfile.base",
+		"args": {
+            // "USERNAME": "devuser"
+        }
 	},
 	"customizations": {
 		"vscode": {
@@ -44,4 +47,5 @@
 		// "ghcr.io/devcontainers-contrib/features/pre-commit:2": {},
 		// "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
 	},
+	// "remoteUser": "devuser"
 }

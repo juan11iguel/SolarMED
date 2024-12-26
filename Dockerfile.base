@@ -6,15 +6,24 @@
 FROM containers.mathworks.com/matlab-runtime:r2023b
 LABEL authors="Juan Miguel Serrano, Alejandro Clavera"
 
+# Define build arguments
+# ARG USERNAME
+
+# Create a non-root user
+# RUN useradd -ms /bin/bash $USERNAME
+# Set the user
+# USER $USERNAME
+# Set the working directory
+# WORKDIR /home/$USERNAME
+
 # Environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV MATLAB_VERSION=R2023b
-ENV WORKDIR=${WORKDIR:-/workspaces/solarmed_optimization}
+ENV WORKDIR=${WORKDIR:-/app}
 ENV AGREE_TO_MATLAB_RUNTIME_LICENSE=yes
 
-WORKDIR ${WORKDIR}
-
 # Install necessary packages
+USER root
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
@@ -42,11 +51,24 @@ ADD https://astral.sh/uv/install.sh /uv-installer.sh
 RUN sh /uv-installer.sh && rm /uv-installer.sh
 ENV PATH="/root/.cargo/bin/:$PATH"
 
+# Install conda
+# Create the directory for Miniconda
+RUN mkdir -p ${WORKDIR}/miniconda3
+# Download the Miniconda installer
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${WORKDIR}/miniconda3/miniconda.sh
+# Install Miniconda
+RUN bash ${WORKDIR}/miniconda3/miniconda.sh -b -u -p ${WORKDIR}/miniconda3
+# Remove the Miniconda installer
+RUN rm ${WORKDIR}/miniconda3/miniconda.sh
+# Add Miniconda to the PATH
+ENV PATH="${WORKDIR}/miniconda3/bin:$PATH"
+
 # Copy the project files
-COPY pyproject.toml README.md uv.lock ${WORKDIR}
+# COPY pyproject.toml README.md uv.lock ${WORKDIR}
 # If combined with the previous copy, it copies te contents of the folders instead of the folders themselves
-COPY src ${WORKDIR}/src
+# COPY src ${WORKDIR}/src
 # COPY MED_model_installers ${WORKDIR}/MED_model_installers
+# COPY environment.yml ${WORKDIR}
 
 # Set matlab runtime environment variables
 ENV MR=/opt/matlabruntime/${MATLAB_VERSION}
@@ -63,6 +85,8 @@ $MR/sys/opengl/lib/glnxa64
 # In a dev container, the virtual environment won't be available, however if the build of the image suceeds it guarantees that 
 # recreating the environment will work, so at first devcontainer start run `uv sync` to create the virtual environment
 # RUN uv sync --frozen
+# RUN conda env create -f environment.yml
+
 
 # Copy the rest of the project
 # COPY . .

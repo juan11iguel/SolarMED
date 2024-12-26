@@ -1,4 +1,4 @@
-name: solarmed-optimization2
+name: conda-env
 channels:
   - conda-forge
 dependencies:
@@ -7,7 +7,7 @@ dependencies:
   - loguru>=0.7.2
   - lxml>=5.3.0
   - matplotlib>=3.9.3
-  - numpy==1.26.4
+  - numpy==2.2.1
   - pandas>=2.2.2
   - pyarrow>=18.0.0
   - pygmo>=2.19.5
@@ -18,3 +18,4 @@ dependencies:
       - med-model-r2023b @ file:///workspaces/SolarMED-optimization/auxiliar_material/MED_model_installers/linux_python311_for_redistribution_files_only/
       - solarmed-modeling @ git+https://github.com/juan11iguel/solarMED-modeling@main
       - pydantic==2.9.2
+      - -e /workspaces/SolarMED-optimization  # only works in devcontainer, change path to path in current environment
