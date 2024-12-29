@@ -152,7 +152,7 @@
         "ts_active": 6,
         "med_active": 6,
         "med_vac_state": 6,
-        "qsf": 9,
+        "qsf": 12,
         "qts_src": 6,
         "qmed_s": 6,
         "qmed_f": 6,

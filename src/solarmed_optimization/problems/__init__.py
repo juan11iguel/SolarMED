@@ -53,7 +53,8 @@ class BaseMinlpProblem:
     fsm_sfts_data: FsmData # FSM data for the SFTS systems
     use_inequality_contraints: bool = False # Whether to use inequality constraints or not
     
-    # Computed attributes
+    # Computed attributes, actually setting default values makes no difference
+    # since __init__ dataclass method is being overriden
     # x: np.ndarray[float] = None # Decision variables values vector
     initial_state: SolarMedState = None # System initial state
     dec_var_ids: list[str] = None # All decision variables ids
@@ -62,7 +63,6 @@ class BaseMinlpProblem:
     dec_var_dtypes: list[Type] = None  # Decision variable data types
     ni: int = None # Number of logical / integer decision variables
     nr: int = None # Number of real decision variables
-    integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None # Mapping from integer decision variables to FSMs inputs
     model_dict: dict = None # SolarMED model dumped instance
     n_evals_mod_in_hor_window: int = None # Number of model evaluations per optimization window
     n_evals_mod_in_opt_step: int = None # Number of model evaluations per optimization step
@@ -70,6 +70,7 @@ class BaseMinlpProblem:
     sample_time_opt: int = None # Optimization sample time
     box_bounds_lower: list[np.ndarray[float | int]] = None # Lower bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
     box_bounds_upper: list[np.ndarray[float | int]] = None # Upper bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
+    integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None # Mapping from integer decision variables to FSMs inputs
     
     def __init__(self, 
                  model: SolarMED,
@@ -143,6 +144,9 @@ class BaseMinlpProblem:
         )
         self.fsm_sfts_data = FsmData(metadata=metadata, paths_df=paths_df, valid_inputs=np.array(valid_inputs))
 
+        # Generate bounds
+        self.box_bounds_lower, self.box_bounds_upper, self.integer_dec_vars_mapping = generate_bounds(self, )
+
     def __post_init__(self, ) -> None:
         logger.info(f"""{self.get_name()} initialized.
                     {self.get_extra_info()}""")
@@ -157,7 +161,9 @@ class BaseMinlpProblem:
         # TODO: It would be cool to do some qualitative estimation of some aspects such as:
         # - Irradiance availability along prediciton horizon (high, none, low, medium, high-intermitent, etc)
         # - Storage starting energy level (approx. hours of med operation at three-levels of temperature) 
-        lower_bounds, upper_bounds = self.get_bounds()
+        # lower_bounds, upper_bounds = get_bounds(
+        #     problem_instance=self
+        # )
         
         return f"""
     -\t Size of decision vector: {self.size_dec_vector} elements
@@ -170,11 +176,50 @@ class BaseMinlpProblem:
     -\t Number of model evals in optim. window: {self.n_evals_mod_in_hor_window}
     -\t Number of model evals in optim. step: {self.n_evals_mod_in_opt_step}
     -\t System initial state: {self.initial_state.name}
-    -\t Lower bounds: {lower_bounds}
-    -\t Upper bounds: {upper_bounds}"""
+    -\t Lower bounds: {self.box_bounds_lower}
+    -\t Upper bounds: {self.box_bounds_upper}"""
+    
+def set_real_var_bounds(problem_instance, ub: np.ndarray, lb: np.ndarray, 
+                        var_id: str, lower_limit: float | np.ndarray[float], 
+                        upper_limit: float | np.ndarray[float], aux_logical_var_id: str  = None,
+                        integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None) -> None:
+    """
+    Set the bounds for a real variable in the decision vector
+    ~~No need to pass the bounds arrays or return them, as they are modified in place (mutable)~~
+    """
+    input_idx_in_dec_vars = problem_instance.dec_var_ids.index(var_id)
+    n_updates = getattr(problem_instance.dec_var_updates, var_id)
+    if aux_logical_var_id is not None:
+        # aux_logical_input_idx_in_dec_vars = self.dec_var_ids.index(aux_logical_var_id)
+        integer_mapping = integer_dec_vars_mapping[aux_logical_var_id]
+        
+        # np.vectorize(lambda x: 1 if np.any(x > 0) else 0)(integer_mapping)
+        integer_upper_value: np.ndarray[int] = np.array( [1 if np.any(bounds > 0) else 0 for bounds in integer_mapping], dtype=int )
+        # np.vectorize(lambda x: np.min(x))(integer_mapping)
+        integer_lower_value: np.ndarray[int] = np.array( [np.min(bounds) for bounds in integer_mapping], dtype=int )
+        # integer_upper_value: np.ndarray[int] = box_bounds_upper[aux_logical_input_idx_in_dec_vars]
+        # integer_lower_value: np.ndarray[int] = box_bounds_lower[aux_logical_input_idx_in_dec_vars]
+        
+        # print(f"{self.model.get_state().name} | {aux_logical_var_id}: {integer_upper_value=}, {integer_lower_value=}")
+        
+        if len(integer_upper_value) < n_updates:
+            integer_upper_value = forward_fill_resample(integer_upper_value, n_updates)
+            integer_lower_value = forward_fill_resample(integer_lower_value, n_updates)
+        upper_value: np.ndarray[float] = upper_limit * integer_upper_value
+        lower_value: np.ndarray[float] = lower_limit * integer_lower_value
+        
+        
+    else:
+        upper_value: np.ndarray[float] = upper_limit * np.ones((n_updates, ))
+        lower_value: np.ndarray[float] = lower_limit * np.ones((n_updates, ))
+    
+    ub[input_idx_in_dec_vars] = upper_value
+    lb[input_idx_in_dec_vars] = lower_value
+    
+    return lb, ub
     
     
-def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False, debug: bool = False) -> np.ndarray[float | int] | tuple[np.ndarray[float | int], np.ndarray[float | int]]:
+def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False, debug: bool = False) -> np.ndarray[float | int] | tuple[np.ndarray[float | int], np.ndarray[float | int]]:
         """This method will return the box-bounds of the problem. 
         - Infinities in the bounds are allowed.
         - The order of elements in the bounds should match the order of the variables in the decision vector (`dec_var_ids`)
@@ -198,14 +243,16 @@ def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False
         integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = {
             var_id: np.full((getattr(problem_instance.dec_var_updates, var_id), ), list[int], dtype=object) for var_id in problem_instance.dec_var_int_ids
         }
-        box_bounds_lower: list[np.ndarray[float | int]] = [
-            np.full((n_updates, ), np.nan, dtype=object) for n_updates in asdict(problem_instance.dec_var_updates).values()
+        # Lower box-bounds
+        lbb: list[np.ndarray[float | int]] = [
+            np.full((n_updates, ), np.nan, dtype=float) for n_updates in asdict(problem_instance.dec_var_updates).values()
         ]
-        box_bounds_upper: list[np.ndarray[float | int]] = [
-            np.full((n_updates, ), np.nan, dtype=object) for n_updates in asdict(problem_instance.dec_var_updates).values()
+        # Upper box-bounds
+        ubb: list[np.ndarray[float | int]] = [
+            np.full((n_updates, ), np.nan, dtype=float) for n_updates in asdict(problem_instance.dec_var_updates).values()
         ]
 
-        # Handle logical / integer variables for both FSMs
+        # Logical / integer variables bounds
         # For each FSM, get the possible paths from the initial state and the valid inputs, to set its bounds and mappings
         for initial_state, fsm_data in zip([problem_instance.model_dict["sf_ts_state"], problem_instance.model_dict["med_state"]],
                                            [problem_instance.fsm_sfts_data, problem_instance.fsm_med_data]):
@@ -231,57 +278,20 @@ def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False
                     # Update mapping
                     integer_dec_vars_mapping[optim_input_id][step_idx] = discrete_bounds
                     # Update bounds
-                    box_bounds_upper[input_idx_in_dec_vars][step_idx] = len(discrete_bounds)-1
-                    box_bounds_lower[input_idx_in_dec_vars][step_idx] = 0
+                    ubb[input_idx_in_dec_vars][step_idx] = len(discrete_bounds)-1
+                    lbb[input_idx_in_dec_vars][step_idx] = 0
                     # print(f"{optim_input_id=}, {step_idx=}, {discrete_bounds=}, bbox=[{box_bounds_lower[input_idx_in_dec_vars][step_idx]}, {box_bounds_upper[input_idx_in_dec_vars][step_idx]}]")
                 
                 if debug:
                     vals_str = [f"{i}: {db} --> [{lb}, {ub}]" for i, (db, lb, ub) in enumerate(zip(integer_dec_vars_mapping[optim_input_id], 
-                                                                                        box_bounds_lower[input_idx_in_dec_vars], 
-                                                                                        box_bounds_upper[input_idx_in_dec_vars]))]
+                                                                                        lbb[input_idx_in_dec_vars], 
+                                                                                        ubb[input_idx_in_dec_vars]))]
                     print(f"IB | {problem_instance.model_dict['sf_ts_state'].value}{problem_instance.model_dict['med_state'].value} | {optim_input_id}: {vals_str}")
 
         # Real variables bounds
-        # Done manually for now
-        # ['qsf', 'qts_src', 'qmed_s', 'qmed_f', 'Tmed_s_in', 'Tmed_c_out']
-        def set_real_var_bounds(var_id: str, lower_limit: float | np.ndarray[float], 
-                                upper_limit: float | np.ndarray[float], aux_logical_var_id: str  = None,
-                                integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None) -> None:
-            """
-            Set the bounds for a real variable in the decision vector
-            No need to pass the bounds arrays or return them, as they are modified in place (mutable)
-            """
-            input_idx_in_dec_vars = problem_instance.dec_var_ids.index(var_id)
-            n_updates = getattr(problem_instance.dec_var_updates, var_id)
-            if aux_logical_var_id is not None:
-                # aux_logical_input_idx_in_dec_vars = self.dec_var_ids.index(aux_logical_var_id)
-                integer_mapping = integer_dec_vars_mapping[aux_logical_var_id]
-                
-                # np.vectorize(lambda x: 1 if np.any(x > 0) else 0)(integer_mapping)
-                integer_upper_value: np.ndarray[int] = np.array( [1 if np.any(bounds > 0) else 0 for bounds in integer_mapping], dtype=int )
-                # np.vectorize(lambda x: np.min(x))(integer_mapping)
-                integer_lower_value: np.ndarray[int] = np.array( [np.min(bounds) for bounds in integer_mapping], dtype=int )
-                # integer_upper_value: np.ndarray[int] = box_bounds_upper[aux_logical_input_idx_in_dec_vars]
-                # integer_lower_value: np.ndarray[int] = box_bounds_lower[aux_logical_input_idx_in_dec_vars]
-                
-                # print(f"{self.model.get_state().name} | {aux_logical_var_id}: {integer_upper_value=}, {integer_lower_value=}")
-                
-                if len(integer_upper_value) < n_updates:
-                    integer_upper_value = forward_fill_resample(integer_upper_value, n_updates)
-                    integer_lower_value = forward_fill_resample(integer_lower_value, n_updates)
-                upper_value: np.ndarray[float] = upper_limit * integer_upper_value
-                lower_value: np.ndarray[float] = lower_limit * integer_lower_value
-                
-                
-            else:
-                upper_value: np.ndarray[float] = upper_limit * np.ones((n_updates, ))
-                lower_value: np.ndarray[float] = lower_limit * np.ones((n_updates, ))
-            
-            box_bounds_upper[input_idx_in_dec_vars] = upper_value
-            box_bounds_lower[input_idx_in_dec_vars] = lower_value
-
         # Thermal storage
-        set_real_var_bounds(
+        lbb, ubb = set_real_var_bounds(
+            problem_instance=problem_instance, ub=ubb, lb=lbb,
             var_id = 'qts_src', 
             lower_limit = problem_instance.model_dict["fixed_model_params"]["ts"]["qts_src_min"], 
             upper_limit = problem_instance.model_dict["fixed_model_params"]["ts"]["qts_src_max"], 
@@ -289,7 +299,8 @@ def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False
             integer_dec_vars_mapping=integer_dec_vars_mapping,
         )
         # Solar field
-        set_real_var_bounds(
+        lbb, ubb = set_real_var_bounds(
+            problem_instance=problem_instance, ub=ubb, lb=lbb,
             var_id = 'qsf', 
             lower_limit = problem_instance.model_dict["fixed_model_params"]["sf"]["qsf_min"], 
             upper_limit = problem_instance.model_dict["fixed_model_params"]["sf"]["qsf_max"], 
@@ -297,7 +308,8 @@ def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False
             integer_dec_vars_mapping=integer_dec_vars_mapping,
         )
         # MED
-        set_real_var_bounds(
+        lbb, ubb = set_real_var_bounds(
+            problem_instance=problem_instance, ub=ubb, lb=lbb,
             var_id = 'Tmed_s_in', 
             lower_limit = problem_instance.model_dict["fixed_model_params"]["med"]["Tmed_s_min"], 
             upper_limit = problem_instance.model_dict["fixed_model_params"]["med"]["Tmed_s_max"], 
@@ -306,7 +318,8 @@ def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False
         )
         
         Tmed_c_in = downsample_by_segments(source_array=problem_instance.env_vars.Tmed_c_in, target_size=problem_instance.dec_var_updates.Tmed_c_out)
-        set_real_var_bounds(
+        lbb, ubb = set_real_var_bounds(
+            problem_instance=problem_instance, ub=ubb, lb=lbb,
             var_id = 'Tmed_c_out',
             lower_limit = Tmed_c_in, 
             upper_limit = Tmed_c_in+10, # A temperature delta of over 10ºC is unfeasible for the condenser
@@ -314,7 +327,8 @@ def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False
             integer_dec_vars_mapping=integer_dec_vars_mapping,
         )
         for var_id in ['qmed_s', 'qmed_f']:
-            set_real_var_bounds(
+            lbb, ubb = set_real_var_bounds(
+                problem_instance=problem_instance, ub=ubb, lb=lbb,
                 var_id = var_id, 
                 lower_limit = problem_instance.model_dict["fixed_model_params"]["med"][f"{var_id}_min"], 
                 upper_limit = problem_instance.model_dict["fixed_model_params"]["med"][f"{var_id}_max"], 
@@ -327,26 +341,30 @@ def get_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False
         # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(dec_var_ids, box_bounds_upper)]}")
         # print(f"{integer_dec_vars_mapping=}")
         
-        problem_instance.box_bounds_lower = box_bounds_lower
-        problem_instance.box_bounds_upper = box_bounds_upper
+        # problem_instance.box_bounds_lower = lbb
+        # problem_instance.box_bounds_upper = ubb
 
         # Finally, concatenate each array to get the final bounds
         if not readable_format:
-            box_bounds_lower = np.concatenate(box_bounds_lower)
-            box_bounds_upper = np.concatenate(box_bounds_upper)
-        problem_instance.integer_dec_vars_mapping = integer_dec_vars_mapping
+            lbb = np.concatenate(lbb)
+            ubb = np.concatenate(ubb)
+            
+        # integer_dec_vars_mapping = 
 
-        print(f"{box_bounds_lower=}")
-        print(f"{box_bounds_upper=}")
+        # print(f"{box_bounds_lower=}")
+        # print(f"{box_bounds_upper=}")
 
-        return box_bounds_lower, box_bounds_upper
+        return lbb, ubb, integer_dec_vars_mapping
     
 def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float] | np.ndarray[int]) -> list[float]:
-    print(f"{x=}")
+    # print(f"{x=}")
     
     model: SolarMED = SolarMED(**problem_instance.model_dict)
     # benefit: np.ndarray[float] = np.zeros((problem_instance.n_evals_mod_in_hor_window, ))
     decision_dict: dict[str, np.ndarray] = {}
+    
+    # Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
+    x[np.abs(x) < 1e-6] = 0
     
     # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
     cnt = 0
@@ -357,11 +375,13 @@ def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float] | 
     
     dec_vars = DecisionVariables(**decision_dict)
     benefit, ics = evaluate_model(model = model, 
-                                 n_evals_mod = problem_instance.n_evals_mod_in_hor_window,
-                                 mode = "optimization",
-                                 dec_vars = dec_vars, 
-                                 env_vars = problem_instance.env_vars,
-                                 model_dec_var_ids=problem_instance.dec_var_model_ids,)
+                                  n_evals_mod = problem_instance.n_evals_mod_in_hor_window,
+                                  mode = "optimization",
+                                  dec_vars = dec_vars, 
+                                  env_vars = problem_instance.env_vars,
+                                  model_dec_var_ids=problem_instance.dec_var_model_ids,)
+    
+    model.terminate()
     
     # ics = []
     # benefit = np.random.rand(problem_instance.n_evals_mod_in_hor_window)
@@ -369,6 +389,6 @@ def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float] | 
     # if problem_instance.use_inequality_contraints:
     #     return [np.sum(benefit), *ics]
     # else:
-    print(f"{np.sum(benefit)=}")
+    # print(f"{np.sum(benefit)=}")
     return [np.sum(benefit)]
     

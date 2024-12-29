@@ -10,13 +10,13 @@ from plotly.colors import hex_to_rgb
 from phd_visualizations import save_figure
 
 from solarmed_optimization.problems import OptimVarIdstoModelVarIdsMapping
-from solarmed_optimization.problems import MinlpProblem
+from solarmed_optimization.problems import BaseMinlpProblem
 
 # Constants
 plt_colors = plotly.colors.qualitative.Plotly
 gray_colors = plotly.colors.sequential.Greys[2:][::-1]
 
-def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, df_aux: pd.DataFrame | None = None, episode_samples: int = None) -> go.Figure:
+def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFrame], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, df_aux: pd.DataFrame | None = None, episode_samples: int = None) -> go.Figure:
     # TODO: Use grid_specs to define the layout (spacing between plots)
     
     def get_bounds_values(df: pd.DataFrame, var: str) -> tuple[np.ndarray, np.ndarray]:
@@ -359,7 +359,7 @@ def plot_dec_vars_evolution(problem: MinlpProblem, df_hors_: list[pd.DataFrame],
 
 
 def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: pd.DataFrame, 
-                       df_aux: pd.DataFrame, problem: MinlpProblem,
+                       df_aux: pd.DataFrame, problem: BaseMinlpProblem,
                        output_formats: list[Literal["png", "html"]] = ["png"]) -> None:
 
     assert all(out_format in ["png", "html"] for out_format in output_formats), "Invalid output format"

@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, fields
 import math
 from typing import Any, Type, Literal
 import time
@@ -115,9 +115,9 @@ def downsample_by_segments(source_array:  np.ndarray, target_size: int, dtype: T
 
 
 def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: DecisionVariablesUpdates,
-                                          span: Literal["optim_window", "optim_step"],
-                                          sample_time_mod: int, 
-                                          optim_window_time: int,
+                                          span: Literal["optim_window", "optim_step", "none"],
+                                          sample_time_mod: int = None, 
+                                          optim_window_time: int = None,
                                           sample_time_opt: int = None) -> DecisionVariables:
     """ From decision vector x to DecisionVariables instance
         The decision vector is the one defined in the problem class:
@@ -138,21 +138,29 @@ def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: Decisi
         one optimization step.
     """
     
-    assert span in ["optim_window", "optim_step"], "span should be either 'optim_window' or 'optim_step'"
+    assert span in ["optim_window", "optim_step", "none"], "span should be either 'optim_window' or 'optim_step'"
+    if span in ["optim_window", "optim_step"]:
+        assert sample_time_mod is not None, "If span is 'optim_window' or 'optim_step', sample_time_mod should be provided"
+        assert optim_window_time is not None, "If span is 'optim_window', optim_window_time should be provided"
     if span == "optim_step":
         assert sample_time_opt is not None, "If span is 'optim_step', sample_time_opt should be provided"
-    
+
+    span = None    
     if span == "optim_step":
         # As many model evaluations as samples that fit in the optimization step 
         n_evals_mod = math.floor(sample_time_opt / sample_time_mod)
-    else:
+    elif span == "optim_window":
         # As many model evaluations as samples that fit in the optimization window
         n_evals_mod = math.floor(optim_window_time / sample_time_mod)
         
     # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
     decision_dict: dict[str, np.ndarray] = {}
     cnt = 0
-    for var_id, num_updates_optim_window in asdict(dec_var_updates).items():
+    # for var_id, num_updates_optim_window in asdict(dec_var_updates).items():
+    # dec_var_updates does not necessary follow the same order as DecisionVariables
+    for fld in fields(DecisionVariables):
+        var_id = fld.name
+        num_updates_optim_window = getattr(dec_var_updates, var_id)
         
         if span == "optim_step":
             # Only the updates in the optimization step are considered
@@ -163,8 +171,11 @@ def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: Decisi
         else:
             # All the updates in the optimization window are considered
             num_updates = num_updates_optim_window
-            
-        decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=n_evals_mod)
+
+        if span is not None:            
+            decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=n_evals_mod)
+        else:
+            decision_dict[var_id] = x[cnt:cnt+num_updates]
         cnt += num_updates_optim_window
     
     return DecisionVariables(**decision_dict)
@@ -241,6 +252,8 @@ def evaluate_model(model: SolarMED,
     for step_idx in range(n_evals_mod):
         dv: DecisionVariables = dump_at_index_dec_vars(dec_vars, step_idx)
         
+        # print(f"{dv.med_vac_state=}")
+        
         model.step(
             # Decision variables
             ## Thermal storage
@@ -273,7 +286,8 @@ def evaluate_model(model: SolarMED,
                                                            model_dec_var_ids=model_dec_var_ids)
             benefit[step_idx] = model.evaluate_fitness_function(
                 cost_e=env_vars.cost_e[step_idx],
-                cost_w=env_vars.cost_w[step_idx]
+                cost_w=env_vars.cost_w[step_idx],
+                objective_type='minimize'
             )
         if mode == "evaluation":
             df_mod = model.to_dataframe(df_mod)
