@@ -15,9 +15,12 @@ from solarmed_optimization.problems import BaseMinlpProblem
 # Constants
 plt_colors = plotly.colors.qualitative.Plotly
 gray_colors = plotly.colors.sequential.Greys[2:][::-1]
+green_colors = plotly.colors.sequential.Greens[2:][::-1]
 
 def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFrame], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, df_aux: pd.DataFrame | None = None, episode_samples: int = None) -> go.Figure:
     # TODO: Use grid_specs to define the layout (spacing between plots)
+    # TODO: Add support for df_hors being a list of lists of dataframes. 
+    # If it's just a list, make it into a list of lists with a single element
     
     def get_bounds_values(df: pd.DataFrame, var: str) -> tuple[np.ndarray, np.ndarray]:
         var_id = OptimVarIdstoModelVarIdsMapping(var).name
@@ -37,12 +40,16 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
         assert df_aux is not None or episode_samples is not None, "If full_xaxis_range is True, df_aux or episode_samples should be provided"
     end_idx = episode_samples if episode_samples is not None else len(df_aux) 
     
+    # Make sure df_hors is a list of lists
+    if not isinstance(df_hors_[0], list):
+        df_hors_ = [[df_hors_[i]] for i in range(len(df_hors_))]
+    
     sample_time_mod: int = problem.sample_time_mod
     optim_window_size: int = problem.n_evals_mod_in_hor_window
     optim_step_size: int = problem.n_evals_mod_in_opt_step
             
     if len(df_hors_) > 0:
-        xtick_vals: np.ndarray[int] = pd.RangeIndex(start=0, step=1, stop=df_hors_[-1].index.stop + 1).to_numpy()
+        xtick_vals: np.ndarray[int] = pd.RangeIndex(start=0, step=1, stop=df_hors_[-1][-1].index.stop + 1).to_numpy()
             
         # upper_bounds_plt = [forward_fill_resample(upper_bound, target_size=len(df_hors_[-1])) for upper_bound in upper_bounds] 
         # lower_bounds_plt = [forward_fill_resample(lower_bound, target_size=len(df_hors_[-1])) for lower_bound in lower_bounds]
@@ -75,17 +82,18 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
 
         # Temporary
         # if df_mod is not None:
-        fig.add_trace(
-            go.Scatter(
-                x=np.arange(start=0, stop=len(df_aux), step=1),
-                y=df_aux[var_id].astype(int) if df_aux.iloc[0][var_id].dtype == bool else df_aux[var_id],
-                mode='markers+lines',
-                name=f"experimental {var_id}",
-                line=dict(color=plt_colors[i], width=1),
-                marker=dict(color=plt_colors[i], size=4, symbol='x'),
-            ),
-            row=i+1, col=1
-        )
+        if df_aux is not None:
+            fig.add_trace(
+                go.Scatter(
+                    x=np.arange(start=0, stop=len(df_aux), step=1),
+                    y=df_aux[var_id].astype(int) if df_aux.iloc[0][var_id].dtype == bool else df_aux[var_id],
+                    mode='markers+lines',
+                    name=f"experimental {var_id}",
+                    line=dict(color=plt_colors[i], width=1),
+                    marker=dict(color=plt_colors[i], size=4, symbol='x'),
+                ),
+                row=i+1, col=1
+            )
         
         if len(df_hors_) > 0:
             marker_symbols: np.ndarray[str] = np.full((len(df_hors_[-1]),), 'circle', dtype='<U15')  # <U15 for max string length
@@ -107,41 +115,62 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
             else:
                 color_idx = indexer
             opacity = np.max([ 0.1, 1-0.1*(indexer) ])
-            color = f"{gray_colors[color_idx]}".replace(")", f",{opacity})").replace("rgb", "rgba")
+            color = f"{green_colors[color_idx]}".replace(")", f",{opacity})").replace("rgb", "rgba")
             width = np.max([0.1, 1-0.2*( indexer )])
             marker_size = np.max([3, 5-2*( indexer )])
-            
+            best_idx: int = np.argmax([df_h["net_profit"] for df_h in df_hor])
             # if i == 0:
             #     print(f"Prediction step {hor_idx}: {color_idx=}, {width=}, {opacity=}")
         
-            fig.add_trace(
-                go.Scatter(
-                    x=df_hor.index,
-                    y=df_hor[var].astype(int) if df_hor.iloc[0][var].dtype == bool else df_hor[var],
-                    mode='markers+lines',
-                    name=f"Predicted {var_id} at step {hor_idx}",
-                    # fill="tozeroy",
-                    line=dict(
-                        color=color, 
-                        width=width,
-                    ),
-                    # marker=dict(color=gray_colors[len(df_hors_)-hor_idx]),
-                    marker_symbol=marker_symbols.tolist(),
-                    marker_size=marker_size, #marker_sizes.tolist(),
-                    marker_color=color,
-                ),
-                row=i+1, col=1
-            )
-            ## Fitness
-            if i == 0:
+            # Display only the most fit individual for past evaluations, and the
+            # whole population for the last one
+            for h_idx, df_h in enumerate([df_hor[best_idx]] if hor_idx != len(df_hors_)-1 else df_hor):
+                color_ = color
+                zorder=1
+                width_=width
+                marker_size_=marker_size
+                if hor_idx == len(df_hors_)-1:
+                    if h_idx==best_idx:
+                        color_ = "seagreen"
+                        zorder=2
+                        width_=1.5*width
+                    else:
+                        marker_size_=0.1
+                        width_=.5*width
+                        color_ = f"{gray_colors[color_idx]}".replace(")", f",{.5})").replace("rgb", "rgba")
+                        
+                # if i==0:
+                #     print(f"{len(df_hors_)-1=}, {hor_idx=} | {h_idx=} {best_idx=} | {color_=}")
+                
                 fig.add_trace(
                     go.Scatter(
-                        x=df_hor.index,
-                        y=df_hor["net_profit"],
+                        x=df_h.index,
+                        y=df_h[var].astype(int) if df_h.iloc[0][var].dtype == bool else df_h[var],
+                        mode='markers+lines',
+                        name=f"Predicted {var_id} at step {hor_idx}",
+                        # fill="tozeroy",
+                        line=dict(
+                            color=color_, 
+                            width=width_,
+                        ),
+                        # marker=dict(color=gray_colors[len(df_hors_)-hor_idx]),
+                        marker_symbol=marker_symbols.tolist(),
+                        marker_size=marker_size_, #marker_sizes.tolist(),
+                        marker_color=color_,
+                        zorder=zorder
+                    ),
+                    row=i+1, col=1
+                )
+            ## Fitness
+            if i == 0: # Just once
+                fig.add_trace(
+                    go.Scatter(
+                        x=df_hor[best_idx].index,
+                        y=df_hor[best_idx]["net_profit"],
                         mode='markers+lines',
                         name=f"Predicted fitness at step {hor_idx}",
-                        fill="tozeroy" if hor_idx == len(df_hors_)-1 else None,
-                        fillcolor=f"{color[:-4]}0.3)",
+                        # fill="tozeroy" if hor_idx == len(df_hors_)-1 else None,
+                        # fillcolor=f"{color[:-4]}0.3)",
                         line=dict(
                             color=color, 
                             width=width,
@@ -154,12 +183,12 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
                     row=problem.n_dec_vars+1, col=1
                 ) 
         
-        ## Add upper and lower bounds as dashed lines
-        if len(df_hors_) > 0:
-            lb, ub = get_bounds_values(df_hors_[-1], var)
+        ## Add upper and lower bounds as dashed lines for the best last evaluation
+        if len(df_hors_) > 0: #and hor_idx == len(df_hors_):
+            lb, ub = get_bounds_values(df_hor[best_idx], var)
             fig.add_trace(
                 go.Scatter(
-                    x=df_hors_[-1].index,
+                    x=df_hor[best_idx].index,
                     y=lb,
                     mode='lines',
                     line=dict(#dash='dash', 
@@ -173,7 +202,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
             )
             fig.add_trace(
                 go.Scatter(
-                    x=df_hors_[-1].index,
+                    x=df_hor[best_idx].index,
                     y=ub,
                     mode='lines',
                     line=dict(width=0, color=gray_colors[0]), #dash='dashdot', color=gray_colors[len(df_hors)-hor_idx], width=0),
@@ -200,6 +229,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
                     # fill="tozeroy",
                     line=dict(color=plt_colors[i], width=5),
                     marker=dict(color=plt_colors[i], size=8),
+                    zorder=3,
                 ),
                 row=i+1, col=1
             )
@@ -234,7 +264,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
         
         if len(df_hors_) > 0:
             fig.update_yaxes(title_text=var_id.replace("_", ","), row=i+1, col=1,) #autorange="reversed"
-            if  df_hors_[-1].iloc[0][var].dtype == bool:
+            if  df_hors_[-1][-1].iloc[0][var].dtype == bool:
                 fig.update_yaxes(
                     tickvals=[0, 1],
                     ticktext=["False", "True"],
@@ -284,11 +314,11 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
     start = 0
     end = optim_window_size
     hor_shift = 0
-    if len(df_hors_):
-        start = df_hors_[-1].index.to_numpy()[0]
-        end = df_hors_[-1].index.to_numpy()[-1]
+    if len(df_hors_) > 0:
+        start = df_hors_[-1][-1].index.to_numpy()[0]
+        end = df_hors_[-1][-1].index.to_numpy()[-1]
         if df_mod is not None:
-            if df_mod.index.stop - df_hors_[-1].index.start >= optim_step_size:
+            if df_mod.index.stop - df_hors_[-1][-1].index.start >= optim_step_size:
                 hor_shift = optim_step_size
             
     start += hor_shift
@@ -391,3 +421,159 @@ def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: p
         )
         save_figure(fig, figure_name=f"step{i:03d}_1_post_eval_dec_var_evol", 
                     figure_path=output_path, formats=["png"])#, "html"])
+        
+        
+
+def plot_obj_space_1d_animation(fitness_history: list[np.ndarray[float]], **kwargs):
+    """Basically a copy from EvoX: https://github.com/EMI-Group/evox/blob/main/src/evox/vis_tools/plot.py#L4
+
+    Args:
+        fitness_history (list[np.ndarray[float]]): List of fitness values for each individual per generation
+
+    Returns:
+        go.Figure: Figure object
+        
+    Example:
+    # This is the last population, after evolution
+    # pop = isl.get_population()
+    # Properties
+    # - best_idx
+    # - worst_idx
+    # - champion_f
+    # - champion_x
+    log = isl.get_algorithm().extract(type(algorithm)).get_log()
+
+    # We only have information from the best individual per generation
+    fitness_history = [l[2] for l in log]
+    
+    fig = plot_obj_space_1d_animation(fitness_history=fitness_history, title="Fitness evolution")
+    fig
+
+    """
+
+    min_fitness = [np.min(x) for x in fitness_history]
+    max_fitness = [np.max(x) for x in fitness_history]
+    median_fitness = [np.median(x) for x in fitness_history]
+    avg_fitness = [np.mean(x) for x in fitness_history]
+    generation = np.arange(len(fitness_history))
+
+    frames = []
+    steps = []
+    for i in range(len(fitness_history)):
+        frames.append(
+            go.Frame(
+                data=[
+                    go.Scatter(
+                        x=generation[: i + 1],
+                        y=min_fitness[: i + 1],
+                        mode="lines",
+                        name="Min",
+                        showlegend=True,
+                    ),
+                    go.Scatter(
+                        x=generation[: i + 1],
+                        y=max_fitness[: i + 1],
+                        mode="lines",
+                        name="Max",
+                    ),
+                    go.Scatter(
+                        x=generation[: i + 1],
+                        y=median_fitness[: i + 1],
+                        mode="lines",
+                        name="Median",
+                    ),
+                    go.Scatter(
+                        x=generation[: i + 1],
+                        y=avg_fitness[: i + 1],
+                        mode="lines",
+                        name="Average",
+                    ),
+                ],
+                name=str(i),
+            )
+        )
+
+        step = {
+            "label": i,
+            "method": "animate",
+            "args": [
+                [str(i)],
+                {
+                    "frame": {"duration": 200, "redraw": False},
+                    "mode": "immediate",
+                    "transition": {"duration": 200},
+                },
+            ],
+        }
+        steps.append(step)
+
+    sliders = [
+        {
+            "currentvalue": {"prefix": "Generation: "},
+            "pad": {"b": 1, "t": 10},
+            "len": 0.8,
+            "x": 0.2,
+            "y": 0,
+            "yanchor": "top",
+            "xanchor": "left",
+            "steps": steps,
+        }
+    ]
+    lb = min(min_fitness)
+    ub = max(max_fitness)
+    fit_range = ub - lb
+    lb = lb - 0.05 * fit_range
+    ub = ub + 0.05 * fit_range
+    fig = go.Figure(
+        data=frames[-1].data,
+        layout=go.Layout(
+            legend={
+                "x": 1,
+                "y": 1,
+                "xanchor": "auto",
+            },
+            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+            sliders=sliders,
+            xaxis={"range": [0, len(fitness_history)], "autorange": False},
+            yaxis={"range": [lb, ub], "autorange": False},
+            updatemenus=[
+                {
+                    "type": "buttons",
+                    "buttons": [
+                        {
+                            "args": [
+                                None,
+                                {
+                                    "frame": {"duration": 200, "redraw": False},
+                                    "fromcurrent": True,
+                                },
+                            ],
+                            "label": "Play",
+                            "method": "animate",
+                        },
+                        {
+                            "args": [
+                                [None],
+                                {
+                                    "frame": {"duration": 0, "redraw": False},
+                                    "mode": "immediate",
+                                },
+                            ],
+                            "label": "Pause",
+                            "method": "animate",
+                        },
+                    ],
+                    "x": 0.2,
+                    "xanchor": "right",
+                    "y": 0,
+                    "yanchor": "top",
+                    "direction": "left",
+                    "pad": {"r": 10, "t": 30},
+                },
+            ],
+            **kwargs,
+        ),
+        frames=frames,
+    )
+
+    return fig
