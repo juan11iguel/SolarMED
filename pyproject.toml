@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11, <3.12"
 dependencies = [
     "cairosvg>=2.7.1",
+    "gpy>=1.13.2",
     "hjson>=3.1.0",
     "kaleido==0.2.1",
     "loguru>=0.7.2",

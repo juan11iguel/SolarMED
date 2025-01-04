@@ -1,7 +1,7 @@
 {
     "title": "MED",
     "subtitle": "Model validation",
-    "height": 1200,
+    "height": 600,
     "width": 1000,
     "margin": {
         "l": 20,
@@ -31,7 +31,7 @@
             "ylims_left": "manual",
             "show_active": true,
             "active_var_id": "med_active",
-            "active_color": "dc_green_rgb",
+            "active_color": "dc_green",
             "traces_left": [
                 {
                     "var_id": "qmed_f",
