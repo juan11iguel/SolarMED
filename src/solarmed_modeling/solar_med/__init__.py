@@ -32,7 +32,8 @@ from solarmed_modeling.thermal_storage import (thermal_storage_two_tanks_model,
                                                ModelParameters as TsModParams,
                                                FixedModelParameters as TsFixedModParams)
 from solarmed_modeling.three_way_valve import three_way_valve_model
-from solarmed_modeling.med import FixedModelParameters as MedFixedModParams
+from solarmed_modeling.med import (FixedModelParameters as MedFixedModParams,
+                                   MedModel)
 from solarmed_modeling.heat_gen_and_storage import heat_generation_and_storage_subproblem
 from solarmed_modeling.power_consumption import Actuator
 from solarmed_modeling.fsms import (MedState, 
@@ -416,7 +417,7 @@ class SolarMED(BaseModel):
 
     # Private attributes
     _water_props: tuple[w_props, w_props] = PrivateAttr(None) # Water properties objects used accross the model
-    _MED_model: Any = PrivateAttr(None) #= Field(None, repr=False, description="MATLAB MED model instance")
+    _MedModel: MedModel = PrivateAttr(None) #= Field(None, repr=False, description="MATLAB MED model instance")
     _med_fsm: MedFsm = PrivateAttr(None) # Finite State Machine object for the MED system. Should not be accessed/manipulated directly
     _sf_ts_fsm: SolarFieldWithThermalStorageFsm = PrivateAttr(None) # Finite State Machine object for the Solar Field with Thermal Storage system. Should not be accessed/manipulated directly
     _fmp: FixedModelParameters = PrivateAttr(None)  # Just a short alias for fixed_model_params
@@ -475,7 +476,6 @@ class SolarMED(BaseModel):
                 logger.warning(f'Field {fld} has no `json_schema_extra.var_type` set, it should be if it needs to be included in the exports')
             elif self.model_fields[fld].json_schema_extra.get('var_type', None) == ModelVarType.INITIAL_STATE:
                 fields.append(fld)
-
 
     @field_validator("qmed_s_sp", "qmed_f_sp", "qts_src_sp", "qsf_sp", "qmed_c")
     @classmethod
@@ -543,7 +543,8 @@ class SolarMED(BaseModel):
 
         if self.use_models:
             # Initialize the MATLAB engine
-            self.init_matlab_engine()
+            # self.init_matlab_engine()
+            self._MedModel = MedModel(param_array=self._fmp.med.param_array)
 
         # Make sure thermal storage state is a numpy array
         self.Tts_h = np.array(self.Tts_h, dtype=float)
@@ -927,27 +928,35 @@ class SolarMED(BaseModel):
         if not self.med_active or not self.use_models:
             return override_model()
 
-        MsIn = self._matlab.double([qmed_s / 3.6], size=(1, 1))  # m³/h -> L/s
-        TsinIn = self._matlab.double([Tmed_s_in], size=(1, 1))
-        MfIn = self._matlab.double([qmed_f], size=(1, 1))
-        TcwinIn = self._matlab.double([Tmed_c_in], size=(1, 1))
-        op_timeIn = self._matlab.double([0], size=(1, 1))
+        # MsIn = self._matlab.double([qmed_s / 3.6], size=(1, 1))  # m³/h -> L/s
+        # TsinIn = self._matlab.double([Tmed_s_in], size=(1, 1))
+        # MfIn = self._matlab.double([qmed_f], size=(1, 1))
+        # TcwinIn = self._matlab.double([Tmed_c_in], size=(1, 1))
+        # op_timeIn = self._matlab.double([0], size=(1, 1))
         # wf=wmed_f # El modelo sólo es válido para una salinidad así que ni siquiera
         # se considera como parámetro de entrada
 
         while not med_model_solved and (Tmed_c_in < Tmed_c_out < Tmed_s_in):
 
-            TcwoutIn = self._matlab.double([Tmed_c_out], size=(1, 1))
-            # try:
-            qmed_d, Tmed_s_out, qmed_c, _, _ = self._MED_model.MED_model(
-                MsIn,  # L/s
-                TsinIn,  # ºC
-                MfIn,  # m³/h
-                TcwoutIn,  # ºC
-                TcwinIn,  # ºC
-                op_timeIn,  # hours
-                nargout=5
-            )
+            # TcwoutIn = self._matlab.double([Tmed_c_out], size=(1, 1))
+            # # try:
+            # qmed_d, Tmed_s_out, qmed_c, _, _ = self._MED_model.MED_model(
+            #     MsIn,  # L/s
+            #     TsinIn,  # ºC
+            #     MfIn,  # m³/h
+            #     TcwoutIn,  # ºC
+            #     TcwinIn,  # ºC
+            #     op_timeIn,  # hours
+            #     nargout=5
+            # )
+            inputs = np.array([[
+                qmed_s,      # m³/h
+                Tmed_s_in,   # ºC
+                qmed_f,      # m³/h
+                Tmed_c_out,  # ºC
+                Tmed_c_in    # ºC
+            ]])
+            qmed_d, Tmed_s_out, qmed_c = self._MedModel.predict(inputs)[0, :]
 
             if qmed_c > self._fmp.med.qmed_c_max:
                 Tmed_c_out += 1
@@ -1496,23 +1505,23 @@ class SolarMED(BaseModel):
 
         return dump
 
-    def init_matlab_engine(self) -> None:
-        """
-        Manually initialize the MATLAB MED model, in case it was terminated.
-        """
-        # Conditionally import the module
-        if self._MED_model is None:
-            import MED_model
-            import matlab
+    # def init_matlab_engine(self) -> None:
+    #     """
+    #     Manually initialize the MATLAB MED model, in case it was terminated.
+    #     """
+    #     # Conditionally import the module
+    #     if self._MED_model is None:
+    #         import MED_model
+    #         import matlab
 
-        self._MED_model = MED_model.initialize()
-        self._matlab = matlab
-        logger.info('MATLAB engine initialized')
+    #     self._MED_model = MED_model.initialize()
+    #     self._matlab = matlab
+    #     logger.info('MATLAB engine initialized')
 
-    def terminate(self) -> None:
-        """
-        Terminate the model and free resources. To be called when no more steps are needed.
-        It just terminates the MATLAB engine, all the data and states are preserved.
-        """
+    # def terminate(self) -> None:
+    #     """
+    #     Terminate the model and free resources. To be called when no more steps are needed.
+    #     It just terminates the MATLAB engine, all the data and states are preserved.
+    #     """
 
-        self._MED_model.terminate()
+    #     self._MED_model.terminate()
