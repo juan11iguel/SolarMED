@@ -4,16 +4,14 @@ import numpy as np
 import GPy
 
 import warnings
-
 # Hide poorly implemented warning from GPy or a dependency
 # It is raised when importing a model according to the instructions:
 # RuntimeWarning:Don't forget to initialize by self.initialize_parameter()!
-with warnings.catch_warnings():
-    warnings.filterwarnings(
-        "ignore", 
-        category=RuntimeWarning, 
-        module=r".*paramz\.parameterized"
-    )
+warnings.filterwarnings(
+    "ignore", 
+    category=RuntimeWarning, 
+    module=r".*paramz\.parameterized"
+)
 
 @dataclass
 class FixedModelParameters:
