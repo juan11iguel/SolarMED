@@ -17,7 +17,7 @@ plt_colors = plotly.colors.qualitative.Plotly
 gray_colors = plotly.colors.sequential.Greys[2:][::-1]
 green_colors = plotly.colors.sequential.Greens[2:][::-1]
 
-def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFrame], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, df_aux: pd.DataFrame | None = None, episode_samples: int = None) -> go.Figure:
+def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFrame] | list[list[pd.DataFrame]], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, df_aux: pd.DataFrame | None = None, episode_samples: int = None) -> go.Figure:
     # TODO: Use grid_specs to define the layout (spacing between plots)
     # TODO: Add support for df_hors being a list of lists of dataframes. 
     # If it's just a list, make it into a list of lists with a single element
@@ -41,8 +41,9 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
     end_idx = episode_samples if episode_samples is not None else len(df_aux) 
     
     # Make sure df_hors is a list of lists
-    if not isinstance(df_hors_[0], list):
-        df_hors_ = [[df_hors_[i]] for i in range(len(df_hors_))]
+    for idx, item in enumerate(df_hors_):
+        if not isinstance(item, list):
+            df_hors_[idx] = [item]
     
     sample_time_mod: int = problem.sample_time_mod
     optim_window_size: int = problem.n_evals_mod_in_hor_window
@@ -118,7 +119,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
             color = f"{green_colors[color_idx]}".replace(")", f",{opacity})").replace("rgb", "rgba")
             width = np.max([0.1, 1-0.2*( indexer )])
             marker_size = np.max([3, 5-2*( indexer )])
-            best_idx: int = np.argmax([df_h["net_profit"] for df_h in df_hor])
+            best_idx: int = np.argmax([df_h["net_profit"].sum() for df_h in df_hor])
             # if i == 0:
             #     print(f"Prediction step {hor_idx}: {color_idx=}, {width=}, {opacity=}")
         
