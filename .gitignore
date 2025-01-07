@@ -1,4 +1,5 @@
 data/datasets
+solarMED-modeling/
 # Until we improve the paths generation, we need to whitelist some large files
 results/sfts_n_15*
 

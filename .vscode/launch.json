@@ -17,7 +17,7 @@
             "name": "minlp",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/minlp.py",
+            "program": "${workspaceFolder}/scripts/pygmo_solarmed.py",
             "console": "integratedTerminal",
             "justMyCode": false,
         }
