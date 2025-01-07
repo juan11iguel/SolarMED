@@ -11,8 +11,8 @@ from solarmed_optimization.utils import (decision_vector_to_decision_variables,
 from solarmed_optimization.problems import BaseMinlpProblem
 
 def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int]], 
-                          best_idx: int, env_vars: EnvironmentVariables, problem: BaseMinlpProblem,
-                          problem_data: ProblemData, idx_mod: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+                          env_vars: EnvironmentVariables, problem: BaseMinlpProblem,
+                          problem_data: ProblemData, idx_mod: int, best_idx: int = 0,) -> tuple[pd.DataFrame, pd.DataFrame, SolarMED]:
     
     
     pp = problem_data.problem_params
@@ -62,4 +62,4 @@ def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int
                                      target="optim_step",
                                      df_idx=idx_mod)
     
-    return df_hor, df_sim
+    return df_hor, df_sim, model # model is already updated, but return it anyway

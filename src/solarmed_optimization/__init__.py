@@ -180,8 +180,8 @@ class ProblemSamples:
 @dataclass
 class ProblemParameters:
     sample_time_mod: int = 400 # Model sample time, seconds
-    sample_time_opt: int = 1800 # Optimization evaluations period, seconds
-    optim_window_time: int = 3600 * 3 # Optimization window size, seconds
+    sample_time_opt: int = 3600 * 0.8 # Optimization evaluations period, seconds
+    optim_window_time: int = 3600 * 8 # Optimization window size, seconds
     episode_duration: int = None # By default use len(df)
     idx_start: int = None # By default estimate from sf fixed_mod_params.delay_span
     env_params: EnvironmentParameters = field(default_factory=lambda: EnvironmentParameters())
@@ -210,7 +210,7 @@ class ProblemParameters:
             [SfTsState.HEATING_UP_SF.value, SfTsState.SF_HEATING_TS.value],
         ]
     })
-    dec_var_updates: DecisionVariablesUpdates = None
+    dec_var_updates: DecisionVariablesUpdates = None # Set automatically in utils.initialization.problem_initialization if not manually defined
     
     def __post_init__(self):
         """ Make convenient to initialize this dataclass from dumped instances """
@@ -221,10 +221,51 @@ class ProblemParameters:
                 # if not isinstance(value, fld.type) and value is not None:
                     setattr(self, fld.name, fld.type(**value))
 
-
 @dataclass
 class ProblemData:
     df: pd.DataFrame
     problem_params: ProblemParameters
     problem_samples: ProblemSamples 
     model: SolarMED
+
+@dataclass
+class AlgorithmParameters:
+    pop_size: int = 32
+    n_gen: int = 80
+    seed_num: int = 23
+    
+@dataclass
+class PopulationResults:
+    pop_per_gen: list[list[float|int]] # (gen, individual, dec.variable)
+    fitness_per_gen: list[list[float]] # (gen, individual)
+    time_per_gen: list[float] # (gen, )
+    time_total: float
+    best_idx_per_gen: list[int] # (gen, )
+    worst_idx_per_gen: list[int] # (gen, )
+    
+    # def __post_init__(self, ):
+    #     # Check type of attributes, if they are numpy arrays, make them into lists
+
+    @classmethod
+    def initialize(cls, problem, pop_size: int, n_gen: int, elapsed_time: int) -> 'PopulationResults':
+    
+        x_evaluated = problem.x_evaluated
+        fitness_record = problem.fitness_history
+        x_history: list[list[list[int | float]]] = []
+        fitness_history: list[list[float]] = []
+        best_idx: list[int] = []
+        worst_idx: list[int] = []
+        for idx in range(0, len(x_evaluated)-1, pop_size):
+            x_history.append( x_evaluated[idx:idx+pop_size] )
+            fitness_history.append( fitness_record[idx:idx+pop_size] )
+            best_idx.append( int(np.argmin(fitness_history[-1])) )
+            worst_idx.append( int(np.argmax(fitness_history[-1])) )
+                
+        return cls(
+            pop_per_gen=x_history,
+            fitness_per_gen=fitness_history,
+            best_idx_per_gen=best_idx,
+            worst_idx_per_gen=worst_idx,
+            time_per_gen=elapsed_time/n_gen,
+            time_total=elapsed_time
+        )

@@ -5,13 +5,14 @@ import time
 from loguru import logger
 import numpy as np
 import pandas as pd
+from solarmed_modeling.solar_med import SolarMED
 from solarmed_optimization import (DecisionVariables, 
                                    DecisionVariablesUpdates, 
                                    EnvironmentVariables, 
                                    dump_at_index_dec_vars,
                                    ProblemSamples,
-                                   ProblemParameters)
-from solarmed_modeling.solar_med import SolarMED
+                                   ProblemParameters,)
+# from solarmed_optimization.problems import BaseMinlpProblem # circular import
 
 def fitness_logger(func: callable) -> callable:
     def wrapper(*args, **kwargs) -> Any:
@@ -38,6 +39,9 @@ def get_nested_attr(d: dict, attr: str) -> Any:
     for key in keys:
         d = d.get(key, None)
     return d
+
+def flatten_list(nested_list: list[list]) -> list:
+    return [item for sublist in nested_list for item in sublist]
     
     
 def forward_fill_resample(source_array: np.ndarray, target_size: int, dtype: Type = None) -> np.ndarray:
@@ -145,7 +149,7 @@ def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: Decisi
     if span == "optim_step":
         assert sample_time_opt is not None, "If span is 'optim_step', sample_time_opt should be provided"
 
-    span = None    
+    n_evals_mod = None    
     if span == "optim_step":
         # As many model evaluations as samples that fit in the optimization step 
         n_evals_mod = math.floor(sample_time_opt / sample_time_mod)
@@ -172,7 +176,7 @@ def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: Decisi
             # All the updates in the optimization window are considered
             num_updates = num_updates_optim_window
 
-        if span is not None:            
+        if n_evals_mod is not None:            
             decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=n_evals_mod)
         else:
             decision_dict[var_id] = x[cnt:cnt+num_updates]
@@ -245,7 +249,7 @@ def evaluate_model(model: SolarMED,
     #     df_mod = model.to_dataframe()
         
     if mode == "optimization":
-        benefit: np.ndarray[float] = np.zeros((n_evals_mod, ))
+        fitness: np.ndarray[float] = np.zeros((n_evals_mod, ))
         ics: np.ndarray[float] = np.zeros((n_evals_mod, len(model_dec_var_ids)))
     
     # dec_var_ids = list(asdict(dec_vars).keys())
@@ -284,17 +288,17 @@ def evaluate_model(model: SolarMED,
             ics[step_idx, :] = compute_dec_var_differences(dec_vars=asdict(dv), 
                                                            model_dec_vars=model.model_dump(include=model_dec_var_ids),
                                                            model_dec_var_ids=model_dec_var_ids)
-            benefit[step_idx] = model.evaluate_fitness_function(
+            fitness[step_idx] = model.evaluate_fitness_function(
                 cost_e=env_vars.cost_e[step_idx],
                 cost_w=env_vars.cost_w[step_idx],
                 objective_type='minimize'
             )
         if mode == "evaluation":
-            df_mod = model.to_dataframe(df_mod)
+            df_mod = model.to_dataframe(df_mod, )
                 
     if mode == "optimization":
         # TODO: Add inequality constraints, at least for logical variables
-        return np.sum(benefit), ics.mean(axis=0)
+        return np.sum(fitness), ics.mean(axis=0)
     elif mode == "evaluation":
         if df_start_idx is not None:
             df_mod.index = pd.RangeIndex(start=df_start_idx, stop=len(df_mod)+df_start_idx)
