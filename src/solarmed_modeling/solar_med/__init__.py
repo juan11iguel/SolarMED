@@ -162,6 +162,22 @@ class ActuatorsMaping:
          'qts_src': "ts_src_pump"
     })
 
+@dataclass
+class InitialStates:
+    ## Thermal storage
+    Tts_h: np.ndarray[float]
+    Tts_c: np.ndarray[float]
+    ## Finite state machines
+    fsms_internal_states: FsmInternalState = field(default_factory=lambda: FsmInternalState())
+    med_state: MedState = MedState.OFF
+    sf_ts_state: SfTsState = SfTsState.IDLE
+    ## Solar field
+    Tsf_in_ant: np.ndarray[float] = field(default_factory=lambda: np.array([0.], dtype=float))
+    qsf_ant: np.ndarray[float] = field(default_factory=lambda: np.array([0.], dtype=float))
+    
+    def __post_init__(self):
+        self.Tts_h = np.array(self.Tts_h, dtype=float)
+
 
 class SolarMED(BaseModel):
     """
@@ -524,8 +540,8 @@ class SolarMED(BaseModel):
     def serialize_actuators_consumptions(self, value: ActuatorsMaping) -> dict:
         return {k: {var: actuator.id for var, actuator in v.items()} for k, v in asdict(value).items()}
 
-    @field_serializer("med_vacuum_state")
-    def serialize_med_vacuum_state(self, value: MedVacuumState) -> int:
+    @field_serializer("med_vacuum_state", "med_state", "sf_state", "ts_state", "sf_ts_state", "current_state")
+    def serialize_enum(self, value: Enum) -> int | str:
         return value.value
 
     def model_post_init(self, ctx) -> None:
@@ -803,6 +819,7 @@ class SolarMED(BaseModel):
         self.calculate_sf_aux_outputs()
         self.calculate_ts_aux_outputs()
         self.calculate_hx_aux_outputs()
+        self.calculate_three_way_valve_aux_outputs()
         # Total variables
         self.Jtotal = self.Jmed + self.Jts + self.Jsf
         self.Jsf_ts = self.Jsf + self.Jts
@@ -1354,6 +1371,12 @@ class SolarMED(BaseModel):
 
             self.Pth_med = qmed_s_kgs * (self.Tmed_s_in - self.Tmed_s_out) * cp_s  # kWth
             self.STEC_med = self.Pth_med / self.qmed_d  # kWhth/m³
+            
+    def calculate_three_way_valve_aux_outputs(self) -> None:
+        
+        self.T3wv_src = self.Tts_h[0]
+        self.T3wv_dis_in = self.Tmed_s_in
+        self.T3wv_dis_out = self.Tmed_s_out
             
     def evaluate_fitness_function(self,
                                   cost_w: float = None, cost_e: float = None,
