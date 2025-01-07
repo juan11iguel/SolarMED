@@ -1,3 +1,5 @@
+# from concurrent.futures import ThreadPoolExecutor
+
 import math
 from pathlib import Path
 from dataclasses import dataclass, asdict, fields
@@ -17,8 +19,7 @@ from solarmed_optimization import (EnvironmentVariables,
 from solarmed_optimization.path_explorer.utils import import_results
 from solarmed_optimization.utils import (forward_fill_resample, 
                                          downsample_by_segments,
-                                         evaluate_model,
-                                         fitness_logger)
+                                         evaluate_model,)
 
 np.set_printoptions(precision=1, suppress=True)
 
@@ -51,7 +52,7 @@ class BaseMinlpProblem:
     dec_var_updates: DecisionVariablesUpdates # Decision variables updates
     fsm_med_data: FsmData # FSM data for the MED system
     fsm_sfts_data: FsmData # FSM data for the SFTS systems
-    use_inequality_contraints: bool = False # Whether to use inequality constraints or not
+    use_inequality_contraints: bool = True # Whether to use inequality constraints or not
     
     # Computed attributes, actually setting default values makes no difference
     # since __init__ dataclass method is being overriden
@@ -71,6 +72,8 @@ class BaseMinlpProblem:
     box_bounds_lower: list[np.ndarray[float | int]] = None # Lower bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
     box_bounds_upper: list[np.ndarray[float | int]] = None # Upper bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
     integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None # Mapping from integer decision variables to FSMs inputs
+    x_evaluated: list[list[float | int]] = None # Decision variables vector evaluated (i.e. sent to the fitness function)
+    fitness_history: list[float] = None # Fitness record of decision variables sent to the fitness function
     
     def __init__(self, 
                  model: SolarMED,
@@ -145,7 +148,11 @@ class BaseMinlpProblem:
         self.fsm_sfts_data = FsmData(metadata=metadata, paths_df=paths_df, valid_inputs=np.array(valid_inputs))
 
         # Generate bounds
-        self.box_bounds_lower, self.box_bounds_upper, self.integer_dec_vars_mapping = generate_bounds(self, )
+        self.box_bounds_lower, self.box_bounds_upper, self.integer_dec_vars_mapping = generate_bounds(self, readable_format=True)
+        
+        # Initialize decision vector history
+        self.x_evaluated = []
+        self.fitness_history = []
 
     def __post_init__(self, ) -> None:
         logger.info(f"""{self.get_name()} initialized.
@@ -343,6 +350,9 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
         
         # problem_instance.box_bounds_lower = lbb
         # problem_instance.box_bounds_upper = ubb
+        if np.any([np.isnan(np.concatenate(lbb))]) or \
+            np.any([np.isnan(np.concatenate(ubb))]):
+            raise ValueError("Bounds contain NaN values. Check the bounds generation process.")
 
         # Finally, concatenate each array to get the final bounds
         if not readable_format:
@@ -350,45 +360,64 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
             ubb = np.concatenate(ubb)
             
         # integer_dec_vars_mapping = 
-
         # print(f"{box_bounds_lower=}")
         # print(f"{box_bounds_upper=}")
+        
 
         return lbb, ubb, integer_dec_vars_mapping
     
-def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float] | np.ndarray[int]) -> list[float]:
+def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float | int] | list[np.ndarray[float | int]],) -> list[float] | list[list[float]]:
     # print(f"{x=}")
-    
-    model: SolarMED = SolarMED(**problem_instance.model_dict)
-    # benefit: np.ndarray[float] = np.zeros((problem_instance.n_evals_mod_in_hor_window, ))
-    decision_dict: dict[str, np.ndarray] = {}
-    
-    # Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
-    x[np.abs(x) < 1e-6] = 0
-    
-    # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
-    cnt = 0
-    for var_id in problem_instance.dec_var_ids:
-        num_updates = getattr(problem_instance.dec_var_updates, var_id)
-        decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=problem_instance.n_evals_mod_in_hor_window)
-        cnt += num_updates
-    
-    dec_vars = DecisionVariables(**decision_dict)
-    benefit, ics = evaluate_model(model = model, 
-                                  n_evals_mod = problem_instance.n_evals_mod_in_hor_window,
-                                  mode = "optimization",
-                                  dec_vars = dec_vars, 
-                                  env_vars = problem_instance.env_vars,
-                                  model_dec_var_ids=problem_instance.dec_var_model_ids,)
-    
-    model.terminate()
-    
-    # ics = []
-    # benefit = np.random.rand(problem_instance.n_evals_mod_in_hor_window)
+    def evaluate(x: np.ndarray[float | int]) -> list[float]:
+        model: SolarMED = SolarMED(**problem_instance.model_dict)
+        # fitness: np.ndarray[float] = np.zeros((problem_instance.n_evals_mod_in_hor_window, ))
+        decision_dict: dict[str, np.ndarray] = {}
         
+        # Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
+        x[np.abs(x) < 1e-6] = 0
+        
+        # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
+        cnt = 0
+        for var_id in problem_instance.dec_var_ids:
+            num_updates = getattr(problem_instance.dec_var_updates, var_id)
+            decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=problem_instance.n_evals_mod_in_hor_window)
+            cnt += num_updates
+        
+        dec_vars = DecisionVariables(**decision_dict)
+        fitness, ics = evaluate_model(model = model, 
+                                      n_evals_mod = problem_instance.n_evals_mod_in_hor_window,
+                                      mode = "optimization",
+                                      dec_vars = dec_vars, 
+                                      env_vars = problem_instance.env_vars,
+                                      model_dec_var_ids=problem_instance.dec_var_model_ids,)
+        # model.terminate()
+        
+        return fitness, ics
+    
+    # # Check if we are in batch mode
+    # batch_mode: bool = isinstance(x, list) and isinstance(x[0], (list, np.ndarray))
+    
+    # if not batch_mode:
+    fitness, ics = evaluate(x)
+    if problem_instance.use_inequality_contraints:
+        return [np.sum(fitness), *ics]
+    else:
+        return [np.sum(fitness)]
+
+    # # Batch mode
+    # assert len(x[0]) == problem_instance.size_dec_vector, "Number of elements in batch decision vector should match problem's decision vector size"
+    # # Parallel evaluation for batch mode
+    # with ThreadPoolExecutor() as executor:
+    #     results = list(executor.map(evaluate, x))
+
+    # fitness_list = [np.sum(result[0]) for result in results]
+    # icss = [result[1] for result in results]
+
     # if problem_instance.use_inequality_contraints:
-    #     return [np.sum(benefit), *ics]
+    #     return [
+    #         [fitness, *ics] 
+    #         for fitness, ics in zip(fitness_list, icss)
+    #     ]
     # else:
-    # print(f"{np.sum(benefit)=}")
-    return [np.sum(benefit)]
+    #     return fitness_list
     
