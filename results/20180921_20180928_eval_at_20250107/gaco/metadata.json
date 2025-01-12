@@ -2,7 +2,7 @@
     "date_str": "20180921_20180928",
     "algo_id": "gaco",
     "algo_params": {
-        "gen": 3,
+        "gen": 5,
         "ker": 16,
         "seed": 32
     }

@@ -274,6 +274,116 @@
             "paths_file_id": "med_n_10_48666575-f64f-463d-a932-104fc86f2195.csv",
             "valid_inputs_file_id": "med_n_10_48666575-f64f-463d-a932-104fc86f2195.pkl",
             "generated_at": "2025-01-04T23:43:53.721820+00:00"
+        },
+        {
+            "alternative_id": "automatically_generated_from_import_results",
+            "n_horizon": 3,
+            "computation_time": 0.18608403205871582,
+            "n_paths": 17,
+            "n_paths_per_initial_state": {
+                "OFF": 3,
+                "GENERATING_VACUUM": 1,
+                "IDLE": 3,
+                "STARTING_UP": 3,
+                "SHUTTING_DOWN": 3,
+                "ACTIVE": 4
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 9600,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_3_fb8576e6-3059-440e-b29f-375aed0ad00b.csv",
+            "valid_inputs_file_id": "med_n_3_fb8576e6-3059-440e-b29f-375aed0ad00b.pkl",
+            "generated_at": "2025-01-12T00:32:04.009262+00:00"
+        },
+        {
+            "alternative_id": "automatically_generated_from_import_results",
+            "n_horizon": 6,
+            "computation_time": 0.6862163543701172,
+            "n_paths": 64,
+            "n_paths_per_initial_state": {
+                "OFF": 10,
+                "GENERATING_VACUUM": 6,
+                "IDLE": 15,
+                "STARTING_UP": 12,
+                "SHUTTING_DOWN": 10,
+                "ACTIVE": 11
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 4800,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_6_40505e05-1710-45d4-9046-426bb16bc761.csv",
+            "valid_inputs_file_id": "med_n_6_40505e05-1710-45d4-9046-426bb16bc761.pkl",
+            "generated_at": "2025-01-12T00:37:48.211601+00:00"
         }
     ],
     "SFTS": [
@@ -428,6 +538,44 @@
             "paths_file_id": "sfts_n_10_1dbc991e-7445-4c81-9977-8a4560db149b.csv",
             "valid_inputs_file_id": "sfts_n_10_1dbc991e-7445-4c81-9977-8a4560db149b.pkl",
             "generated_at": "2025-01-04T23:44:10.056343+00:00"
+        },
+        {
+            "alternative_id": "automatically_generated_from_import_results",
+            "n_horizon": 6,
+            "computation_time": 0.7041795253753662,
+            "n_paths": 377,
+            "n_paths_per_initial_state": {
+                "IDLE": 144,
+                "HEATING_UP_SF": 89,
+                "SF_HEATING_TS": 144
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 4800,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "sf_active",
+                "ts_active"
+            ],
+            "paths_file_id": "sfts_n_6_674de564-fc0c-4d70-a72b-301fb9a2884c.csv",
+            "valid_inputs_file_id": "sfts_n_6_674de564-fc0c-4d70-a72b-301fb9a2884c.pkl",
+            "generated_at": "2025-01-12T00:32:04.725313+00:00"
         }
     ]
 }
