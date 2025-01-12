@@ -269,3 +269,36 @@ class PopulationResults:
             time_per_gen=elapsed_time/n_gen,
             time_total=elapsed_time
         )
+        
+class RealLogicalDecVarDependence(Enum):
+    """ Utility class that defines dependence relationship between real 
+    decision variables and operation modes / integer ones """
+    
+    qsf = "sf_active"
+    qts_src = "ts_active"
+    qmed_s = "med_active"
+    qmed_f = "med_active"
+    Tmed_s_in = "med_active"
+    Tmed_c_out = "med_active"
+    
+@dataclass
+class RealDecVarsBoxBounds:
+    """ Real decision variables box bounds, as in: (lower bound, upper bound)"""
+    qsf: tuple[float, float]
+    qts_src: tuple[float, float]
+    qmed_s: tuple[float, float]
+    qmed_f: tuple[float, float]
+    Tmed_s_in: tuple[float, float]
+    Tmed_c_out: tuple[float, float]
+    
+    @classmethod
+    def initialize(cls, fmp: FixedModelParameters, Tmed_c_in: float) -> 'RealDecVarsBoxBounds':
+    
+        return cls(
+            qts_src = (fmp.ts.qts_src_min, fmp.ts.qts_src_max),
+            qsf = (fmp.sf.qsf_min, fmp.sf.qsf_max),
+            Tmed_s_in = (fmp.med.Tmed_s_min, fmp.med.Tmed_s_max),
+            Tmed_c_out = (Tmed_c_in+2, Tmed_c_in+10),
+            qmed_s = (fmp.med.qmed_s_min, fmp.med.qmed_s_max),
+            qmed_f = (fmp.med.qmed_f_min, fmp.med.qmed_f_max),
+        )

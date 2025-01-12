@@ -11,7 +11,9 @@ from solarmed_optimization import (DecisionVariables,
                                    EnvironmentVariables, 
                                    dump_at_index_dec_vars,
                                    ProblemSamples,
-                                   ProblemParameters,)
+                                   ProblemParameters,
+                                   RealLogicalDecVarDependence,
+                                   RealDecVarsBoxBounds)
 # from solarmed_optimization.problems import BaseMinlpProblem # circular import
 
 def fitness_logger(func: callable) -> callable:
@@ -117,6 +119,26 @@ def downsample_by_segments(source_array:  np.ndarray, target_size: int, dtype: T
         for i in range(target_size)
     ]).astype(dtype)
 
+def resample_decision_variables(dec_vars: DecisionVariables, dec_var_updates: DecisionVariablesUpdates) -> DecisionVariables:
+    """Resample decision variable object
+
+    Args:
+        dec_vars (DecisionVariables): _description_
+        dec_var_updates (DecisionVariablesUpdates): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    
+    for var_id, var_values in asdict(dec_vars).items():
+        target_size = getattr(dec_var_updates, var_id)
+        if target_size >= len(var_values):
+            setattr(dec_vars, var_id, forward_fill_resample(var_values, target_size))
+        elif target_size < len(var_values):
+            setattr(dec_vars, var_id, downsample_by_segments(var_values, target_size))
+            
+    return dec_vars
+    
 
 def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: DecisionVariablesUpdates,
                                           span: Literal["optim_window", "optim_step", "none"],
@@ -183,6 +205,17 @@ def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: Decisi
         cnt += num_updates_optim_window
     
     return DecisionVariables(**decision_dict)
+
+def decision_variables_to_decision_vector(dec_vars: DecisionVariables, dec_var_updates: DecisionVariablesUpdates = None) -> np.ndarray:
+    """ From DecisionVariables instance to decision vector x
+        The decision vector is the one defined in the problem class:
+        x = [ [1,...,n_updates_x1], [1,...,n_updates_x2], ..., [1,...,n_updates_xNdec_vars] ]
+        where n_updates_xi is the number of updates for decision variable i along the prediction horizon
+    """
+    if dec_var_updates is not None:
+        dec_vars = resample_decision_variables(dec_vars, dec_var_updates)
+                
+    return np.concatenate([var_values for var_values in asdict(dec_vars).values()])
         
 def compute_dec_var_differences(dec_vars: dict[str, float], model_dec_vars: dict[str, float], model_dec_var_ids: list[str]) -> np.ndarray[float]:
     """ This implementation compared to initializing two dataframes is much faster:
@@ -362,3 +395,22 @@ def times_to_samples(pp: ProblemParameters) -> ProblemSamples:
         default_n_dec_var_updates = min(math.floor(pp.optim_window_time / pp.sample_time_opt), max_dec_var_updates),
         span=span
     )
+
+def validate_real_dec_vars(dec_vars: DecisionVariables, real_dec_var_bounds: RealDecVarsBoxBounds) -> DecisionVariables:
+    """
+    Validate real decision variables values. 
+    - If a value is below the lower limit, set it to the lower limit
+    - If a value is above the upper limit, set it to the upper limit
+    """
+    for var_id, bounds in asdict(real_dec_var_bounds).items():
+        lower_limit, upper_limit = bounds
+        var_values = getattr(dec_vars, var_id)
+        integer_dec_var_val = forward_fill_resample(getattr( dec_vars, RealLogicalDecVarDependence[var_id].value), 
+                                                    target_size=var_values.shape[0])
+        
+        var_values = np.clip(var_values, lower_limit, upper_limit)
+        var_values = var_values * integer_dec_var_val
+        
+        setattr(dec_vars, var_id, var_values)
+    
+    return dec_vars

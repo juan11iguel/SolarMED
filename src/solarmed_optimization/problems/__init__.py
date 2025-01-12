@@ -15,11 +15,13 @@ from solarmed_optimization import (EnvironmentVariables,
                                    DecisionVariablesUpdates,
                                    VarIdsOptimToFsmsMapping,
                                    OptimVarIdstoModelVarIdsMapping,
-                                   FsmData)
+                                   FsmData,
+                                   RealLogicalDecVarDependence,
+                                   RealDecVarsBoxBounds,)
 from solarmed_optimization.path_explorer.utils import import_results
 from solarmed_optimization.utils import (forward_fill_resample, 
-                                         downsample_by_segments,
-                                         evaluate_model,)
+                                         evaluate_model,
+                                         decision_vector_to_decision_variables)
 
 np.set_printoptions(precision=1, suppress=True)
 
@@ -52,28 +54,30 @@ class BaseMinlpProblem:
     dec_var_updates: DecisionVariablesUpdates # Decision variables updates
     fsm_med_data: FsmData # FSM data for the MED system
     fsm_sfts_data: FsmData # FSM data for the SFTS systems
-    use_inequality_contraints: bool = True # Whether to use inequality constraints or not
+    use_inequality_contraints: bool # Whether to use inequality constraints or not
     
     # Computed attributes, actually setting default values makes no difference
     # since __init__ dataclass method is being overriden
     # x: np.ndarray[float] = None # Decision variables values vector
-    initial_state: SolarMedState = None # System initial state
-    dec_var_ids: list[str] = None # All decision variables ids
-    dec_var_int_ids: list[str] = None # Logical / integer decision variables ids
-    dec_var_real_ids: list[str] = None  # Real decision variables ids
-    dec_var_dtypes: list[Type] = None  # Decision variable data types
-    ni: int = None # Number of logical / integer decision variables
-    nr: int = None # Number of real decision variables
-    model_dict: dict = None # SolarMED model dumped instance
-    n_evals_mod_in_hor_window: int = None # Number of model evaluations per optimization window
-    n_evals_mod_in_opt_step: int = None # Number of model evaluations per optimization step
-    sample_time_mod: int = None # Model sample time
-    sample_time_opt: int = None # Optimization sample time
-    box_bounds_lower: list[np.ndarray[float | int]] = None # Lower bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
-    box_bounds_upper: list[np.ndarray[float | int]] = None # Upper bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
-    integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None # Mapping from integer decision variables to FSMs inputs
-    x_evaluated: list[list[float | int]] = None # Decision variables vector evaluated (i.e. sent to the fitness function)
-    fitness_history: list[float] = None # Fitness record of decision variables sent to the fitness function
+    real_dec_vars_box_bounds: RealDecVarsBoxBounds
+    initial_state: SolarMedState # System initial state
+    dec_var_ids: list[str] # All decision variables ids
+    dec_var_int_ids: list[str] # Logical / integer decision variables ids
+    dec_var_real_ids: list[str]  # Real decision variables ids
+    dec_var_dtypes: list[Type]  # Decision variable data types
+    ni: int # Number of logical / integer decision variables
+    nr: int # Number of real decision variables
+    model_dict: dict # SolarMED model dumped instance
+    n_evals_mod_in_hor_window: int # Number of model evaluations per optimization window
+    n_evals_mod_in_opt_step: int # Number of model evaluations per optimization step
+    sample_time_mod: int # Model sample time
+    sample_time_opt: int # Optimization sample time
+    box_bounds_lower: list[np.ndarray[float | int]] # Lower bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
+    box_bounds_upper: list[np.ndarray[float | int]] # Upper bounds for the decision variables (in list of arrays format). Updated every time `get_bounds` is called
+    integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] # Mapping from integer decision variables to FSMs inputs
+    x_evaluated: list[list[float | int]] # Decision variables vector evaluated (i.e. sent to the fitness function)
+    fitness_history: list[float] # Fitness record of decision variables sent to the fitness function
+    
     
     def __init__(self, 
                  model: SolarMED,
@@ -83,11 +87,13 @@ class BaseMinlpProblem:
                  env_vars: EnvironmentVariables,
                  fsm_valid_sequences: dict[ str, list[list] ],
                  fsm_data_path: Path = Path("../results"),
+                 use_inequality_contraints: bool = True
                 ):
 
         self.optim_window_size = optim_window_time
         self.dec_var_updates = dec_var_updates
         self.env_vars = env_vars
+        self.use_inequality_contraints = use_inequality_contraints
         
         self.model_dict = model.dump_instance()
         # Add fields not included in the dump_instance method
@@ -148,6 +154,10 @@ class BaseMinlpProblem:
         self.fsm_sfts_data = FsmData(metadata=metadata, paths_df=paths_df, valid_inputs=np.array(valid_inputs))
 
         # Generate bounds
+        self.real_dec_vars_box_bounds = RealDecVarsBoxBounds.initialize(
+            fmp=model.fixed_model_params, 
+            Tmed_c_in=env_vars.Tmed_c_in.mean()
+        )
         self.box_bounds_lower, self.box_bounds_upper, self.integer_dec_vars_mapping = generate_bounds(self, readable_format=True)
         
         # Initialize decision vector history
@@ -258,7 +268,7 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
         ubb: list[np.ndarray[float | int]] = [
             np.full((n_updates, ), np.nan, dtype=float) for n_updates in asdict(problem_instance.dec_var_updates).values()
         ]
-
+        
         # Logical / integer variables bounds
         # For each FSM, get the possible paths from the initial state and the valid inputs, to set its bounds and mappings
         for initial_state, fsm_data in zip([problem_instance.model_dict["sf_ts_state"], problem_instance.model_dict["med_state"]],
@@ -297,51 +307,15 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
 
         # Real variables bounds
         # Thermal storage
-        lbb, ubb = set_real_var_bounds(
-            problem_instance=problem_instance, ub=ubb, lb=lbb,
-            var_id = 'qts_src', 
-            lower_limit = problem_instance.model_dict["fixed_model_params"]["ts"]["qts_src_min"], 
-            upper_limit = problem_instance.model_dict["fixed_model_params"]["ts"]["qts_src_max"], 
-            aux_logical_var_id = 'ts_active',
-            integer_dec_vars_mapping=integer_dec_vars_mapping,
-        )
-        # Solar field
-        lbb, ubb = set_real_var_bounds(
-            problem_instance=problem_instance, ub=ubb, lb=lbb,
-            var_id = 'qsf', 
-            lower_limit = problem_instance.model_dict["fixed_model_params"]["sf"]["qsf_min"], 
-            upper_limit = problem_instance.model_dict["fixed_model_params"]["sf"]["qsf_max"], 
-            aux_logical_var_id = 'sf_active',
-            integer_dec_vars_mapping=integer_dec_vars_mapping,
-        )
-        # MED
-        lbb, ubb = set_real_var_bounds(
-            problem_instance=problem_instance, ub=ubb, lb=lbb,
-            var_id = 'Tmed_s_in', 
-            lower_limit = problem_instance.model_dict["fixed_model_params"]["med"]["Tmed_s_min"], 
-            upper_limit = problem_instance.model_dict["fixed_model_params"]["med"]["Tmed_s_max"], 
-            aux_logical_var_id = 'med_active',
-            integer_dec_vars_mapping=integer_dec_vars_mapping,
-        )
-        
-        Tmed_c_in = downsample_by_segments(source_array=problem_instance.env_vars.Tmed_c_in, target_size=problem_instance.dec_var_updates.Tmed_c_out)
-        lbb, ubb = set_real_var_bounds(
-            problem_instance=problem_instance, ub=ubb, lb=lbb,
-            var_id = 'Tmed_c_out',
-            lower_limit = Tmed_c_in, 
-            upper_limit = Tmed_c_in+10, # A temperature delta of over 10ºC is unfeasible for the condenser
-            aux_logical_var_id = 'med_active',
-            integer_dec_vars_mapping=integer_dec_vars_mapping,
-        )
-        for var_id in ['qmed_s', 'qmed_f']:
+        for var_id in problem_instance.dec_var_real_ids:
             lbb, ubb = set_real_var_bounds(
                 problem_instance=problem_instance, ub=ubb, lb=lbb,
                 var_id = var_id, 
-                lower_limit = problem_instance.model_dict["fixed_model_params"]["med"][f"{var_id}_min"], 
-                upper_limit = problem_instance.model_dict["fixed_model_params"]["med"][f"{var_id}_max"], 
-                aux_logical_var_id = 'med_active',
+                lower_limit = getattr( problem_instance.real_dec_vars_box_bounds, var_id)[0], 
+                upper_limit = getattr( problem_instance.real_dec_vars_box_bounds, var_id)[1], 
+                aux_logical_var_id = RealLogicalDecVarDependence[var_id].value,
                 integer_dec_vars_mapping=integer_dec_vars_mapping,
-            )
+            )    
 
         # np.set_printoptions(precision=1)
         # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(dec_var_ids, box_bounds_lower)]}")
@@ -371,19 +345,26 @@ def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float | i
     def evaluate(x: np.ndarray[float | int]) -> list[float]:
         model: SolarMED = SolarMED(**problem_instance.model_dict)
         # fitness: np.ndarray[float] = np.zeros((problem_instance.n_evals_mod_in_hor_window, ))
-        decision_dict: dict[str, np.ndarray] = {}
+        # decision_dict: dict[str, np.ndarray] = {}
         
         # Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
         x[np.abs(x) < 1e-6] = 0
         
         # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
-        cnt = 0
-        for var_id in problem_instance.dec_var_ids:
-            num_updates = getattr(problem_instance.dec_var_updates, var_id)
-            decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=problem_instance.n_evals_mod_in_hor_window)
-            cnt += num_updates
+        # cnt = 0
+        # for var_id in problem_instance.dec_var_ids:
+        #     num_updates = getattr(problem_instance.dec_var_updates, var_id)
+        #     decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=problem_instance.n_evals_mod_in_hor_window)
+        #     cnt += num_updates
         
-        dec_vars = DecisionVariables(**decision_dict)
+        # dec_vars = DecisionVariables(**decision_dict)
+        dec_vars: DecisionVariables = decision_vector_to_decision_variables(
+            x=x,
+            dec_var_updates=problem_instance.dec_var_updates,
+            span='optim_window',
+            sample_time_mod=problem_instance.sample_time_mod,
+            optim_window_time=problem_instance.optim_window_size,
+        )
         fitness, ics = evaluate_model(model = model, 
                                       n_evals_mod = problem_instance.n_evals_mod_in_hor_window,
                                       mode = "optimization",

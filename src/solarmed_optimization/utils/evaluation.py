@@ -12,12 +12,13 @@ from solarmed_optimization.problems import BaseMinlpProblem
 
 def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int]], 
                           env_vars: EnvironmentVariables, problem: BaseMinlpProblem,
-                          problem_data: ProblemData, idx_mod: int, best_idx: int = 0,) -> tuple[pd.DataFrame, pd.DataFrame, SolarMED]:
-    
+                          model: SolarMED, problem_data: ProblemData, idx_mod: int, 
+                          best_idx: int = 0,) -> tuple[pd.DataFrame, pd.DataFrame, SolarMED]:
     
     pp = problem_data.problem_params
     ps = problem_data.problem_samples
-    model = problem_data.model
+    # model = problem_data.model # noo!!
+    
     
     # lower_bounds, upper_bounds = problem.get_bounds(readable_format=True)
 
