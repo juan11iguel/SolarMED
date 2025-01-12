@@ -10,8 +10,10 @@ from solarmed_optimization import (EnvironmentVariables,
                                    ProblemParameters,
                                    ProblemSamples,
                                    AlgorithmParameters,
-                                   PopulationResults)
-from solarmed_optimization.utils.initialization import problem_initialization, InitialStates
+                                   PopulationResults,)
+from solarmed_optimization.utils.initialization import (problem_initialization, 
+                                                        InitialStates, 
+                                                        generate_population)
 from solarmed_optimization.utils.evaluation import evaluate_optimization
 from solarmed_optimization.utils.serialization import OptimizationResults
 from solarmed_optimization.utils.visualization import generate_visualizations
@@ -24,7 +26,7 @@ logger.disable("phd_visualizations")
 base_output_path: Path = Path("./results")
 data_path: Path = Path("./data")
 fsm_data_path: Path = Path("./results/fsm_data")
-# n_islands: int = 10
+# n_islands: int = 10e
 
 if not base_output_path.exists():
     base_output_path.mkdir()
@@ -33,10 +35,11 @@ if not base_output_path.exists():
 #     problem_params = ProblemParameters(**json.load(f))
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=8*3600, # 8 hours
+    # episode_duration=3600 * 9 # To only have one optimization step
 )
 optim_params: AlgorithmParameters = AlgorithmParameters(
-    pop_size=32, # 32
-    n_gen=50,
+    pop_size=16, # 32
+    n_gen=3,
     seed_num=32
 )
 
@@ -100,11 +103,9 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         # Optimization step `opt_step_idx`
         print("")
         print(f"Optimization step {opt_step_idx+1}/{max_opt_steps}")
+        print(f"Range: {hor_span}")
 
         # 1. Initialize the problem instance
-        ## Intialize model instance
-        ds = df.iloc[idx_mod]
-
         ## Environment variables predictions
         ds = df.iloc[hor_span[0]:hor_span[1]]
         env_vars: EnvironmentVariables = EnvironmentVariables(
@@ -123,26 +124,47 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
             env_vars=env_vars,
             dec_var_updates=pp.dec_var_updates,
             fsm_valid_sequences=pp.fsm_valid_sequences,
-            fsm_data_path=fsm_data_path
+            fsm_data_path=fsm_data_path,
+            use_inequality_contraints=False
         )
         prob = pg.problem(problem)
 
-        # Set initial population based on previous results
-        # TODO: For now do it starting from the second iteration, but we should be
-        # able to somehow generate template operations given some conditions
-        if opt_step_idx == 0:
-            # TODO: Use pygmo.random_decision_vector to generate random decision vectors
-            # then, modify the operation mode values of the MED (med_active, med_vacuum_state) to activate it
-            # For each individual, move the activation of the med one update forward
-            # med_vaccum_state debería ser 2 solo mientras se genera el vacío, de alguna manera la FSM debería también modificar este valor a 1 cuando no tenga sentido
+        # Manually set initial population
+        if opt_step_idx == 0: # problem.model_dict["current_state"] == "000" SolarMedState.sf_IDLE_ts_IDLE_med_OFF            
+            pop_dec_vec = generate_population(model=model, pp=pp, problem=problem,
+                                              pop_size=optim_params.pop_size, prob=prob, 
+                                              return_decision_vector=True)
             
-            # then also validate the integer values by evaluating the FSMs sequentially along the horizon
-            # this way we ensure that the initial population is actually valid
+            # Inneficient since it will trigger a fitness evaluation for each individual, Ideally I would like to provide the population upon initialization
+            # TODO: Create post in pygmo github discussions
             pop = pg.population(prob, size=optim_params.pop_size, seed=optim_params.seed_num)
+            [pop.set_x(i, x) for i, x in enumerate(pop_dec_vec)]
+            # for i, dec_vars in enumerate(pop_dec_vars):
+            #     # Initialize random decision vectors
+            #     x = pg.random_decision_vector(prob)
+            #     dec_vars_ = decision_vector_to_decision_variables(x, dec_var_updates=problem.dec_var_updates, span='none', )
+            #     # Set the real decision variables values in the manually generated decision variables
+            #     [setattr(dec_vars, var_id, getattr(dec_vars_, var_id)) for var_id in problem.dec_var_real_ids]
+            #     # Validate the real decision variables values using the manually established logical variables values
+            #     dec_vars = validate_real_dec_vars(dec_vars, problem.real_dec_vars_box_bounds)
+            #     pop.set_x(i, decision_variables_to_decision_vector(dec_vars), )
+                
         else:
-            # Set initial population from previous step last generation results
-            for i, (x, f) in enumerate(zip(isl.get_population().get_x(), isl.get_population().get_f())):
-                pop.set_xf(i, x, f) 
+            # Set initial population from previous step last generation
+            # for i, (x, f) in enumerate(zip(isl.get_population().get_x(), isl.get_population().get_f())):
+            #     # pop.set_xf(i, x, f)
+            #     # TODO: Not so simple, needs to take into account the sample times of optimization steps and model 
+            #     x = np.roll(x, -1) # Remove the first element which is the decision vector for the last optimization step
+            #     x[-1] = x[-2] # Set the last element to the penultimate element
+            #     pop.set_x(i, x)
+                
+            pop_dec_vec = generate_population(model=model, pp=pp, problem=problem,
+                                              pop_size=optim_params.pop_size,
+                                              dec_vec=pop.champion_x,
+                                              return_decision_vector=True)
+            [pop.set_x(i, x) for i, x in enumerate(pop_dec_vec)]
+                
+        print(f"{pop=}")
 
         isl = pg.island(algo=algo, pop=pop) # udi=island
         # isl = pg.island(algo=algo,  prob=prob, size=optim_params.pop_size, seed=optim_params.seed_num)
@@ -169,11 +191,15 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         # Update, only evaluate the best in the population, otherwise it takes too much space
         df_hor, df_sim, model = evaluate_optimization(
             df_sim=df_sim, 
-            pop=[ isl.get_population().get_x()][isl.get_population().best_idx() ], 
-            best_idx=isl.get_population().best_idx(),
+            pop=[ isl.get_population().get_x()[isl.get_population().best_idx()] ],
+            best_idx=0,
+            model=model,
             env_vars=env_vars, problem=problem,
             problem_data=problem_data, idx_mod=idx_mod
         )
+        
+        print(f"After moving model to the next step, {model.current_sample=}")
+        
         # if opt_step_idx > 0:
         #     df_hors[-1] = df_hors[-1][step_results.best_idx_per_gen[-1]] # Only keep the dataframe from the best individual from past steps
         df_hors.append(df_hor[0])
@@ -189,7 +215,7 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         OptimizationResults(
             metadata=metadata,
             problem_params=problem_params,
-            algo_log=isl.get_algorithm().extract(object).get_log(),
+            algo_log=isl.get_algorithm().extract( getattr(pg, algo_id) ).get_log(),
             df_hor=df_hor[0],
             df_sim=df_sim,
             pop_results=pop_results,
@@ -202,6 +228,7 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         # Finally, increase counter
         idx_mod += ps.n_evals_mod_in_opt_step
         
+        print(f"Current system state: {model.current_state.name}, integer inputs: med_active={model.qmed_s}, vacuum={model.med_vacuum_state}, ts_active={model.ts_active}, sf_active={model.sf_active}")
         print(f"Elapsed time: {time.time() - initial_time:.0f}")
         print("")
 
