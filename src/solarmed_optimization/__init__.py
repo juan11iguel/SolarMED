@@ -11,8 +11,42 @@ from solarmed_modeling.solar_med import (SolarMED,
                                          FsmParameters,
                                          FsmInternalState)
 from solarmed_modeling.fsms import MedState, SfTsState
-from solarmed_modeling.fsms.med import FsmParameters as MedFsmParams
+from solarmed_modeling.fsms.med import (FsmParameters as MedFsmParams,
+                                        FsmInputs as MedFsmInputs)
 from solarmed_modeling.fsms.sfts import FsmParameters as SftsFsmParams
+
+class MedMode(Enum):
+    """ Possible decisions for MED operation modes.
+    Given this, the FSM inputs are deterministic """
+    OFF = 0
+    IDLE = 1
+    ACTIVE = 2
+    
+fsm_inputs_table: dict[tuple[MedMode, MedState], MedFsmInputs] = {
+    # med_mode = OFF
+    (MedMode.OFF, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+    (MedMode.OFF, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+    (MedMode.OFF, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+    (MedMode.OFF, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+    (MedMode.OFF, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+    (MedMode.OFF, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+    
+    # med_mode = IDLE
+    (MedMode.IDLE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+    (MedMode.IDLE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+    (MedMode.IDLE, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    (MedMode.IDLE, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    (MedMode.IDLE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    (MedMode.IDLE, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    
+    # med_mode = ACTIVE
+    (MedMode.ACTIVE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+    (MedMode.ACTIVE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+    (MedMode.ACTIVE, MedState.IDLE):              MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
+    (MedMode.ACTIVE, MedState.STARTING_UP):       MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
+    (MedMode.ACTIVE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    (MedMode.ACTIVE, MedState.ACTIVE):            MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
+}
 
 @dataclass
 class EnvironmentVariables:
@@ -54,8 +88,9 @@ class DecisionVariables:
     # Logical / integers
     sf_active: bool | np.ndarray[bool] #  Solar field state (off, active)
     ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
-    med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
-    med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
+    # med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
+    # med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
+    med_mode
     
     def __post_init__(self) -> None:
         # Ensure attributes are of correct type
