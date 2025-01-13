@@ -56,8 +56,8 @@ from solarmed_modeling.fsms.sfts import (SolarFieldWithThermalStorageFsm,
     TODO: 
     - [x] Integrate new models deprecating the inverse approach
     - [x] Modify MED FSM to only use qsf instead of Tsf_out
-    - [ ] Add cooldown times support to FSMs
-    - [ ] Partial initialization of FSMs
+    - [x] Add cooldown times support to FSMs
+    - [x] Partial initialization of FSMs
 """
 
 # logger.disable(__name__)
@@ -176,7 +176,13 @@ class InitialStates:
     qsf_ant: np.ndarray[float] = field(default_factory=lambda: np.array([0.], dtype=float))
     
     def __post_init__(self):
-        self.Tts_h = np.array(self.Tts_h, dtype=float)
+        """ Make it convenient to initialize this dataclass from dumped instances """
+        
+        for fld in fields(self):
+            value = getattr(self, fld.name)
+            # if not isinstance(value, fld.type):
+            if isinstance(value, dict):
+                setattr(self, fld.name, fld.type(**value))
 
 
 class SolarMED(BaseModel):
