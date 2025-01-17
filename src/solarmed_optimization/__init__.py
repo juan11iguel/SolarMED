@@ -1,4 +1,5 @@
 from typing import get_args
+from typing import NamedTuple
 from dataclasses import dataclass, fields, field, is_dataclass
 from enum import Enum
 import numpy as np
@@ -10,7 +11,7 @@ from solarmed_modeling.solar_med import (SolarMED,
                                          FixedModelParameters,
                                          FsmParameters,
                                          FsmInternalState)
-from solarmed_modeling.fsms import MedState, SfTsState
+from solarmed_modeling.fsms import MedState, SfTsState, MedVacuumState
 from solarmed_modeling.fsms.med import (FsmParameters as MedFsmParams,
                                         FsmInputs as MedFsmInputs)
 from solarmed_modeling.fsms.sfts import FsmParameters as SftsFsmParams
@@ -19,10 +20,10 @@ class MedMode(Enum):
     """ Possible decisions for MED operation modes.
     Given this, the FSM inputs are deterministic """
     OFF = 0
-    IDLE = 1
-    ACTIVE = 2
+    # IDLE = 1
+    ACTIVE = 1
     
-fsm_inputs_table: dict[tuple[MedMode, MedState], MedFsmInputs] = {
+med_fsm_inputs_table: dict[tuple[MedMode, MedState], MedFsmInputs] = {
     # med_mode = OFF
     (MedMode.OFF, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
     (MedMode.OFF, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
@@ -32,19 +33,19 @@ fsm_inputs_table: dict[tuple[MedMode, MedState], MedFsmInputs] = {
     (MedMode.OFF, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
     
     # med_mode = IDLE
-    (MedMode.IDLE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
-    (MedMode.IDLE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
-    (MedMode.IDLE, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
-    (MedMode.IDLE, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
-    (MedMode.IDLE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
-    (MedMode.IDLE, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    # (MedMode.IDLE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+    # (MedMode.IDLE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+    # (MedMode.IDLE, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    # (MedMode.IDLE, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    # (MedMode.IDLE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    # (MedMode.IDLE, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
     
     # med_mode = ACTIVE
     (MedMode.ACTIVE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
     (MedMode.ACTIVE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
     (MedMode.ACTIVE, MedState.IDLE):              MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
     (MedMode.ACTIVE, MedState.STARTING_UP):       MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
-    (MedMode.ACTIVE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+    (MedMode.ACTIVE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
     (MedMode.ACTIVE, MedState.ACTIVE):            MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
 }
 
@@ -90,7 +91,7 @@ class DecisionVariables:
     ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
     # med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
     # med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
-    med_mode
+    med_mode: int | np.ndarray[int] #  MED operation mode (off, idle, active)
     
     def __post_init__(self) -> None:
         # Ensure attributes are of correct type
@@ -118,8 +119,9 @@ class DecisionVariablesUpdates:
     
     sf_active: int # 
     ts_active: int # 
-    med_active: int # 
-    med_vac_state: int # 
+    med_mode: int #
+    # med_active: int # 
+    # med_vac_state: int # 
     qsf: int # 
     qts_src: int # 
     qmed_s: int # 
@@ -132,7 +134,7 @@ class DecisionVariablesUpdates:
         assert self.sf_active == self.ts_active, "Solar field and thermal storage logical variables should have the same number of updates"
         
         # Validate that MED FSM related decision variables have the same number of updates
-        assert self.med_active == self.med_vac_state, "MED logical variables should have the same number of updates"
+        # assert self.med_active == self.med_vac_state, "MED logical variables should have the same number of updates"
         
         # TODO: Would be good to validate that the number of updates is within:
         # 1 <= n_uptes <= optim_window_size / sample_time_mod (=n_evals_mod)
@@ -141,27 +143,15 @@ class DecisionVariablesUpdates:
 # assert [field.name for field in fields(DecisionVariables)] == [field.name for field in fields(DecisionVariablesUpdates)], \
 #     "Attributes of DecisionVariables should exactly match attributes in DecisionVariableUpdates"
 
-
-class VarIdsOptimToFsmsMapping(Enum):
-    """
-    Mapping between optimization integer decision variable ids and finite state
-    machines ones. 
-    Using an Enum allows for bi-directional lookups compared to a dictionary
+class OptimToFsmsVarIdsMapping(NamedTuple):
+    sf_active: tuple = ("sf_active", )
+    ts_active: tuple = ("ts_active", )
+    med_mode: tuple  = ("med_active", "med_vacuum_state")
     
-    Structure:
-    optim_var_id = fsm_var_id
-    
-    Examples:
-    # Convert from optim id to fsm id
-    print(f"optim_id: sf_active -> fsm id: {VarIdsOptimToFsmsMapping.sf_active.value}")
-
-    # Convert from fsm id to optim id
-    print(f"fsm id: qsf -> optim_id: {VarIdsOptimToFsmsMapping('qsf').name}")
-    """
-    sf_active = "sf_active"
-    ts_active = "ts_active"
-    med_active = "med_active"
-    med_vac_state = "med_vacuum_state"
+# class FsmstoOptimVarIdsMapping:
+#     sf_active = "sf_active" 
+#     ts_active = "ts_active"
+#     med_mode = ""
     
 class OptimVarIdstoModelVarIdsMapping(Enum):
     """
@@ -228,11 +218,12 @@ class ProblemParameters:
             brine_emptying_time = 30*60,   # 30 minutes
             startup_duration_time = 20*60, # 20 minutes
             off_cooldown_time = 12*3600,   # 12 hours
-            active_cooldown_time = 3*3600, # 3 hours
+            active_cooldown_time = 4*3600, # 3 hours
         ),
         sf_ts=SftsFsmParams(
             recirculating_ts_enabled = False,
             idle_cooldown_time = 1*3600,   # 1 hour
+            # TODO: Add an OFF cooldown time similar to the MED
         )
     ))
     fsm_internal_states: FsmInternalState = field(default_factory=lambda: FsmInternalState())
@@ -311,10 +302,10 @@ class RealLogicalDecVarDependence(Enum):
     
     qsf = "sf_active"
     qts_src = "ts_active"
-    qmed_s = "med_active"
-    qmed_f = "med_active"
-    Tmed_s_in = "med_active"
-    Tmed_c_out = "med_active"
+    qmed_s = "med_mode"
+    qmed_f = "med_mode"
+    Tmed_s_in = "med_mode"
+    Tmed_c_out = "med_mode"
     
 @dataclass
 class RealDecVarsBoxBounds:

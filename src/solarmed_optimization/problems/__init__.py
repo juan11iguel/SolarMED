@@ -1,6 +1,6 @@
 # from concurrent.futures import ThreadPoolExecutor
-
 import math
+import itertools
 from pathlib import Path
 from dataclasses import dataclass, asdict, fields
 import numpy as np
@@ -9,19 +9,23 @@ from loguru import logger
 
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import SolarMedState
+from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
 
 from solarmed_optimization import (EnvironmentVariables,
                                    DecisionVariables,
                                    DecisionVariablesUpdates,
-                                   VarIdsOptimToFsmsMapping,
                                    OptimVarIdstoModelVarIdsMapping,
                                    FsmData,
                                    RealLogicalDecVarDependence,
-                                   RealDecVarsBoxBounds,)
+                                   RealDecVarsBoxBounds,
+                                   OptimToFsmsVarIdsMapping,
+                                   med_fsm_inputs_table)
 from solarmed_optimization.path_explorer.utils import import_results
 from solarmed_optimization.utils import (forward_fill_resample, 
                                          evaluate_model,
-                                         decision_vector_to_decision_variables)
+                                         decision_vector_to_decision_variables,
+                                         get_valid_modes,
+                                         flatten_list)
 
 np.set_printoptions(precision=1, suppress=True)
 
@@ -125,7 +129,7 @@ class BaseMinlpProblem:
         # Import FSMs data
         ## MED
         system: str = 'MED'
-        n_horizon = dec_var_updates.med_active
+        n_horizon = dec_var_updates.med_mode
         paths_df, valid_inputs, metadata = import_results(
             paths_path=fsm_data_path, system=system, n_horizon=n_horizon,
             return_metadata=True, return_format="value", generate_if_not_found=True,
@@ -210,12 +214,8 @@ def set_real_var_bounds(problem_instance, ub: np.ndarray, lb: np.ndarray,
         # aux_logical_input_idx_in_dec_vars = self.dec_var_ids.index(aux_logical_var_id)
         integer_mapping = integer_dec_vars_mapping[aux_logical_var_id]
         
-        # np.vectorize(lambda x: 1 if np.any(x > 0) else 0)(integer_mapping)
         integer_upper_value: np.ndarray[int] = np.array( [1 if np.any(bounds > 0) else 0 for bounds in integer_mapping], dtype=int )
-        # np.vectorize(lambda x: np.min(x))(integer_mapping)
         integer_lower_value: np.ndarray[int] = np.array( [np.min(bounds) for bounds in integer_mapping], dtype=int )
-        # integer_upper_value: np.ndarray[int] = box_bounds_upper[aux_logical_input_idx_in_dec_vars]
-        # integer_lower_value: np.ndarray[int] = box_bounds_lower[aux_logical_input_idx_in_dec_vars]
         
         # print(f"{self.model.get_state().name} | {aux_logical_var_id}: {integer_upper_value=}, {integer_lower_value=}")
         
@@ -224,7 +224,6 @@ def set_real_var_bounds(problem_instance, ub: np.ndarray, lb: np.ndarray,
             integer_lower_value = forward_fill_resample(integer_lower_value, n_updates)
         upper_value: np.ndarray[float] = upper_limit * integer_upper_value
         lower_value: np.ndarray[float] = lower_limit * integer_lower_value
-        
         
     else:
         upper_value: np.ndarray[float] = upper_limit * np.ones((n_updates, ))
@@ -271,12 +270,20 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
         
         # Logical / integer variables bounds
         # For each FSM, get the possible paths from the initial state and the valid inputs, to set its bounds and mappings
-        for initial_state, fsm_data in zip([problem_instance.model_dict["sf_ts_state"], problem_instance.model_dict["med_state"]],
-                                           [problem_instance.fsm_sfts_data, problem_instance.fsm_med_data]):
-            
+        for initial_state, fsm_data, \
+            lookup_table, fsm_inputs_cls in zip([problem_instance.model_dict["sf_ts_state"], problem_instance.model_dict["med_state"]],
+                                                [problem_instance.fsm_sfts_data, problem_instance.fsm_med_data],
+                                                [None, med_fsm_inputs_table],
+                                                [None, MedFsmInputs]):
+                    
+            # initial_state = MedState(0) # problem_instance.model_dict["med_state"]
+            # fsm_data = problem_instance.fsm_med_data
+            # lookup_table = med_fsm_inputs_table
+            # fsm_inputs_cls = MedFsmInputs
+                    
             paths_df = fsm_data.paths_df
             valid_inputs = fsm_data.valid_inputs
-            input_ids: list[str] = fsm_data.metadata["input_ids"] 
+            fsm_input_ids: list[str] = fsm_data.metadata["input_ids"] 
 
             # Extract indexes of possible paths from initial state
             paths_from_state_idxs: np.ndarray = paths_df[paths_df["0"] == initial_state.value].index.to_numpy() # dim: (n paths, )
@@ -284,26 +291,47 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
             valid_inputs_from_state: np.ndarray = valid_inputs[paths_from_state_idxs] # dim: (n paths, n horizon, n inputs)
 
             # Get the unique discrete values for each input
-            for input_idx, fsm_input_id in enumerate(input_ids): # For every input in the FSM
-                optim_input_id = VarIdsOptimToFsmsMapping(fsm_input_id).name
-                input_idx_in_dec_vars = problem_instance.dec_var_ids.index(optim_input_id)
-                n_updates = getattr(problem_instance.dec_var_updates, optim_input_id)
+            for optim_var_id in problem_instance.dec_var_int_ids:
+                fsm_var_ids: tuple[str] = getattr(OptimToFsmsVarIdsMapping(), optim_var_id)
+                # print(f"{list(fsm_var_ids)}, {fsm_input_ids}")
+                if not set(fsm_var_ids).issubset(set(fsm_input_ids)): # Is identical or subset
+                    continue
+                
+                n_updates: int = getattr(problem_instance.dec_var_updates, optim_var_id)
+                input_idx_in_dec_vars: int = problem_instance.dec_var_ids.index(optim_var_id)
+                
+                for step_idx in range(n_updates):
+                    # Get unique values for each fsm input at step x
+                    # discrete_bounds: (n fsm inputs, n unique) [[fsm_input i unique values at step x], ..., [fsm_input N unique values at step x]]
+                    fsm_discrete_bounds = [np.unique(valid_inputs_from_state[:, step_idx, fsm_input_idx]) for fsm_input_idx in range(len(fsm_var_ids))]
+                    
+                    # print(f"{step_idx=}, {fsm_discrete_bounds=}")
+                    
+                    # Translate fsm inputs discrete bounds to optimization variable discrete bounds
+                    if len(fsm_discrete_bounds) == 1:
+                        # Optimization variable maps to a single fsm input
+                        optim_var_discrete_bounds = fsm_discrete_bounds[0]
+                    else:
+                        # Optimization variable wraps multiple fsm inputs
+                        combinations = list(itertools.product(*fsm_discrete_bounds))
+                        optim_var_values = [get_valid_modes(fsm_inputs_cls(*combo), lookup_table=lookup_table) for combo in combinations]
+                        
+                        optim_var_discrete_bounds = np.unique(flatten_list(optim_var_values))
+                        
+                        # print(f"{combinations=}, {optim_var_values=}, {optim_var_discrete_bounds=}")
 
-                # Find unique valid inputs per step from all possible paths
-                for step_idx in range(n_updates): # For every step
-                    discrete_bounds = np.unique(valid_inputs_from_state[:, step_idx, input_idx])
                     # Update mapping
-                    integer_dec_vars_mapping[optim_input_id][step_idx] = discrete_bounds
+                    integer_dec_vars_mapping[optim_var_id][step_idx] = optim_var_discrete_bounds
                     # Update bounds
-                    ubb[input_idx_in_dec_vars][step_idx] = len(discrete_bounds)-1
+                    ubb[input_idx_in_dec_vars][step_idx] = len(optim_var_discrete_bounds)-1
                     lbb[input_idx_in_dec_vars][step_idx] = 0
-                    # print(f"{optim_input_id=}, {step_idx=}, {discrete_bounds=}, bbox=[{box_bounds_lower[input_idx_in_dec_vars][step_idx]}, {box_bounds_upper[input_idx_in_dec_vars][step_idx]}]")
                 
                 if debug:
-                    vals_str = [f"{i}: {db} --> [{lb}, {ub}]" for i, (db, lb, ub) in enumerate(zip(integer_dec_vars_mapping[optim_input_id], 
-                                                                                        lbb[input_idx_in_dec_vars], 
-                                                                                        ubb[input_idx_in_dec_vars]))]
-                    print(f"IB | {problem_instance.model_dict['sf_ts_state'].value}{problem_instance.model_dict['med_state'].value} | {optim_input_id}: {vals_str}")
+                    vals_str = [f"{i}: {db} --> [{lb}, {ub}]" for i, (db, lb, ub) in \
+                        enumerate(zip(integer_dec_vars_mapping[optim_var_id], 
+                                      lbb[input_idx_in_dec_vars], 
+                                      ubb[input_idx_in_dec_vars]))]
+                    print(f"IB | {problem_instance.model_dict['current_state'].value} | {optim_var_id}: {vals_str}")
 
         # Real variables bounds
         # Thermal storage
@@ -318,8 +346,8 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
             )    
 
         # np.set_printoptions(precision=1)
-        # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(dec_var_ids, box_bounds_lower)]}")
-        # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(dec_var_ids, box_bounds_upper)]}")
+        # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(problem_instance.dec_var_ids, lbb)]}")
+        # print(f"{[f'{var_id}: {bounds}' for var_id, bounds in zip(problem_instance.dec_var_ids, ubb)]}")
         # print(f"{integer_dec_vars_mapping=}")
         
         # problem_instance.box_bounds_lower = lbb
