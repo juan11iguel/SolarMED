@@ -14,7 +14,8 @@ from solarmed_modeling.solar_med import (SolarMED,
 from solarmed_modeling.fsms import MedState, SfTsState, MedVacuumState
 from solarmed_modeling.fsms.med import (FsmParameters as MedFsmParams,
                                         FsmInputs as MedFsmInputs)
-from solarmed_modeling.fsms.sfts import FsmParameters as SftsFsmParams
+from solarmed_modeling.fsms.sfts import (FsmParameters as SftsFsmParams,
+                                         FsmInputs as SfTsFsmInputs)
 
 class MedMode(Enum):
     """ Possible decisions for MED operation modes.
@@ -47,6 +48,25 @@ med_fsm_inputs_table: dict[tuple[MedMode, MedState], MedFsmInputs] = {
     (MedMode.ACTIVE, MedState.STARTING_UP):       MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
     (MedMode.ACTIVE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
     (MedMode.ACTIVE, MedState.ACTIVE):            MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
+}
+
+class SfTsMode(Enum):
+    """ Possible decisions for Solar field and Thermal storage modes.
+    Given this, the associated FSM inputs are deterministic """
+    OFF = 0
+    # SF_HEATING_UP = 1
+    ACTIVE = 1
+    
+sfts_fsm_inputs_table: dict[tuple[SfTsMode, SfTsState], SfTsFsmInputs] = {
+    # sfts_mode = OFF
+    (SfTsMode.OFF, SfTsState.IDLE): SfTsFsmInputs(sf_active=False, ts_active=False),
+    (SfTsMode.OFF, SfTsState.HEATING_UP_SF): SfTsFsmInputs(sf_active=False, ts_active=False),
+    (SfTsMode.OFF, SfTsState.SF_HEATING_TS): SfTsFsmInputs(sf_active=False, ts_active=False),
+    
+    # sfts_mode = ACTIVE
+    (SfTsMode.ACTIVE, SfTsState.IDLE): SfTsFsmInputs(sf_active=True, ts_active=True),
+    (SfTsMode.ACTIVE, SfTsState.HEATING_UP_SF): SfTsFsmInputs(sf_active=True, ts_active=True),
+    (SfTsMode.ACTIVE, SfTsState.SF_HEATING_TS): SfTsFsmInputs(sf_active=True, ts_active=True),
 }
 
 @dataclass
@@ -87,11 +107,12 @@ class DecisionVariables:
     Tmed_s_in: float | np.ndarray[float] #  MED heat source inlet temperature.
     Tmed_c_out: float | np.ndarray[float] #  MED condenser outlet temperature.
     # Logical / integers
-    sf_active: bool | np.ndarray[bool] #  Solar field state (off, active)
-    ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
+    sfts_mode: int | np.ndarray[int] #  Solar field and thermal storage mode (off, active)
+    # sf_active: bool | np.ndarray[bool] #  Solar field state (off, active)
+    # ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
     # med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
     # med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
-    med_mode: int | np.ndarray[int] #  MED operation mode (off, idle, active)
+    med_mode: int | np.ndarray[int] #  MED operation mode (off, active)
     
     def __post_init__(self) -> None:
         # Ensure attributes are of correct type
@@ -117,8 +138,9 @@ def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: b
 class DecisionVariablesUpdates:
     """ Number of decision variable updates in the optimization window """
     
-    sf_active: int # 
-    ts_active: int # 
+    # sf_active: int # 
+    # ts_active: int # 
+    sfts_mode: int #
     med_mode: int #
     # med_active: int # 
     # med_vac_state: int # 
@@ -129,9 +151,9 @@ class DecisionVariablesUpdates:
     Tmed_s_in: int # 
     Tmed_c_out: int # 
     
-    def __post_init__(self):
+    # def __post_init__(self):
         # Validate that SfTs FSM related decision varaiables have the same number of updates
-        assert self.sf_active == self.ts_active, "Solar field and thermal storage logical variables should have the same number of updates"
+        # assert self.sf_active == self.ts_active, "Solar field and thermal storage logical variables should have the same number of updates"
         
         # Validate that MED FSM related decision variables have the same number of updates
         # assert self.med_active == self.med_vac_state, "MED logical variables should have the same number of updates"
@@ -144,8 +166,9 @@ class DecisionVariablesUpdates:
 #     "Attributes of DecisionVariables should exactly match attributes in DecisionVariableUpdates"
 
 class OptimToFsmsVarIdsMapping(NamedTuple):
-    sf_active: tuple = ("sf_active", )
-    ts_active: tuple = ("ts_active", )
+    # sf_active: tuple = ("sf_active", )
+    # ts_active: tuple = ("ts_active", )
+    sfts_mode: tuple = ("sf_active", "ts_active")
     med_mode: tuple  = ("med_active", "med_vacuum_state")
     
 # class FsmstoOptimVarIdsMapping:
@@ -300,8 +323,8 @@ class RealLogicalDecVarDependence(Enum):
     """ Utility class that defines dependence relationship between real 
     decision variables and operation modes / integer ones """
     
-    qsf = "sf_active"
-    qts_src = "ts_active"
+    qsf = "sfts_mode"
+    qts_src = "sfts_mode"
     qmed_s = "med_mode"
     qmed_f = "med_mode"
     Tmed_s_in = "med_mode"

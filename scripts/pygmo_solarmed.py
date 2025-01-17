@@ -13,7 +13,8 @@ from solarmed_optimization import (EnvironmentVariables,
                                    PopulationResults,)
 from solarmed_optimization.utils.initialization import (problem_initialization, 
                                                         InitialStates, 
-                                                        generate_population)
+                                                        generate_population,
+                                                        initialize_problem_instance)
 from solarmed_optimization.utils.evaluation import evaluate_optimization
 from solarmed_optimization.utils.serialization import OptimizationResults
 from solarmed_optimization.utils.visualization import generate_visualizations
@@ -106,27 +107,29 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         print(f"Range: {hor_span}")
 
         # 1. Initialize the problem instance
+        problem, env_vars = initialize_problem_instance(problem_data=problem_data, idx_mod=idx_mod,
+                                                        fsm_data_path=fsm_data_path, return_env_vars=True)
         ## Environment variables predictions
-        ds = df.iloc[hor_span[0]:hor_span[1]]
-        env_vars: EnvironmentVariables = EnvironmentVariables(
-            I=ds['I'].values,
-            Tamb=ds['Tamb'].values,
-            Tmed_c_in=ds['Tmed_c_in'].values,
-            cost_w=np.ones((ps.n_evals_mod_in_hor_window, )) * pp.env_params.cost_w,
-            cost_e=np.ones((ps.n_evals_mod_in_hor_window, )) * pp.env_params.cost_e,
-        )
+        # ds = df.iloc[hor_span[0]:hor_span[1]]
+        # env_vars: EnvironmentVariables = EnvironmentVariables(
+        #     I=ds['I'].values,
+        #     Tamb=ds['Tamb'].values,
+        #     Tmed_c_in=ds['Tmed_c_in'].values,
+        #     cost_w=np.ones((ps.n_evals_mod_in_hor_window, )) * pp.env_params.cost_w,
+        #     cost_e=np.ones((ps.n_evals_mod_in_hor_window, )) * pp.env_params.cost_e,
+        # )
 
-        ## Initialize problem
-        problem = MinlpProblem(
-            model=model, 
-            sample_time_opt=pp.sample_time_opt,
-            optim_window_time=pp.optim_window_time,
-            env_vars=env_vars,
-            dec_var_updates=pp.dec_var_updates,
-            fsm_valid_sequences=pp.fsm_valid_sequences,
-            fsm_data_path=fsm_data_path,
-            use_inequality_contraints=False
-        )
+        # ## Initialize problem
+        # problem = MinlpProblem(
+        #     model=model, 
+        #     sample_time_opt=pp.sample_time_opt,
+        #     optim_window_time=pp.optim_window_time,
+        #     env_vars=env_vars,
+        #     dec_var_updates=pp.dec_var_updates,
+        #     fsm_valid_sequences=pp.fsm_valid_sequences,
+        #     fsm_data_path=fsm_data_path,
+        #     use_inequality_contraints=False
+        # )
         prob = pg.problem(problem)
 
         # Manually set initial population

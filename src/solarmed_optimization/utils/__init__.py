@@ -11,6 +11,7 @@ import pandas as pd
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import MedState
 from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
+from solarmed_modeling.fsms.sfts import FsmInputs as SfTsFsmInputs
 from solarmed_optimization import (DecisionVariables, 
                                    DecisionVariablesUpdates, 
                                    EnvironmentVariables, 
@@ -20,7 +21,9 @@ from solarmed_optimization import (DecisionVariables,
                                    RealLogicalDecVarDependence,
                                    RealDecVarsBoxBounds,
                                    MedMode,
-                                   med_fsm_inputs_table)
+                                   med_fsm_inputs_table,
+                                   SfTsMode,
+                                   sfts_fsm_inputs_table)
 # from solarmed_optimization.problems import BaseMinlpProblem # circular import
 
 def fitness_logger(func: callable) -> callable:
@@ -326,13 +329,14 @@ def evaluate_model(model: SolarMED,
         
         # Get the MED FSM inputs for the current MED mode and state
         med_fsm_inputs: MedFsmInputs = med_fsm_inputs_table[ (MedMode(dv.med_mode), model.med_state) ]
+        sfts_fsm_inputs: SfTsFsmInputs = sfts_fsm_inputs_table[ (SfTsMode(dv.sfts_mode), model.sf_ts_state) ]
         model.step(
             # Decision variables
             ## Thermal storage
-            qts_src = dv.qts_src * dv.ts_active,
+            qts_src = dv.qts_src * sfts_fsm_inputs.ts_active,
             
             ## Solar field
-            qsf = dv.qsf * dv.sf_active,
+            qsf = dv.qsf * sfts_fsm_inputs.sf_active,
             
             ## MED
             qmed_s = dv.qmed_s * med_fsm_inputs.med_active,

@@ -10,6 +10,7 @@ from loguru import logger
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import SolarMedState
 from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
+from solarmed_modeling.fsms.sfts import FsmInputs as SfTsFsmInputs
 
 from solarmed_optimization import (EnvironmentVariables,
                                    DecisionVariables,
@@ -19,7 +20,8 @@ from solarmed_optimization import (EnvironmentVariables,
                                    RealLogicalDecVarDependence,
                                    RealDecVarsBoxBounds,
                                    OptimToFsmsVarIdsMapping,
-                                   med_fsm_inputs_table)
+                                   med_fsm_inputs_table,
+                                   sfts_fsm_inputs_table)
 from solarmed_optimization.path_explorer.utils import import_results
 from solarmed_optimization.utils import (forward_fill_resample, 
                                          evaluate_model,
@@ -38,7 +40,6 @@ np.set_printoptions(precision=1, suppress=True)
 #     Tmed_c_in: float, Tamb: float, I: float, wmed_f: float = None,  # Environment variables
 #     med_vacuum_state: int | MedVacuumState = 2,  # Optional, to provide the MED vacuum state (OFF, LOW, HIGH)
 # ) -> None:    
-
 
 @dataclass
 class BaseMinlpProblem:
@@ -144,7 +145,7 @@ class BaseMinlpProblem:
 
         ## SfTs
         system: str = 'SFTS'
-        n_horizon = dec_var_updates.sf_active
+        n_horizon = dec_var_updates.sfts_mode
         paths_df, valid_inputs, metadata = import_results(
             paths_path=fsm_data_path, system=system, n_horizon=n_horizon,
             return_metadata=True, return_format="value", generate_if_not_found=True,
@@ -200,7 +201,7 @@ class BaseMinlpProblem:
     -\t Lower bounds: {self.box_bounds_lower}
     -\t Upper bounds: {self.box_bounds_upper}"""
     
-def set_real_var_bounds(problem_instance, ub: np.ndarray, lb: np.ndarray, 
+def set_real_var_bounds(problem_instance: BaseMinlpProblem, ub: np.ndarray, lb: np.ndarray, 
                         var_id: str, lower_limit: float | np.ndarray[float], 
                         upper_limit: float | np.ndarray[float], aux_logical_var_id: str  = None,
                         integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None) -> None:
@@ -273,8 +274,8 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
         for initial_state, fsm_data, \
             lookup_table, fsm_inputs_cls in zip([problem_instance.model_dict["sf_ts_state"], problem_instance.model_dict["med_state"]],
                                                 [problem_instance.fsm_sfts_data, problem_instance.fsm_med_data],
-                                                [None, med_fsm_inputs_table],
-                                                [None, MedFsmInputs]):
+                                                [sfts_fsm_inputs_table, med_fsm_inputs_table],
+                                                [SfTsFsmInputs, MedFsmInputs]):
                     
             # initial_state = MedState(0) # problem_instance.model_dict["med_state"]
             # fsm_data = problem_instance.fsm_med_data
