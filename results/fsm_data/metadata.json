@@ -384,6 +384,61 @@
             "paths_file_id": "med_n_6_40505e05-1710-45d4-9046-426bb16bc761.csv",
             "valid_inputs_file_id": "med_n_6_40505e05-1710-45d4-9046-426bb16bc761.pkl",
             "generated_at": "2025-01-12T00:37:48.211601+00:00"
+        },
+        {
+            "alternative_id": "automatically_generated_from_import_results",
+            "n_horizon": 10,
+            "computation_time": 6.707102060317993,
+            "n_paths": 180,
+            "n_paths_per_initial_state": {
+                "OFF": 35,
+                "GENERATING_VACUUM": 12,
+                "IDLE": 45,
+                "STARTING_UP": 29,
+                "SHUTTING_DOWN": 34,
+                "ACTIVE": 25
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 2880,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 14400,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_10_f66666e2-824d-4430-9816-2a987bd1038a.csv",
+            "valid_inputs_file_id": "med_n_10_f66666e2-824d-4430-9816-2a987bd1038a.pkl",
+            "generated_at": "2025-01-12T21:31:00.155082+00:00"
         }
     ],
     "SFTS": [
