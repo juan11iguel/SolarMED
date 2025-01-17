@@ -23,7 +23,7 @@ logger.disable("phd_visualizations")
 
 #%% Constants
 # Paths definition
-base_output_path: Path = Path("./results")
+base_output_path: Path = Path("./results/b")
 data_path: Path = Path("./data")
 fsm_data_path: Path = Path("./results/fsm_data")
 # n_islands: int = 10e
@@ -35,11 +35,11 @@ if not base_output_path.exists():
 #     problem_params = ProblemParameters(**json.load(f))
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=8*3600, # 8 hours
-    # episode_duration=3600 * 9 # To only have one optimization step
+    episode_duration=3600 * 12 # To only have one optimization step
 )
 optim_params: AlgorithmParameters = AlgorithmParameters(
     pop_size=16, # 32
-    n_gen=3,
+    n_gen=100,
     seed_num=32
 )
 
@@ -48,15 +48,15 @@ algorithms_to_eval: dict[str, dict[str, int]] = {
     #     "gen": optim_params.n_gen,
     #     "seed": optim_params.seed_num
     # },
-    "gaco": {
-        "gen": optim_params.n_gen, 
-        "ker": optim_params.pop_size, 
-        "seed": optim_params.seed_num
-    },
-    # "nsga2": { # Does not parallelize
-    #     "gen":optim_params.n_gen,
-    #     "seed":optim_params.seed_num           
+    # "gaco": {
+    #     "gen": optim_params.n_gen, 
+    #     "ker": optim_params.pop_size, 
+    #     "seed": optim_params.seed_num
     # },
+    "nsga2": { # Does not parallelize
+        "gen":optim_params.n_gen,
+        "seed":optim_params.seed_num           
+    },
     # "ihs": { # Does not parallelize
     #     "gen":optim_params.n_gen,
     #     "seed":optim_params.seed_num           
@@ -94,7 +94,7 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
     metadata: dict[str, str] = {"date_str": date_str, "algo_id": algo_id}
 
     opt_step_idx: int = 0
-    max_opt_steps: int = (len(df)-pp.idx_start-ps.optim_window_samples) // ps.n_evals_mod_in_opt_step - 1
+    max_opt_steps: int = (ps.episode_samples-pp.idx_start-ps.optim_window_samples) // ps.n_evals_mod_in_opt_step - 1
     idx_mod = pp.idx_start
     initial_time = time.time()
     for opt_step_idx in range(0, max_opt_steps):
@@ -130,10 +130,12 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         prob = pg.problem(problem)
 
         # Manually set initial population
+        paths_df = problem.fsm_med_data.paths_df
         if opt_step_idx == 0: # problem.model_dict["current_state"] == "000" SolarMedState.sf_IDLE_ts_IDLE_med_OFF            
             pop_dec_vec = generate_population(model=model, pp=pp, problem=problem,
                                               pop_size=optim_params.pop_size, prob=prob, 
-                                              return_decision_vector=True)
+                                              return_decision_vector=True,
+                                              paths_from_state_df=paths_df[paths_df["0"] == model.med_state.value])
             
             # Inneficient since it will trigger a fitness evaluation for each individual, Ideally I would like to provide the population upon initialization
             # TODO: Create post in pygmo github discussions
@@ -161,7 +163,8 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
             pop_dec_vec = generate_population(model=model, pp=pp, problem=problem,
                                               pop_size=optim_params.pop_size,
                                               dec_vec=pop.champion_x,
-                                              return_decision_vector=True)
+                                              return_decision_vector=True,
+                                              paths_from_state_df=paths_df[paths_df["0"] == model.med_state.value])
             [pop.set_x(i, x) for i, x in enumerate(pop_dec_vec)]
                 
         print(f"{pop=}")
@@ -215,14 +218,15 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         OptimizationResults(
             metadata=metadata,
             problem_params=problem_params,
+            initial_states=initial_states,
             algo_log=isl.get_algorithm().extract( getattr(pg, algo_id) ).get_log(),
             df_hor=df_hor[0],
             df_sim=df_sim,
             pop_results=pop_results,
             algo_params=algo_params,
-            figs=generate_visualizations(problem=problem, df_hors=df_hors, df_sim=df_sim, 
-                                         problem_data=problem_data, metadata=metadata, 
-                                         pop_results=pop_results)
+            # figs=generate_visualizations(problem=problem, df_hors=df_hors, df_sim=df_sim, 
+            #                              problem_data=problem_data, metadata=metadata, 
+            #                              pop_results=pop_results)
         ).dump(output_path=output_path, step_idx=opt_step_idx)
 
         # Finally, increase counter
@@ -231,12 +235,13 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         print(f"Current system state: {model.current_state.name}, integer inputs: med_active={model.qmed_s}, vacuum={model.med_vacuum_state}, ts_active={model.ts_active}, sf_active={model.sf_active}")
         print(f"Elapsed time: {time.time() - initial_time:.0f}")
         print("")
+        
+    print(f"Completed simulation! Cumulative elapsed time: {time.time() - initial_time:.0f}")
 
 
 def main():
     for date_str in dates_to_eval:
         for algo_id, algo_params in algorithms_to_eval.items():
-            (base_output_path / algo_id).mkdir(exist_ok=True)
             output_path = base_output_path / f"{date_str}_eval_at_{datetime.datetime.now(tz=datetime.timezone.utc):%Y%m%d}" / algo_id
             output_path.mkdir(parents=True, exist_ok=True)
             

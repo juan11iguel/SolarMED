@@ -8,13 +8,16 @@ from loguru import logger
 import h5py
 from enum import Enum
 
+from solarmed_modeling.solar_med import InitialStates
 from solarmed_optimization import ProblemParameters, PopulationResults
+from solarmed_optimization.utils import CustomEncoder
 
 
 class AlgoLogColumns(Enum):
     """Enum for the algorithm logs columns."""
     GACO = ["Gen", "Fevals", "Best", "Kernel", "Oracle", "dx", "dp"]
     SGA = ["Gen", "Fevals", "Best", "Improvement", "Mutations"]
+    NSGA2 = ["Gen", "Fevals", "ideal_point"]
     
     @property
     def columns(self) -> list[str]:
@@ -24,6 +27,7 @@ class FilenamesMapping(Enum):
     """Enum for the file ids to filenames mapping."""
     METADATA = "metadata.json"
     PROBLEM_PARAMS = "problem_params.json"
+    INITIAL_STATES = "initial_states.json"
     ALGO_LOGS = "algo_logs.h5"
     OPTIM_DATA = "optim_data.h5"
     DF_HORS = "df_hors.h5"
@@ -39,6 +43,7 @@ def step_idx_to_step_id(step_idx: int) -> str:
 def export_optimization_results(output_path: Path, 
                                 step_idx: int,
                                 metadata: dict[str, str],
+                                initial_states: InitialStates,
                                 algo_params: dict, 
                                 problem_params: ProblemParameters,
                                 algo_log: pd.DataFrame | list[tuple[int|float]], 
@@ -64,6 +69,11 @@ def export_optimization_results(output_path: Path,
     if not _path.exists():
         with open(_path, "w") as f:
             json.dump(asdict(problem_params), f, indent=4)
+            
+    _path = output_path / FilenamesMapping.INITIAL_STATES.fn
+    if not _path.exists():
+        with open(_path, "w") as f:
+            json.dump(asdict(initial_states), f, indent=4, cls=CustomEncoder)
     
     # Export dynamic data. At each step
     
@@ -107,12 +117,13 @@ def export_optimization_results(output_path: Path,
     
     # - plot_dec_vars_evolution and save html and png fig to results folder
     # - plot_obj_space_1d (no anumation) # and save html and png fig to results folder
-    (output_path / "figures").mkdir(exist_ok=True)
-    for i, fig in enumerate(figs):
-        _path: Path = output_path / f"figures/{i:02d}_{step_id}"
-        # fig.write_html(_path.with_suffix(".html"))
-        fig.write_image(_path.with_suffix(".png"), scale=2)
-        fig.write_image(_path.with_suffix('.svg'), )
+    if figs is not None:
+        (output_path / "figures").mkdir(exist_ok=True)
+        for i, fig in enumerate(figs):
+            _path: Path = output_path / f"figures/{i:02d}_{step_id}"
+            # fig.write_html(_path.with_suffix(".html"))
+            fig.write_image(_path.with_suffix(".png"), scale=2)
+            fig.write_image(_path.with_suffix('.svg'), )
         
     logger.info(f"Exported results to {output_path}")
         
@@ -126,6 +137,7 @@ class OptimizationResults:
         """
     metadata: dict[str, Any]
     problem_params: ProblemParameters
+    initial_states: InitialStates
     algo_log: pd.DataFrame
     df_hor: pd.DataFrame | list[pd.DataFrame]
     df_sim: pd.DataFrame
@@ -155,6 +167,9 @@ class OptimizationResults:
         # Problem parameters
         problem_params: ProblemParameters = ProblemParameters(**json.load(open(output_path / FilenamesMapping.PROBLEM_PARAMS.fn, "r")))
         
+        # Initial states
+        initial_states: InitialStates = InitialStates(**json.load(open(output_path / "initial_states.json", "r")))
+        
         # Algorithm logs
         with pd.HDFStore(output_path / FilenamesMapping.ALGO_LOGS.fn, mode='r') as store:
             if step_id is None:
@@ -179,4 +194,5 @@ class OptimizationResults:
             else:
                 pop_results: PopulationResults = build_pop_results(hdf, step_id)
         
-        return cls(metadata, problem_params, algo_log, df_hor, df_sim, pop_results)
+        return cls(metadata, problem_params, initial_states 
+                   , algo_log, df_hor, df_sim, pop_results)

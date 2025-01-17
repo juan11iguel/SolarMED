@@ -7,25 +7,28 @@ from loguru import logger
 import hjson
 import datetime
 import pygmo as pg
+import pandas as pd
 
-from solarmed_optimization.problems import BaseMinlpProblem
 from solarmed_modeling.utils import data_preprocessing, data_conditioning
 from solarmed_modeling.solar_med import SolarMED, InitialStates
 from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
 from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm, FsmInputs as SfTsFsmInputs
 from solarmed_modeling.fsms import MedState, SfTsState
 
+from solarmed_optimization.problems import BaseMinlpProblem, EnvironmentVariables
+from solarmed_optimization.problems.pygmo import MinlpProblem
 from solarmed_optimization import (DecisionVariables, 
-                                   VarIdsOptimToFsmsMapping,
                                    DecisionVariablesUpdates,
                                    ProblemData,
                                    ProblemParameters,
-                                   ProblemSamples)
+                                   ProblemSamples,)
 from solarmed_optimization.utils import (validate_dec_var_updates, 
                                          times_to_samples,
                                          decision_variables_to_decision_vector,
                                          decision_vector_to_decision_variables,
                                          validate_real_dec_vars)
+
+logger.disable("phd_visualizations")
 
 # @dataclass
 # class ProblemInitializationVars:
@@ -119,10 +122,10 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
         pp.dec_var_updates.qsf = math.floor(pp.optim_window_time / ((pp.sample_time_mod+pp.sample_time_opt)/2)) # Midpoint between sample_time_mod and sample_time_opt updates
         # New, simplify MINLP by limiting the updates of operation mode variables independent of the horizon
         # TODO: Ideally we would limit the number of updates per horizon duration (e.g. 3 updates every 18 hours)
-        pp.dec_var_updates.med_active = 6
-        pp.dec_var_updates.med_vac_state = 6
-        pp.dec_var_updates.sf_active = 6
-        pp.dec_var_updates.ts_active = 6
+        # pp.dec_var_updates.med_active = 6
+        # pp.dec_var_updates.med_vac_state = 6
+        # pp.dec_var_updates.sf_active = 6
+        # pp.dec_var_updates.ts_active = 6
 
     validate_dec_var_updates(dec_var_updates=pp.dec_var_updates, optim_window_time=pp.optim_window_time, sample_time_mod=pp.sample_time_mod)
 
@@ -150,8 +153,8 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
         Tts_h=Tts_h, 
         Tts_c=Tts_c,
         ## Solar field
-        Tsf_in_ant=Tsf_in_ant,
-        qsf_ant=qsf_ant,
+        Tsf_in_ant=np.array(Tsf_in_ant),
+        qsf_ant=np.array(qsf_ant),
     )
     
     return ProblemData(df=df, 
@@ -159,8 +162,44 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
                        problem_samples=problem_samples, 
                        model=model)
     
+
+def initialize_problem_instance(problem_data: ProblemData, idx_mod: int,
+                       fsm_data_path: Path, return_env_vars: bool = False) -> MinlpProblem | tuple[MinlpProblem, EnvironmentVariables]:
     
-def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int) -> list[DecisionVariables]:
+    # alias definition    
+    pp = problem_data.problem_params
+    ps = problem_data.problem_samples
+    
+    hor_span = (idx_mod+1, idx_mod+1+ps.n_evals_mod_in_hor_window)
+    ds = problem_data.df.iloc[hor_span[0]:hor_span[1]]
+    
+    env_vars: EnvironmentVariables = EnvironmentVariables(
+        I=ds['I'].values,
+        Tamb=ds['Tamb'].values,
+        Tmed_c_in=ds['Tmed_c_in'].values,
+        cost_w=np.ones((ps.n_evals_mod_in_hor_window, )) * pp.env_params.cost_w,
+        cost_e=np.ones((ps.n_evals_mod_in_hor_window, )) * pp.env_params.cost_e,
+    )
+
+    ## Initialize problem
+    problem = MinlpProblem(
+        model=problem_data.model, 
+        sample_time_opt=pp.sample_time_opt,
+        optim_window_time=pp.optim_window_time,
+        env_vars=env_vars,
+        dec_var_updates=pp.dec_var_updates,
+        fsm_valid_sequences=pp.fsm_valid_sequences,
+        fsm_data_path=fsm_data_path,
+        use_inequality_contraints=False
+    )
+    
+    if not return_env_vars:
+        return problem
+    else:
+        return problem, env_vars
+    
+def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int,
+                         paths_from_state_df: pd.DataFrame) -> list[DecisionVariables]:
     """Function that generates a population of decision variables for the optimization problem.
     In particular, it sets the logical sequence of inputs for the MED and Solar Field with Thermal Storage FSMs in
     order to go from the initial state ('OFF' / 'IDLE') to the desired state ('ACTIVE').
@@ -208,12 +247,12 @@ def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int) 
     """
     
     fsms = [
-        MedFsm(
-            sample_time=pp.sample_time_opt,
-            initial_state=model.med_state,
-            params=model.fsms_params.med,
-            internal_state=model.fsms_internal_states.med
-        ),
+        # MedFsm(
+        #     sample_time=pp.sample_time_opt,
+        #     initial_state=model.med_state,
+        #     params=model.fsms_params.med,
+        #     internal_state=model.fsms_internal_states.med
+        # ),
         SolarFieldWithThermalStorageFsm(
             sample_time=pp.sample_time_opt,
             initial_state=model.sf_ts_state,
@@ -221,20 +260,24 @@ def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int) 
             internal_state=model.fsms_internal_states.sf_ts
         )
     ]
+    fsm_inputs_clss = [#MedFsmInputs, 
+                       SfTsFsmInputs]
+    desired_states = [#MedState.ACTIVE, 
+                      SfTsState.SF_HEATING_TS]
     
     # Initialize the FSM and base arrays
     input_pops = {}
-    for fsm, FsmInputsCls, desired_state in zip(fsms, [MedFsmInputs, SfTsFsmInputs], [MedState.ACTIVE, SfTsState.SF_HEATING_TS]):
+    for fsm, fsm_inputs_cls, desired_state in zip(fsms, fsm_inputs_clss, desired_states):
         step_idx = 0
-        n_updates = getattr(pp.dec_var_updates, fields(FsmInputsCls)[0].name)
+        n_updates = getattr(pp.dec_var_updates, fields(fsm_inputs_cls)[0].name)
         inputs = {fld.name: np.empty((n_updates, ), dtype=fld.type if not issubclass(fld.type, Enum) else int) 
-                 for fld in fields(FsmInputsCls)}
+                 for fld in fields(fsm_inputs_cls)}
 
         # Generate base input arrays
         
         # Use max() to find the member with the highest value
         input_values = {}
-        for fld in fields(FsmInputsCls):
+        for fld in fields(fsm_inputs_cls):
             # Either are Enums or booleans
             if issubclass(fld.type, Enum):
                 input_values[fld.name] = max(fld.type, key=lambda e: e.value)
@@ -243,7 +286,7 @@ def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int) 
                 
         while fsm.state != desired_state and step_idx < n_updates:
             # fsm.step(fsm.states_inputs_set[ desired_state.name ])
-            fsm.step(FsmInputsCls(**input_values))
+            fsm.step(fsm_inputs_cls(**input_values))
             expected_inputs = fsm.get_inputs_for_current_state()
 
             for input_name, input_val in asdict(expected_inputs).items():
@@ -276,11 +319,28 @@ def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int) 
         
         input_pops.update(**inputs_pop)
         
+    # New approach for MED. Just use data from path explorer
+    n_updates = pp.dec_var_updates.med_mode
+    paths_from_state_df = paths_from_state_df.copy()
+    # Remove first column and append a new one by duplicating the last one
+    paths_from_state_df = paths_from_state_df.iloc[:, 1:]
+    paths_from_state_df['N'] = paths_from_state_df.iloc[:, -1]
+    
+    difference = pop_size - len(paths_from_state_df)
+    if difference > 0:
+        # Repeat the first difference rows
+        repeated_rows = paths_from_state_df.iloc[:difference]
+        paths_from_state_df = pd.concat([paths_from_state_df, repeated_rows], ignore_index=True)
+    
+    # Map 0 and 4s to MedMode.OFF and 1,2,3,5 to MedMode.ACTIVE
+    # and take the first n_updates rows
+    input_pops["med_mode"] = paths_from_state_df.map(lambda x: 0 if x in [0, 4] else 1).iloc[:pop_size].to_numpy()
+
     # print(f"{input_pops=}")
     
     return [
         DecisionVariables(
-            **{VarIdsOptimToFsmsMapping(name).name: value[pop_idx] for name, value in input_pops.items()},
+            **{name: value[pop_idx] for name, value in input_pops.items()},
         
             qsf=np.nan * np.ones((pp.dec_var_updates.qsf, )),
             qts_src=np.nan * np.ones((pp.dec_var_updates.qts_src, )),
@@ -294,6 +354,7 @@ def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int) 
     
 def generate_population(model: SolarMED, pp: ProblemParameters, 
                         problem: BaseMinlpProblem, pop_size: int,
+                        paths_from_state_df: pd.DataFrame,
                         return_decision_vector: bool = False,
                         dec_vec: np.ndarray = None, 
                         prob: pg.problem = None) -> list[DecisionVariables] | np.ndarray:
@@ -301,7 +362,7 @@ def generate_population(model: SolarMED, pp: ProblemParameters,
     assert dec_vec is not None or prob is not None, "Either a starting population is provided (dec_vec), or a pg.problem instance is provided (prob)"
     
     # Generate integer population based on FSMs logic starting from current state
-    pop_dec_vars = generate_integer_pop(model, pp, pop_size)
+    pop_dec_vars = generate_integer_pop(model, pp, pop_size, paths_from_state_df)
     
     for i, dec_vars in enumerate(pop_dec_vars):
         

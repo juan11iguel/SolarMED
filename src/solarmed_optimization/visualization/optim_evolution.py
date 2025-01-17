@@ -9,7 +9,8 @@ from plotly.colors import hex_to_rgb
 
 from phd_visualizations import save_figure
 
-from solarmed_optimization.problems import OptimVarIdstoModelVarIdsMapping
+from solarmed_optimization.utils import flatten_list
+from solarmed_optimization.problems import OptimToFsmsVarIdsMapping
 from solarmed_optimization.problems import BaseMinlpProblem
 
 # Constants
@@ -17,17 +18,18 @@ plt_colors = plotly.colors.qualitative.Plotly
 gray_colors = plotly.colors.sequential.Greys[2:][::-1]
 green_colors = plotly.colors.sequential.Greens[2:][::-1]
 
-def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFrame] | list[list[pd.DataFrame]], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, df_aux: pd.DataFrame | None = None, episode_samples: int = None) -> go.Figure:
+def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFrame] | list[list[pd.DataFrame]], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, episode_samples: int = None) -> go.Figure:
+    # df_aux: pd.DataFrame | None = None,
     # TODO: Use grid_specs to define the layout (spacing between plots)
     # TODO: Add support for df_hors being a list of lists of dataframes. 
     # If it's just a list, make it into a list of lists with a single element
     
-    def get_bounds_values(df: pd.DataFrame, var: str) -> tuple[np.ndarray, np.ndarray]:
-        var_id = OptimVarIdstoModelVarIdsMapping(var).name
+    def get_bounds_values(df: pd.DataFrame, var_id: str) -> tuple[np.ndarray, np.ndarray]:
+        # var_id = OptimVarIdstoModelVarIdsMapping(var).name
         
         _var_id_ub = f"upper_bounds_{var_id}"
         _var_id_lb = f"lower_bounds_{var_id}"
-        if df.iloc[0][var].dtype in [bool, int]:
+        if df.iloc[0][var_id].dtype in [bool, int]:
             yval_upper = df[_var_id_ub].astype(int) + 0.25
             yval_lower = df[_var_id_lb].astype(int) - 0.25
         else:
@@ -36,9 +38,12 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
             
         return yval_lower, yval_upper
     
+    # if full_xaxis_range:
+    #     assert df_aux is not None or episode_samples is not None, "If full_xaxis_range is True, df_aux or episode_samples should be provided"
+    # end_idx = episode_samples if episode_samples is not None else len(df_aux)
     if full_xaxis_range:
-        assert df_aux is not None or episode_samples is not None, "If full_xaxis_range is True, df_aux or episode_samples should be provided"
-    end_idx = episode_samples if episode_samples is not None else len(df_aux) 
+        assert episode_samples is not None, "If full_xaxis_range is True, df_aux or episode_samples should be provided"
+    end_idx = episode_samples #if episode_samples is not None else len(df_aux)  
     
     # Make sure df_hors is a list of lists
     for idx, item in enumerate(df_hors_):
@@ -50,7 +55,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
     optim_step_size: int = problem.n_evals_mod_in_opt_step
             
     if len(df_hors_) > 0:
-        xtick_vals: np.ndarray[int] = pd.RangeIndex(start=0, step=1, stop=df_hors_[-1][-1].index.stop + 1).to_numpy()
+        xtick_vals: np.ndarray[int] = pd.RangeIndex(start=0, step=1, stop=df_hors_[-1][-1].index[-1] + 1).to_numpy()
             
         # upper_bounds_plt = [forward_fill_resample(upper_bound, target_size=len(df_hors_[-1])) for upper_bound in upper_bounds] 
         # lower_bounds_plt = [forward_fill_resample(lower_bound, target_size=len(df_hors_[-1])) for lower_bound in lower_bounds]
@@ -76,25 +81,27 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
     fig = make_subplots(rows=problem.n_dec_vars +1, cols=1, shared_xaxes=True, 
                         vertical_spacing=0.01, subplot_titles=subplot_titles)
 
-    # Iterate over decision variables to create individual plots
-    for i, var in enumerate(problem.dec_var_model_ids):
-        
-        var_id = OptimVarIdstoModelVarIdsMapping(var).name
+    # var_ids = [getattr(OptimToFsmsVarIdsMapping(), dec_var_id) for dec_var_id in problem.dec_var_int_ids]
+    # var_ids = flatten_list(var_ids)
+    # var_ids.extend(problem.dec_var_real_ids)
 
+    # Iterate over decision variables to create individual plots
+    for i, var_id in enumerate(problem.dec_var_ids):
+        var = f"dec_var_{var_id}"
         # Temporary
         # if df_mod is not None:
-        if df_aux is not None:
-            fig.add_trace(
-                go.Scatter(
-                    x=np.arange(start=0, stop=len(df_aux), step=1),
-                    y=df_aux[var_id].astype(int) if df_aux.iloc[0][var_id].dtype == bool else df_aux[var_id],
-                    mode='markers+lines',
-                    name=f"experimental {var_id}",
-                    line=dict(color=plt_colors[i], width=1),
-                    marker=dict(color=plt_colors[i], size=4, symbol='x'),
-                ),
-                row=i+1, col=1
-            )
+        # if df_aux is not None:
+        #     fig.add_trace(
+        #         go.Scatter(
+        #             x=np.arange(start=0, stop=len(df_aux), step=1),
+        #             y=df_aux[var_id].astype(int) if df_aux.iloc[0][var_id].dtype == bool else df_aux[var_id],
+        #             mode='markers+lines',
+        #             name=f"experimental {var_id}",
+        #             line=dict(color=plt_colors[i], width=1),
+        #             marker=dict(color=plt_colors[i], size=4, symbol='x'),
+        #         ),
+        #         row=i+1, col=1
+        #     )
         
         if len(df_hors_) > 0:
             marker_symbols: np.ndarray[str] = np.full((len(df_hors_[-1]),), 'circle', dtype='<U15')  # <U15 for max string length
@@ -186,7 +193,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
         
         ## Add upper and lower bounds as dashed lines for the best last evaluation
         if len(df_hors_) > 0: #and hor_idx == len(df_hors_):
-            lb, ub = get_bounds_values(df_hor[best_idx], var)
+            lb, ub = get_bounds_values(df_hor[best_idx], var_id)
             fig.add_trace(
                 go.Scatter(
                     x=df_hor[best_idx].index,
@@ -195,7 +202,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
                     line=dict(#dash='dash', 
                             #color=gray_colors[len(df_hors)-hor_idx], 
                             width=0, color=gray_colors[0]),
-                    name=f'upper bound {var}',
+                    name=f'upper bound {var_id}',
                     # fill="tonexty"
                     # hoverinfo='skip',
                 ),
@@ -207,7 +214,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
                     y=ub,
                     mode='lines',
                     line=dict(width=0, color=gray_colors[0]), #dash='dashdot', color=gray_colors[len(df_hors)-hor_idx], width=0),
-                    name=f'lower bound {var}',
+                    name=f'lower bound {var_id}',
                     # hoverinfo='skip'
                     fill="tonexty",
                     fillcolor=f"{gray_colors[0]}".replace(")", ",0.1)").replace("rgb", "rgba"),
@@ -224,7 +231,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
             fig.add_trace(
                 go.Scatter(
                     x=df_mod.index,
-                    y=df_mod[var].astype(int) if df_mod.iloc[0][var].dtype == bool else df_mod[var],
+                    y=df_mod[var].astype(int) if df_mod.iloc[0][var].dtype == bool else df_mod[var_id],
                     mode='markers+lines',
                     name=var_id,
                     # fill="tozeroy",
@@ -236,14 +243,14 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
             )
             
             ## Add upper and lower bounds as dashed lines
-            lb, ub = get_bounds_values(df_mod, var)
+            lb, ub = get_bounds_values(df_mod, var_id)
             fig.add_trace(
                 go.Scatter(
                     x=df_mod.index,
                     y=lb,
                     mode='lines',
                     line=dict(width=0, color=plt_colors[i]), #dash='dash'),
-                    name=f'upper bound {var}',
+                    name=f'upper bound {var_id}',
                     # fill="tonexty"
                     # hoverinfo='skip',
                 ),
@@ -255,7 +262,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
                     y=ub,
                     mode='lines',
                     line=dict(width=0, color=plt_colors[i]), #dash='dashdot', ),
-                    name=f'lower bound {var}',
+                    name=f'lower bound {var_id}',
                     # hoverinfo='skip'
                     fill="tonexty",
                     fillcolor=f"rgba{hex_to_rgb(plt_colors[i]) + (0.2,)}"
@@ -265,7 +272,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
         
         if len(df_hors_) > 0:
             fig.update_yaxes(title_text=var_id.replace("_", ","), row=i+1, col=1,) #autorange="reversed"
-            if  df_hors_[-1][-1].iloc[0][var].dtype == bool:
+            if  df_hors_[-1][-1].iloc[0][var_id].dtype == bool:
                 fig.update_yaxes(
                     tickvals=[0, 1],
                     ticktext=["False", "True"],
@@ -424,9 +431,48 @@ def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: p
                     figure_path=output_path, formats=["png"])#, "html"])
         
         
+"""
+From here is basically copied from EvoX: https://github.com/EMI-Group/evox/blob/main/src/evox/vis_tools/plot.py#L4
+Have to find a better way to import this without having to install the whole package nor copying code
+"""
+        
+def plot_obj_space_1d(fitness_history: list[np.ndarray[float]], animation: bool = True, **kwargs) -> go.Figure:
+    if animation:
+        return plot_obj_space_1d_animation(fitness_history, **kwargs)
+    else:
+        return plot_obj_space_1d_no_animation(fitness_history, **kwargs)
 
-def plot_obj_space_1d_animation(fitness_history: list[np.ndarray[float]], **kwargs):
-    """Basically a copy from EvoX: https://github.com/EMI-Group/evox/blob/main/src/evox/vis_tools/plot.py#L4
+
+def plot_obj_space_1d_no_animation(fitness_history: list[np.ndarray[float]], **kwargs) -> go.Figure:
+
+    min_fitness = [np.min(x) for x in fitness_history]
+    max_fitness = [np.max(x) for x in fitness_history]
+    median_fitness = [np.median(x) for x in fitness_history]
+    avg_fitness = [np.mean(x) for x in fitness_history]
+    generation = np.arange(len(fitness_history))
+
+    fig = go.Figure(
+        [
+            go.Scatter(x=generation, y=min_fitness, mode="lines", name="Min"),
+            go.Scatter(x=generation, y=max_fitness, mode="lines", name="Max"),
+            go.Scatter(x=generation, y=median_fitness, mode="lines", name="Median"),
+            go.Scatter(x=generation, y=avg_fitness, mode="lines", name="Average"),
+        ],
+        layout=go.Layout(
+            legend={
+                "x": 1,
+                "y": 1,
+                "xanchor": "auto",
+            },
+            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+            **kwargs
+        ),
+    )
+
+    return fig
+
+def plot_obj_space_1d_animation(fitness_history: list[np.ndarray[float]], **kwargs) -> go.Figure:
+    """
 
     Args:
         fitness_history (list[np.ndarray[float]]): List of fitness values for each individual per generation
@@ -558,6 +604,128 @@ def plot_obj_space_1d_animation(fitness_history: list[np.ndarray[float]], **kwar
                                 {
                                     "frame": {"duration": 0, "redraw": False},
                                     "mode": "immediate",
+                                },
+                            ],
+                            "label": "Pause",
+                            "method": "animate",
+                        },
+                    ],
+                    "x": 0.2,
+                    "xanchor": "right",
+                    "y": 0,
+                    "yanchor": "top",
+                    "direction": "left",
+                    "pad": {"r": 10, "t": 30},
+                },
+            ],
+            **kwargs,
+        ),
+        frames=frames,
+    )
+
+    return fig
+
+def plot_dec_space(population_history, **kwargs,) -> go.Figure:
+    """A Built-in plot function for visualizing the population of single-objective algorithm.
+    Use plotly internally, so you need to install plotly to use this function.
+
+    If the problem is provided, we will plot the fitness landscape of the problem.
+    """
+
+    all_pop = np.concatenate(population_history, axis=0)
+    x_lb = np.min(all_pop[:, 0])
+    x_ub = np.max(all_pop[:, 0])
+    x_range = x_ub - x_lb
+    x_lb = x_lb - 0.1 * x_range
+    x_ub = x_ub + 0.1 * x_range
+    y_lb = np.min(all_pop[:, 1])
+    y_ub = np.max(all_pop[:, 1])
+    y_range = y_ub - y_lb
+    y_lb = y_lb - 0.1 * y_range
+    y_ub = y_ub + 0.1 * y_range
+
+    frames = []
+    steps = []
+    for i, pop in enumerate(population_history):
+        frames.append(
+            go.Frame(
+                data=[
+                    go.Scatter(
+                        x=pop[:, 0],
+                        y=pop[:, 1],
+                        mode="markers",
+                        marker={"color": "#636EFA"},
+                    ),
+                ],
+                name=str(i),
+            )
+        )
+        step = {
+            "label": i,
+            "method": "animate",
+            "args": [
+                [str(i)],
+                {
+                    "frame": {"duration": 200, "redraw": False},
+                    "mode": "immediate",
+                    "transition": {"duration": 200},
+                },
+            ],
+        }
+        steps.append(step)
+
+    sliders = [
+        {
+            "currentvalue": {"prefix": "Generation: "},
+            "pad": {"b": 1, "t": 10},
+            "len": 0.8,
+            "x": 0.2,
+            "y": 0,
+            "yanchor": "top",
+            "xanchor": "left",
+            "steps": steps,
+        }
+    ]
+
+    fig = go.Figure(
+        data=frames[0].data,
+        layout=go.Layout(
+            legend={
+                "x": 1,
+                "y": 1,
+                "xanchor": "auto",
+            },
+            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+            sliders=sliders,
+            xaxis={"range": [x_lb, x_ub]},
+            yaxis={"range": [y_lb, y_ub]},
+            updatemenus=[
+                {
+                    "type": "buttons",
+                    "buttons": [
+                        {
+                            "args": [
+                                None,
+                                {
+                                    "frame": {"duration": 200, "redraw": False},
+                                    "fromcurrent": True,
+                                    "transition": {
+                                        "duration": 200,
+                                        "easing": "linear",
+                                    },
+                                    "mode": "immediate",
+                                },
+                            ],
+                            "label": "Play",
+                            "method": "animate",
+                        },
+                        {
+                            "args": [
+                                [None],
+                                {
+                                    "frame": {"duration": 0, "redraw": False},
+                                    "mode": "immediate",
+                                    "transition": {"duration": 0},
                                 },
                             ],
                             "label": "Pause",

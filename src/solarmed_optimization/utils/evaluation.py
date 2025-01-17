@@ -7,7 +7,8 @@ from solarmed_optimization import (EnvironmentVariables,
                                    ProblemData,)
 from solarmed_optimization.utils import (decision_vector_to_decision_variables,
                                          evaluate_model,
-                                         add_bounds_to_dataframe)
+                                         add_bounds_to_dataframe,
+                                         add_dec_vars_to_dataframe)
 from solarmed_optimization.problems import BaseMinlpProblem
 
 def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int]], 
@@ -17,7 +18,7 @@ def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int
     
     pp = problem_data.problem_params
     ps = problem_data.problem_samples
-    # model = problem_data.model # noo!!
+    # model = problem_data.model # noo!! or maybe it did not matter? only god knows with python mutables
     
     
     # lower_bounds, upper_bounds = problem.get_bounds(readable_format=True)
@@ -41,6 +42,8 @@ def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int
         df_hor[-1] = add_bounds_to_dataframe(df_hor[-1], problem=problem, 
                                              target="optim_window",
                                              df_idx=df_hor[-1].index[0])
+        df_hor[-1] = add_dec_vars_to_dataframe(df_hor[-1], dec_vars, df_idx=df_hor[-1].index[0])
+        
 
 
     """ Simulate one optimization step for the best individual """
@@ -62,5 +65,6 @@ def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int
     df_sim = add_bounds_to_dataframe(df_sim, problem=problem, 
                                      target="optim_step",
                                      df_idx=idx_mod)
+    df_sim = add_dec_vars_to_dataframe(df_sim, dec_vars, df_idx=idx_mod)
     
     return df_hor, df_sim, model # model is already updated, but return it anyway
