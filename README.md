@@ -7,6 +7,38 @@ Software package that (will) implement(s) several optimization strategies for th
 The `SolarMED` process is a solar-powered desalination process that uses a multi-effect distillation (MED) system. 
 The model of the complete process and its individual components is implemented in the [solarMED-modeling](https://github.com/juan11iguel/solarMED-modeling) package.
 
+## Getting started
+
+### uv
+
+> [!WARNING] Currently [does not work with PyGmo](https://github.com/esa/pygmo2/issues/177)
+> For some reason when calling evolve it does nothing, and it's probably due to an
+environment issue.
+
+UPDATE: Confirmed, installing PyGMO from PyPI results in a broken library, for example,
+a problem will `evolve` correctly when the `get_bounds` method returns a 
+`numpy.zeros` or `numpy.ones`, but not when manually typed (`numpy.array([0, 0, ..., 0])`)
+
+Just re-create the environment with `uv sync`.
+
+### Conda environment
+
+```bash
+conda init zsh
+```
+
+Create and install dependencies using the `environment.yml` file:
+
+```bash
+conda env create -f environment.yml
+```
+
+And then activate it using the name specified in the `environment.yml` file:
+
+```bash
+conda activate conda-env
+```
+
 
 ## Files structure
 

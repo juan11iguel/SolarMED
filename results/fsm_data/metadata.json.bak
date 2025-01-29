@@ -1,0 +1,662 @@
+{
+    "SFTS": [
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 5,
+            "computation_time": 0.346179723739624,
+            "n_paths": 59,
+            "n_paths_per_initial_state": {
+                "IDLE": 21,
+                "HEATING_UP_SF": 16,
+                "SF_HEATING_TS": 21,
+                "RECIRCULATING_TS": 1
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 3600,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "qsf",
+                "qts_src"
+            ],
+            "paths_file_id": "sfts_n_5_7a7bb2e4-de50-4692-b5e8-10ef8eafa79a.csv",
+            "valid_inputs_file_id": "sfts_n_5_7a7bb2e4-de50-4692-b5e8-10ef8eafa79a.pkl",
+            "generated_at": "2024-11-21T18:50:51.352746+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 8,
+            "computation_time": 5.635705947875977,
+            "n_paths": 2584,
+            "n_paths_per_initial_state": {
+                "IDLE": 987,
+                "HEATING_UP_SF": 610,
+                "SF_HEATING_TS": 987
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 3600,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "sf_active",
+                "ts_active"
+            ],
+            "paths_file_id": "sfts_n_8_aa62e752-0928-4816-93b0-43dc428bdfff.csv",
+            "valid_inputs_file_id": "sfts_n_8_aa62e752-0928-4816-93b0-43dc428bdfff.pkl",
+            "generated_at": "2024-12-09T16:25:34.914735+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 10,
+            "computation_time": 14.684560537338257,
+            "n_paths": 3946,
+            "n_paths_per_initial_state": {
+                "IDLE": 1432,
+                "HEATING_UP_SF": 1081,
+                "SF_HEATING_TS": 1432,
+                "RECIRCULATING_TS": 1
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 3600,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "qsf",
+                "qts_src"
+            ],
+            "paths_file_id": "sfts_n_10_b1cc368b-8a32-48bc-ac98-6dd55b389bc0.csv",
+            "valid_inputs_file_id": "sfts_n_10_b1cc368b-8a32-48bc-ac98-6dd55b389bc0.pkl",
+            "generated_at": "2024-11-21T18:51:05.699190+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 6,
+            "computation_time": 0.3549478054046631,
+            "n_paths": 136,
+            "n_paths_per_initial_state": {
+                "IDLE": 49,
+                "HEATING_UP_SF": 37,
+                "SF_HEATING_TS": 49,
+                "RECIRCULATING_TS": 1
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 3600,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "qsf",
+                "qts_src"
+            ],
+            "paths_file_id": "sfts_n_6_b1e28698-1770-4f27-b61f-048c0cce7556.csv",
+            "valid_inputs_file_id": "sfts_n_6_b1e28698-1770-4f27-b61f-048c0cce7556.pkl",
+            "generated_at": "2024-11-24T15:19:14.500096+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 6,
+            "computation_time": 0.4107539653778076,
+            "n_paths": 106,
+            "n_paths_per_initial_state": {
+                "IDLE": 44,
+                "HEATING_UP_SF": 28,
+                "SF_HEATING_TS": 33,
+                "RECIRCULATING_TS": 1
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 1800,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "qsf",
+                "qts_src"
+            ],
+            "paths_file_id": "sfts_n_6_0ad248f1-f5e0-4b34-95d0-b1b290d5c403.csv",
+            "valid_inputs_file_id": "sfts_n_6_0ad248f1-f5e0-4b34-95d0-b1b290d5c403.pkl",
+            "generated_at": "2024-11-24T15:20:37.864789+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 4,
+            "computation_time": 0.16157770156860352,
+            "n_paths": 44,
+            "n_paths_per_initial_state": {
+                "IDLE": 19,
+                "HEATING_UP_SF": 11,
+                "SF_HEATING_TS": 14
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 1800,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "sf_active",
+                "ts_active"
+            ],
+            "paths_file_id": "sfts_n_4_839eb006-0f13-45c3-98b5-dffe4428da98.csv",
+            "valid_inputs_file_id": "sfts_n_4_839eb006-0f13-45c3-98b5-dffe4428da98.pkl",
+            "generated_at": "2024-12-09T10:38:39.209469+00:00"
+        },
+        {
+            "alternative_id": "automatically_generated_from_import_results",
+            "n_horizon": 4,
+            "computation_time": 0.8194975852966309,
+            "n_paths": 23,
+            "n_paths_per_initial_state": {
+                "IDLE": 9,
+                "HEATING_UP_SF": 6,
+                "SF_HEATING_TS": 7,
+                "RECIRCULATING_TS": 1
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        1,
+                        2
+                    ]
+                ],
+                "sample_time": 2700,
+                "recirculating_ts_enabled": false,
+                "recirculating_ts_cooldown_time": 35996400,
+                "idle_cooldown_time": 3600,
+                "startup_conditions": {
+                    "qsf": 0.372,
+                    "qts_src": 0.95
+                },
+                "shutdown_conditions": {
+                    "qsf": 0.0,
+                    "qts_src": 0.0
+                }
+            },
+            "input_ids": [
+                "qsf",
+                "qts_src"
+            ],
+            "paths_file_id": "sfts_n_4_b2fb662c-8245-46e2-9f2d-74a2b8687ca2.csv",
+            "valid_inputs_file_id": "sfts_n_4_b2fb662c-8245-46e2-9f2d-74a2b8687ca2.pkl",
+            "generated_at": "2024-11-25T17:08:08.298710+00:00"
+        }
+    ],
+    "MED": [
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 5,
+            "computation_time": 0.7100090980529785,
+            "n_paths": 31,
+            "n_paths_per_initial_state": {
+                "OFF": 6,
+                "GENERATING_VACUUM": 4,
+                "IDLE": 4,
+                "STARTING_UP": 8,
+                "SHUTTING_DOWN": 6,
+                "ACTIVE": 3
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 3600,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_5_a466a637-048a-4570-a00d-f84d67d3625e.csv",
+            "valid_inputs_file_id": "med_n_5_a466a637-048a-4570-a00d-f84d67d3625e.pkl",
+            "generated_at": "2024-11-21T18:50:51.717917+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 8,
+            "computation_time": 2.5308632850646973,
+            "n_paths": 137,
+            "n_paths_per_initial_state": {
+                "OFF": 24,
+                "GENERATING_VACUUM": 11,
+                "IDLE": 34,
+                "STARTING_UP": 23,
+                "SHUTTING_DOWN": 24,
+                "ACTIVE": 21
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 3600,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_8_0cd78c86-4ca7-4cee-a1ab-1886f8e10bde.csv",
+            "valid_inputs_file_id": "med_n_8_0cd78c86-4ca7-4cee-a1ab-1886f8e10bde.pkl",
+            "generated_at": "2024-12-09T16:25:31.806080+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 10,
+            "computation_time": 13.256409883499146,
+            "n_paths": 261,
+            "n_paths_per_initial_state": {
+                "OFF": 57,
+                "GENERATING_VACUUM": 29,
+                "IDLE": 29,
+                "STARTING_UP": 64,
+                "SHUTTING_DOWN": 57,
+                "ACTIVE": 25
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 3600,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_10_6725791e-a2a0-4fda-9674-54f97216a5eb.csv",
+            "valid_inputs_file_id": "med_n_10_6725791e-a2a0-4fda-9674-54f97216a5eb.pkl",
+            "generated_at": "2024-11-21T18:51:04.262776+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 6,
+            "computation_time": 0.567286491394043,
+            "n_paths": 49,
+            "n_paths_per_initial_state": {
+                "OFF": 10,
+                "GENERATING_VACUUM": 6,
+                "IDLE": 6,
+                "STARTING_UP": 13,
+                "SHUTTING_DOWN": 10,
+                "ACTIVE": 4
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 3600,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_6_73d13725-7653-41d7-b93b-a89fd1852980.csv",
+            "valid_inputs_file_id": "med_n_6_73d13725-7653-41d7-b93b-a89fd1852980.pkl",
+            "generated_at": "2024-11-24T15:19:14.711327+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 6,
+            "computation_time": 0.7314660549163818,
+            "n_paths": 33,
+            "n_paths_per_initial_state": {
+                "OFF": 7,
+                "GENERATING_VACUUM": 4,
+                "IDLE": 4,
+                "STARTING_UP": 10,
+                "SHUTTING_DOWN": 6,
+                "ACTIVE": 2
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 1800,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_6_661c21ac-fba5-4112-ba6d-9c558aac4d14.csv",
+            "valid_inputs_file_id": "med_n_6_661c21ac-fba5-4112-ba6d-9c558aac4d14.pkl",
+            "generated_at": "2024-11-24T15:20:38.186416+00:00"
+        },
+        {
+            "alternative_id": "valid-sequences",
+            "n_horizon": 4,
+            "computation_time": 0.5025956630706787,
+            "n_paths": 26,
+            "n_paths_per_initial_state": {
+                "OFF": 5,
+                "GENERATING_VACUUM": 3,
+                "IDLE": 3,
+                "STARTING_UP": 6,
+                "SHUTTING_DOWN": 3,
+                "ACTIVE": 6
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 1800,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_4_772e5d05-1018-4c2a-89c9-bf344c55af76.csv",
+            "valid_inputs_file_id": "med_n_4_772e5d05-1018-4c2a-89c9-bf344c55af76.pkl",
+            "generated_at": "2024-12-09T10:38:39.032125+00:00"
+        },
+        {
+            "alternative_id": "automatically_generated_from_import_results",
+            "n_horizon": 4,
+            "computation_time": 1.1268024444580078,
+            "n_paths": 16,
+            "n_paths_per_initial_state": {
+                "OFF": 4,
+                "GENERATING_VACUUM": 1,
+                "IDLE": 1,
+                "STARTING_UP": 5,
+                "SHUTTING_DOWN": 3,
+                "ACTIVE": 2
+            },
+            "parameters": {
+                "valid_sequences": [
+                    [
+                        2,
+                        3,
+                        5
+                    ],
+                    [
+                        1,
+                        3,
+                        5
+                    ]
+                ],
+                "sample_time": 2700,
+                "vacuum_duration_time": 3600,
+                "brine_emptying_time": 1800,
+                "startup_duration_time": 1200,
+                "off_cooldown_time": 43200,
+                "active_cooldown_time": 10800,
+                "startup_conditions": {
+                    "qmed_s": 30,
+                    "qmed_f": 5,
+                    "qmed_b": 5,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 60
+                },
+                "shutdown_conditions": {
+                    "qmed_s": 0.0,
+                    "qmed_f": 0.0,
+                    "qmed_b": 5.0,
+                    "qmed_c": 0.0,
+                    "Tmed_s_in": 0.0
+                }
+            },
+            "input_ids": [
+                "med_active",
+                "med_vacuum_state"
+            ],
+            "paths_file_id": "med_n_4_495de204-160e-44e6-a524-206e237b9089.csv",
+            "valid_inputs_file_id": "med_n_4_495de204-160e-44e6-a524-206e237b9089.pkl",
+            "generated_at": "2024-11-25T17:08:07.459305+00:00"
+        }
+    ]
+}

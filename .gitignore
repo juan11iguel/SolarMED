@@ -1,3 +1,9 @@
+data/datasets
+solarMED-modeling/
+results/20*
+# Until we improve the paths generation, we need to whitelist some large files
+results/sfts_n_15*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

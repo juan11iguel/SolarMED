@@ -13,18 +13,6 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Genetic Algorithm optimization.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "abaf9c0f6ee5fbac",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
                 "file": "One problem strategy.md",
                 "mode": "source",
                 "source": false
@@ -97,7 +85,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Genetic Algorithm optimization.md",
+                "file": "One problem strategy.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -114,7 +102,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Genetic Algorithm optimization.md",
+                "file": "One problem strategy.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -137,7 +125,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Genetic Algorithm optimization.md"
+                "file": "One problem strategy.md"
               }
             }
           }
@@ -161,9 +149,9 @@
   },
   "active": "8fa335a7c3f6b0a1",
   "lastOpenFiles": [
-    "One problem strategy.md",
-    "Genetic Algorithm optimization.md",
     "Resolution strategy.md",
+    "Genetic Algorithm optimization.md",
+    "One problem strategy.md",
     "examples/result_presentation_template.md",
     "attachments/Pasted image 20240510103455.png",
     "attachments/solarMED_optimization-general_diagram.svg",

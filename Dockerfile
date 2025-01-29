@@ -1,13 +1,10 @@
-FROM ubuntu:latest
-LABEL authors="jmserrano"
+# # syntax = devthefuture/dockerfile-x
 
-# Should start a container with Python 3.11
-# Micro editor
-# htop command
-# zsh?
-# Requirements.txt de este repositorio e instalar todas las dependencias
+# INCLUDE ./Dockerfile.base
 
-# Después sea un contenedor que no haga nada pora poder conectarse en remoto con VSCode
-# Y asi ejecutar scripts del repositorio que son pesados y no quiero ejecutar en el portátil
+# Copy the rest of the project
+# COPY . .
 
-ENTRYPOINT ["top", "-b"]
+# Set the default command to run when starting the container
+# Start jupyter notebook
+# CMD ["uvx", "jupyter", "--ip=0.0.0.0", "--port=8890", "--allow-root"]
