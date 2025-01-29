@@ -99,12 +99,19 @@ def find_delay_samples(q: float, sample_time: int = 1, total_pipe_length: float 
     return n_samples
 
 def solar_field_inverse_model2(
-        Tout_ant: float, Tin: float | np.ndarray[float], Tout: float,
-        I: float, Tamb: float,
-        beta: float = 0.0975, gamma: float = 1.0, H: float = 2.2,
-        sample_time=1,
-        q_ant: np.ndarray[float] = None,
-        nt=1, npar=7 * 5, ns=2, Lt=1.15 * 20, Acs: float = 7.85e-5,
+    Tout: float,
+    q_ant: np.ndarray[float],
+    Tout_ant: float,
+    Tin: float | np.ndarray[float],
+    I: float,
+    Tamb: float,
+    model_params: ModelParameters = ModelParameters(),
+    fixed_model_params: FixedModelParameters = FixedModelParameters(),
+    sample_time: int = 1,
+    consider_transport_delay: bool = True,
+    water_props: w_props = None,
+    log: bool = False,
+
 ) -> float:
     """
     Solar field inverse model. New approach using fsolve to solve `solar_field_model`.
@@ -130,24 +137,39 @@ def solar_field_inverse_model2(
 
     """
     
-    warnings.warn('This model is deprecated, use the ones available in the `solar_field_inverse` module')
-
-    qmin = 5
-    qmax = 10  # TODO: Check
+    # warnings.warn('This model is deprecated, use the ones available in the `solar_field_inverse` module')
 
     # If there is no temperature difference, the flow rate cannot be estimated, it could be any
     if Tout - Tin.take(-1) < 0.5:
         return 0
+    
+    if water_props is None:
+        water_props = w_props(P=0.2, T=(Tin.take(-1) + Tout) / 2 + 273.15)
 
-    wrapped_model = lambda q: solar_field_model(Tout_ant=Tout_ant, Tin=Tin, q=q, I=I, Tamb=Tamb, beta=beta, gamma=gamma,
-                                                H=H, sample_time=sample_time, consider_transport_delay=True, nt=nt,
-                                                npar=npar, ns=ns, Lt=Lt, Acs=Acs) - Tout
+    def wrapped_model(q):
+        return (
+            solar_field_model(
+                Tout_ant=Tout_ant,
+                Tin=Tin,
+                q=q,
+                I=I,
+                Tamb=Tamb,
+                model_params=model_params,
+                fixed_model_params=fixed_model_params,
+                sample_time=sample_time,
+                consider_transport_delay=consider_transport_delay,
+                water_props=water_props,
+                log=log,
+            ) - Tout
+        )
+
 
     # Solve for q
-    initial_guess = q_ant.take(-1)
+    # initial_guess = q_ant.take(-1)
+    initial_guess = (fixed_model_params.qsf_min + fixed_model_params.qsf_max)/2
     q = scipy.optimize.fsolve(wrapped_model, initial_guess)
 
-    return q
+    return np.clip(q, fixed_model_params.qsf_min, fixed_model_params.qsf_max)
 
 def solar_field_inverse_model(
         Tout_ant: float, Tin: float | np.ndarray[float], Tout: float,
