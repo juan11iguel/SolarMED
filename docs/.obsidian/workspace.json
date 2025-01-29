@@ -1,0 +1,197 @@
+{
+  "main": {
+    "id": "e9696e1b5036e2ab",
+    "type": "split",
+    "children": [
+      {
+        "id": "866af598799e1b5c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8fa335a7c3f6b0a1",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "One problem strategy.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "6d464bc5f4563af6",
+    "type": "split",
+    "children": [
+      {
+        "id": "6f6a3b8881427dc9",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1ed7acd2fd133118",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "1a1f8a50ca23e5a9",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c8a46985579d6787",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 288.5
+  },
+  "right": {
+    "id": "a7ec718c3f1a54e0",
+    "type": "split",
+    "children": [
+      {
+        "id": "db5c9096c64330d4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "439a5b4bc5230bc8",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "One problem strategy.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "5c4fe7c6da512553",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "One problem strategy.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "d6d21f620b835521",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "4ebc1f38df8a7440",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "One problem strategy.md"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "slides-extended:Show slide preview": false
+    }
+  },
+  "active": "8fa335a7c3f6b0a1",
+  "lastOpenFiles": [
+    "Resolution strategy.md",
+    "Genetic Algorithm optimization.md",
+    "One problem strategy.md",
+    "examples/result_presentation_template.md",
+    "attachments/Pasted image 20240510103455.png",
+    "attachments/solarMED_optimization-general_diagram.svg",
+    "attachments/solarMED_optimization-general_diagram.png",
+    "attachments/SolarMED_state_evaluation_example_v2.svg",
+    "attachments/SolarMED_state_evaluation_example_v2.html",
+    "attachments/SolarMED_state_evaluation_example_v1.svg",
+    "attachments/SolarMED_state_evaluation_example_v1.html",
+    "attachments/path_viz_med.png",
+    "attachments/SFTS_state_evaluation_example.svg",
+    "attachments/SFTS_state_evaluation_example.html",
+    "Welcome.md",
+    "results/episode_reports/test2/report.md",
+    "attachments/solarMED_optimization-Decision tree.svg",
+    "attachments/solarMED_binary_tree.png",
+    "attachments/img.png",
+    "attachments",
+    "results/episode_reports/test2/Untitled.md",
+    "results/episode_reports/test2/index.html",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Zero.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Vector-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Vector-Bold.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Typewriter-Regular.woff",
+    "results/episode_reports/test2/plugin/math/mathjax/output/chtml/fonts/woff-v2/MathJax_Size4-Regular.woff",
+    "results/episode_reports/test2/plugin/menu/README.md",
+    "results/episode_reports/test2/plugin/menu/CONTRIBUTING.md",
+    "results/episode_reports/test2/plugin/customcontrols/README.md",
+    "results/episode_reports/test2/plugin/chart/README.md",
+    "results/episode_reports/test2/plugin/chalkboard/README.md",
+    "results/episode_reports/test2/report/plugin/menu/README.md",
+    "results/episode_reports/test2/report/plugin/menu/CONTRIBUTING.md",
+    "results/episode_reports/test2/report/plugin/chart/README.md",
+    "results/episode_reports/test2/report/plugin/customcontrols/README.md",
+    "results/episode_reports/test2/report/plugin/chalkboard/README.md",
+    "results/diagrams/operating_modes/Untitled.md",
+    "results/episode_reports/test/report.md",
+    "export/report/plugin/chalkboard/README.md",
+    "export/report/plugin/chart/README.md",
+    "export/report/plugin/customcontrols/README.md",
+    "export/report/plugin/menu/CONTRIBUTING.md",
+    "export/report/plugin/menu/README.md"
+  ]
+}

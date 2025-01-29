@@ -1,0 +1,23 @@
+{
+  "port": "3002",
+  "autoReload": true,
+  "autoStart": true,
+  "exportDirectory": "/export",
+  "enableChalkboard": true,
+  "enableOverview": false,
+  "enableMenu": false,
+  "enablePointer": true,
+  "enableTimeBar": false,
+  "theme": "white_contrast_compact_verbatim_headers.css",
+  "highlightTheme": "zenburn",
+  "transition": "slide",
+  "transitionSpeed": "default",
+  "controls": true,
+  "progress": true,
+  "slideNumber": true,
+  "showGrid": false,
+  "autoComplete": "inPreview",
+  "paneMode": "split",
+  "themeDirectory": "",
+  "center": true
+}

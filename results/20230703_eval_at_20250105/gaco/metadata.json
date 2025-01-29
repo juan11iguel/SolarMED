@@ -1,0 +1,9 @@
+{
+    "date_str": "20230703",
+    "algo_id": "gaco",
+    "algo_params": {
+        "gen": 5,
+        "ker": 16,
+        "seed": 32
+    }
+}

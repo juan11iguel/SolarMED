@@ -1,0 +1,10 @@
+{
+  "accentColor": "",
+  "cssTheme": "Adwaita",
+  "enabledCssSnippets": [
+    "mermaid",
+    "zoomImages",
+    "center"
+  ],
+  "theme": "moonstone"
+}

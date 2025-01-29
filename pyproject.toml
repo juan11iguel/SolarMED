@@ -1,0 +1,37 @@
+[project]
+name = "solarmed-optimization"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    # "evox>=0.9.0",
+    # "ipyparallel>=9.0.0",
+    # "jaxlib",
+    # "jax",
+    # "loguru>=0.7.2",
+    # "lxml>=5.3.0",
+    # "matplotlib>=3.9.3",
+    # "numpy==1.26.4", # Test to see if https://github.com/esa/pygmo2/issues/177 is reproduced
+    # "pandas>=2.2.2",
+    # "phd-visualizations",
+    # "pyarrow>=18.0.0",
+    # "pydantic==2.9.2", # 2.10 raises PydanticSchemaGenerationError even when `arbitrary_types_allowed=True` is set: Unable to generate pydantic-core schema for numpy.ndarray[float]. Set `arbitrary_types_allowed=True` in the model_config to ignore this error or implement `__get_pydantic_core_schema__` on your type to fully support it.
+    # "pygmo>=2.19.5",
+    # "solarmed-modeling",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "jupyter>=1.1.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# [tool.uv.sources]
+# solarmed-modeling = { git = "https://github.com/juan11iguel/solarMED-modeling", branch = "main" }
+# phd-visualizations = { git = "https://github.com/juan11iguel/phd_visualizations", branch = "main" }
+# jaxlib = { path = "auxiliar_material/jaxlib-0.4.39.dev20241223-cp311-cp311-manylinux2014_x86_64.whl"}
+# jax = { git = "https://github.com/jax-ml/jax", rev = "108762379d410f5a6714843c44776bde0878c78e" }
