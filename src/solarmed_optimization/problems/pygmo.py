@@ -1,6 +1,6 @@
 import numpy as np
 from solarmed_optimization.utils import flatten_list
-from solarmed_optimization.problems import BaseMinlpProblem, evaluate_fitness
+from solarmed_optimization.problems import BaseMinlpProblem, evaluate_fitness_minlp
 
 class MinlpProblem(BaseMinlpProblem):
     
@@ -23,7 +23,7 @@ class MinlpProblem(BaseMinlpProblem):
     def fitness(self, x: np.ndarray[float | int], store_x: bool = True) -> list[float]:
         # return [0.0]
         
-        output = evaluate_fitness(self, x)
+        output = evaluate_fitness_minlp(self, x)
         
         # Store decision vector
         if store_x:

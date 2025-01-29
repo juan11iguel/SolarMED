@@ -47,7 +47,8 @@ renames_dict: dict[str, str] = {
 }
 
 def problem_initialization(problem_params: ProblemParameters, date_str: str, data_path: Path = Path("./data"),
-                           initial_states: InitialStates = None) -> ProblemData:
+                           initial_states: InitialStates = None,
+                           set_dec_var_updates: bool = True) -> ProblemData:
     
     pp: ProblemParameters = problem_params
 
@@ -116,18 +117,19 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
 
     # Problem definition
     # Initialize decision variables updates
-    if pp.dec_var_updates is None:
-        default_fields = {field.name: ps.default_n_dec_var_updates for field in fields(DecisionVariablesUpdates)}
-        pp.dec_var_updates = DecisionVariablesUpdates(**default_fields)
-        pp.dec_var_updates.qsf = math.floor(pp.optim_window_time / ((pp.sample_time_mod+pp.sample_time_opt)/2)) # Midpoint between sample_time_mod and sample_time_opt updates
-        # New, simplify MINLP by limiting the updates of operation mode variables independent of the horizon
-        # TODO: Ideally we would limit the number of updates per horizon duration (e.g. 3 updates every 18 hours)
-        # pp.dec_var_updates.med_active = 6
-        # pp.dec_var_updates.med_vac_state = 6
-        # pp.dec_var_updates.sf_active = 6
-        # pp.dec_var_updates.ts_active = 6
+    if set_dec_var_updates:
+        if pp.dec_var_updates is None:
+            default_fields = {field.name: ps.default_n_dec_var_updates for field in fields(DecisionVariablesUpdates)}
+            pp.dec_var_updates = DecisionVariablesUpdates(**default_fields)
+            pp.dec_var_updates.qsf = math.floor(pp.optim_window_time / ((pp.sample_time_mod+pp.sample_time_opt)/2)) # Midpoint between sample_time_mod and sample_time_opt updates
+            # New, simplify MINLP by limiting the updates of operation mode variables independent of the horizon
+            # TODO: Ideally we would limit the number of updates per horizon duration (e.g. 3 updates every 18 hours)
+            # pp.dec_var_updates.med_active = 6
+            # pp.dec_var_updates.med_vac_state = 6
+            # pp.dec_var_updates.sf_active = 6
+            # pp.dec_var_updates.ts_active = 6
 
-    validate_dec_var_updates(dec_var_updates=pp.dec_var_updates, optim_window_time=pp.optim_window_time, sample_time_mod=pp.sample_time_mod)
+        validate_dec_var_updates(dec_var_updates=pp.dec_var_updates, optim_window_time=pp.optim_window_time, sample_time_mod=pp.sample_time_mod)
 
     Tts_h = initial_states.Tts_h if initial_states is not None else [df['Tts_h_t'].iloc[pp.idx_start], df['Tts_h_m'].iloc[pp.idx_start], df['Tts_h_b'].iloc[pp.idx_start]]
     Tts_c = initial_states.Tts_c if initial_states is not None else [df['Tts_c_t'].iloc[pp.idx_start], df['Tts_c_m'].iloc[pp.idx_start], df['Tts_c_b'].iloc[pp.idx_start]]

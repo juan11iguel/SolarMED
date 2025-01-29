@@ -41,6 +41,8 @@ np.set_printoptions(precision=1, suppress=True)
 #     med_vacuum_state: int | MedVacuumState = 2,  # Optional, to provide the MED vacuum state (OFF, LOW, HIGH)
 # ) -> None:    
 
+
+
 @dataclass
 class BaseMinlpProblem:
     """
@@ -64,6 +66,7 @@ class BaseMinlpProblem:
     # Computed attributes, actually setting default values makes no difference
     # since __init__ dataclass method is being overriden
     # x: np.ndarray[float] = None # Decision variables values vector
+    size_dec_vector: int # Size of the decision vector
     real_dec_vars_box_bounds: RealDecVarsBoxBounds
     initial_state: SolarMedState # System initial state
     dec_var_ids: list[str] # All decision variables ids
@@ -163,7 +166,7 @@ class BaseMinlpProblem:
             fmp=model.fixed_model_params, 
             Tmed_c_in=env_vars.Tmed_c_in.mean()
         )
-        self.box_bounds_lower, self.box_bounds_upper, self.integer_dec_vars_mapping = generate_bounds(self, readable_format=True)
+        self.box_bounds_lower, self.box_bounds_upper, self.integer_dec_vars_mapping = generate_bounds_minlp(self, readable_format=True)
         
         # Initialize decision vector history
         self.x_evaluated = []
@@ -201,10 +204,11 @@ class BaseMinlpProblem:
     -\t Lower bounds: {self.box_bounds_lower}
     -\t Upper bounds: {self.box_bounds_upper}"""
     
-def set_real_var_bounds(problem_instance: BaseMinlpProblem, ub: np.ndarray, lb: np.ndarray, 
-                        var_id: str, lower_limit: float | np.ndarray[float], 
-                        upper_limit: float | np.ndarray[float], aux_logical_var_id: str  = None,
-                        integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None) -> None:
+    
+def set_real_var_bounds_minlp(problem_instance: BaseMinlpProblem, ub: np.ndarray, lb: np.ndarray, 
+                              var_id: str, lower_limit: float | np.ndarray[float], 
+                              upper_limit: float | np.ndarray[float], aux_logical_var_id: str  = None,
+                              integer_dec_vars_mapping: dict[str, np.ndarray[list[int]]] = None) -> None:
     """
     Set the bounds for a real variable in the decision vector
     ~~No need to pass the bounds arrays or return them, as they are modified in place (mutable)~~
@@ -236,7 +240,7 @@ def set_real_var_bounds(problem_instance: BaseMinlpProblem, ub: np.ndarray, lb: 
     return lb, ub
     
     
-def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = False, debug: bool = False) -> np.ndarray[float | int] | tuple[np.ndarray[float | int], np.ndarray[float | int]]:
+def generate_bounds_minlp(problem_instance: BaseMinlpProblem, readable_format: bool = False, debug: bool = False) -> np.ndarray[float | int] | tuple[np.ndarray[float | int], np.ndarray[float | int]]:
         """This method will return the box-bounds of the problem. 
         - Infinities in the bounds are allowed.
         - The order of elements in the bounds should match the order of the variables in the decision vector (`dec_var_ids`)
@@ -337,7 +341,7 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
         # Real variables bounds
         # Thermal storage
         for var_id in problem_instance.dec_var_real_ids:
-            lbb, ubb = set_real_var_bounds(
+            lbb, ubb = set_real_var_bounds_minlp(
                 problem_instance=problem_instance, ub=ubb, lb=lbb,
                 var_id = var_id, 
                 lower_limit = getattr( problem_instance.real_dec_vars_box_bounds, var_id)[0], 
@@ -369,22 +373,13 @@ def generate_bounds(problem_instance: BaseMinlpProblem, readable_format: bool = 
 
         return lbb, ubb, integer_dec_vars_mapping
     
-def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float | int] | list[np.ndarray[float | int]],) -> list[float] | list[list[float]]:
+def evaluate_fitness_minlp(problem_instance: BaseMinlpProblem, x: np.ndarray[float | int] | list[np.ndarray[float | int]],) -> list[float] | list[list[float]]:
     # print(f"{x=}")
     def evaluate(x: np.ndarray[float | int]) -> list[float]:
         model: SolarMED = SolarMED(**problem_instance.model_dict)
-        # fitness: np.ndarray[float] = np.zeros((problem_instance.n_evals_mod_in_hor_window, ))
-        # decision_dict: dict[str, np.ndarray] = {}
         
         # Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
         x[np.abs(x) < 1e-6] = 0
-        
-        # Build the decision variables dictionary in which every variable is "resampled" to the model sample time
-        # cnt = 0
-        # for var_id in problem_instance.dec_var_ids:
-        #     num_updates = getattr(problem_instance.dec_var_updates, var_id)
-        #     decision_dict[var_id] = forward_fill_resample(x[cnt:cnt+num_updates], target_size=problem_instance.n_evals_mod_in_hor_window)
-        #     cnt += num_updates
         
         # dec_vars = DecisionVariables(**decision_dict)
         dec_vars: DecisionVariables = decision_vector_to_decision_variables(
@@ -399,9 +394,7 @@ def evaluate_fitness(problem_instance: BaseMinlpProblem, x: np.ndarray[float | i
                                       mode = "optimization",
                                       dec_vars = dec_vars, 
                                       env_vars = problem_instance.env_vars,
-                                      model_dec_var_ids=problem_instance.dec_var_model_ids,)
-        # model.terminate()
-        
+                                      model_dec_var_ids=problem_instance.dec_var_model_ids,)        
         return fitness, ics
     
     # # Check if we are in batch mode

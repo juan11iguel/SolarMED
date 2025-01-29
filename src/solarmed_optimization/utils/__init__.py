@@ -298,7 +298,7 @@ def evaluate_model(model: SolarMED,
                    env_vars: EnvironmentVariables,
                    n_evals_mod: int,
                    mode: Literal["optimization", "evaluation"] = "optimization",
-                   model_dec_var_ids: list[str] = None,
+                #    model_dec_var_ids: list[str] = None,
                    df_mod: pd.DataFrame = None,
                    df_start_idx: int = None) -> pd.DataFrame | float:
     """ Evaluate the model for a given decision vector and environment variables
@@ -311,8 +311,8 @@ def evaluate_model(model: SolarMED,
         - Though an arbitrary number of evaluations can be performed, make sure that `n_evals_mod` is lower or equal 
         to the number of elements in the decision vector and environment variables.
     """
-    if mode == "optimization":
-        assert model_dec_var_ids is not None, "`model_dec_var_ids` is required in `mode` is set to 'optimization'"
+    # if mode == "optimization":
+    #     assert model_dec_var_ids is not None, "`model_dec_var_ids` is required if `mode` is set to 'optimization'"
     
     # if df_mod is None and mode == "evaluation":
     #     df_mod = model.to_dataframe()
@@ -330,6 +330,10 @@ def evaluate_model(model: SolarMED,
         # Get the MED FSM inputs for the current MED mode and state
         med_fsm_inputs: MedFsmInputs = med_fsm_inputs_table[ (MedMode(dv.med_mode), model.med_state) ]
         sfts_fsm_inputs: SfTsFsmInputs = sfts_fsm_inputs_table[ (SfTsMode(dv.sfts_mode), model.sf_ts_state) ]
+        
+        # TODO: Add here some low-level control/validation
+        # - qts_src should be zero if Tsf_out is below Tts_c_b? Tts_h_t? Which temperature should be the threshold?
+        
         model.step(
             # Decision variables
             ## Thermal storage
@@ -371,7 +375,6 @@ def evaluate_model(model: SolarMED,
             df_mod = model.to_dataframe(df_mod, )
                 
     if mode == "optimization":
-        # TODO: Add inequality constraints, at least for logical variables
         return np.sum(fitness), ics.mean(axis=0)
     elif mode == "evaluation":
         if df_start_idx is not None:

@@ -1,7 +1,7 @@
-from typing import get_args
-from typing import NamedTuple
-from dataclasses import dataclass, fields, field, is_dataclass
+from typing import get_args, NamedTuple, Literal
+from dataclasses import dataclass, fields, field, is_dataclass, asdict
 from enum import Enum
+from datetime import datetime
 import numpy as np
 import pandas as pd
 
@@ -100,29 +100,69 @@ class DecisionVariables:
     to the model instance with the correct type
     """
     # Real
-    qsf: float | np.ndarray[float] #  Solar field flow -> Actual optimization output will be the outlet temperature (`Tsf,out`) after evaluating the inverse solar field model.
-    qts_src: float | np.ndarray[float] #  Thermal storage recharge flow.
-    qmed_s: float | np.ndarray[float] #  MED heat source flow.
-    qmed_f: float | np.ndarray[float] #  MED feed flow.
-    Tmed_s_in: float | np.ndarray[float] #  MED heat source inlet temperature.
-    Tmed_c_out: float | np.ndarray[float] #  MED condenser outlet temperature.
+    qsf: float | np.ndarray[float] | pd.Series #  Solar field flow -> Actual optimization output will be the outlet temperature (`Tsf,out`) after evaluating the inverse solar field model.
+    qts_src: float | np.ndarray[float] | pd.Series #  Thermal storage recharge flow.
+    qmed_s: float | np.ndarray[float] | pd.Series #  MED heat source flow.
+    qmed_f: float | np.ndarray[float] | pd.Series #  MED feed flow.
+    Tmed_s_in: float | np.ndarray[float] | pd.Series #  MED heat source inlet temperature.
+    Tmed_c_out: float | np.ndarray[float] | pd.Series #  MED condenser outlet temperature.
     # Logical / integers
-    sfts_mode: int | np.ndarray[int] #  Solar field and thermal storage mode (off, active)
-    # sf_active: bool | np.ndarray[bool] #  Solar field state (off, active)
-    # ts_active: bool | np.ndarray[bool] #  Thermal storage state (off, active)
-    # med_active: bool | np.ndarray[bool] #  MED heat source state (off, active)
-    # med_vac_state: int | np.ndarray[int] #  MED vacuum system state (off, low, high)
-    med_mode: int | np.ndarray[int] #  MED operation mode (off, active)
+    sfts_mode: int | np.ndarray[int] | pd.Series #  Solar field and thermal storage mode (off, active)
+    # sf_active: bool | np.ndarray[bool]#  Solar field state (off, active)
+    # ts_active: bool | np.ndarray[bool]#  Thermal storage state (off, active)
+    # med_active: bool | np.ndarray[bool]#  MED heat source state (off, active)
+    # med_vac_state: int | np.ndarray[int] | pd.Series #  MED vacuum system state (off, low, high)
+    med_mode: int | np.ndarray[int] | pd.Series #  MED operation mode (off, active)
     
-    def __post_init__(self) -> None:
-        # Ensure attributes are of correct type
-        for field in fields(self):
-            value: np.ndarray | bool | float | int = getattr(self, field.name)
-            _type = get_args(field.type)[0]
-            if isinstance(value, np.ndarray):
-                setattr(self, field.name, value.astype(_type))
-            else:
-                setattr(self, field.name, _type(value))
+    # def __post_init__(self) -> None:
+    #     # Ensure attributes are of correct type
+    #     for fld in fields(self):
+    #         value: np.ndarray | bool | float | int | pd.Series = getattr(self, fld.name)
+    #         _type = get_args(fld.type)[0]
+    #         if isinstance(value, np.ndarray):
+    #             setattr(self, fld.name, value.astype(_type))
+    #         elif isinstance(value, pd.Series):
+    #             setattr(self, fld.name, value.values.astype(_type))
+    #         else:
+    #             setattr(self, fld.name, _type(value))
+    
+    def dump_in_span(self, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> 'DecisionVariables':
+        """
+        Dump decision variables within a given span.
+        
+        Args:
+            span: A tuple representing the range (indices or datetimes).
+            return_format: Format of the returned values ("values" or "series").
+        
+        Returns:
+            A new instance of DecisionVariables containing the filtered data.
+        """
+        if isinstance(span[0], datetime):
+            # Ensure all attributes are pd.Series for datetime filtering
+            for value in asdict(self).values():
+                if not isinstance(value, pd.Series):
+                    raise TypeError("All attributes must be pd.Series for datetime indexing.")
+            
+            # Extract the range
+            dt_start, dt_end = span
+            dec_vars_dict = {
+                name: value[(value.index >= dt_start) & (value.index < dt_end)]
+                for name, value in asdict(self).items()
+            }
+        else:
+            # Assume numeric indices
+            idx_start, idx_end = span
+            dec_vars_dict = {
+                name: value[idx_start:idx_end]
+                if isinstance(value, (pd.Series, np.ndarray)) else value
+                for name, value in asdict(self).items()
+            }
+
+        if return_format == "values":
+            dec_vars_dict = {name: value.values if isinstance(value, pd.Series) else value for name, value in dec_vars_dict.items()}
+        
+        return DecisionVariables(**dec_vars_dict)
+        
                 
 def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: bool = False) -> DecisionVariables | dict:
     """ Dump decision variables at a given index """
