@@ -1,0 +1,184 @@
+{
+  "main": {
+    "id": "4abf1d478e8aeb87",
+    "type": "split",
+    "children": [
+      {
+        "id": "ff3842f24d3c655f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6108d55711747689",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Optimización.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "e1a4481aa65ff741",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Optimización.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "14fb3fbd823ee314",
+    "type": "split",
+    "children": [
+      {
+        "id": "24432edd89bd7c0e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "170734c5ae00d06d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "asd",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c915cfc532236d46",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          },
+          {
+            "id": "9bed96b88033046a",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 315.5
+  },
+  "right": {
+    "id": "f98bbe65b6ba93ad",
+    "type": "split",
+    "children": [
+      {
+        "id": "9c8801716380bf61",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "083e9fc309ea6159",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Optimización.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": true,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "82a4432d5de94fc6",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {}
+            }
+          },
+          {
+            "id": "608b6df9cf7b385a",
+            "type": "leaf",
+            "state": {
+              "type": "advanced-tables-toolbar",
+              "state": {}
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "command-palette:Open command palette": false,
+      "markdown-importer:Open format converter": false,
+      "audio-recorder:Start/stop recording": false,
+      "canvas:Create new canvas": false,
+      "workspaces:Manage workspace layouts": false,
+      "table-editor-obsidian:Advanced Tables Toolbar": false
+    }
+  },
+  "active": "e1a4481aa65ff741",
+  "lastOpenFiles": [
+    "models_psa/requirements.txt",
+    "models_psa/librescada_req.txt",
+    "models_psa/setup.py",
+    "models_psa/__init__.py",
+    "models_psa/models.py",
+    "models_psa",
+    "Modelos/attachments/solarMED_optimization-Heat_exchanger.svg",
+    "Modelos/attachments/solarMED_optimization-Storage model.drawio.svg",
+    "Modelos/Modelo válvula tres vías.md",
+    "Modelos/attachments/solarMED_optimization-solar_field.drawio.svg",
+    "Modelos/Modelo intercambiador.md",
+    "Modelos/attachments",
+    "Modelos/Modelo tanques.md",
+    "Modelos/Modelo MED.md",
+    "Modelos/Modelo campo solar.md",
+    "Modelos",
+    "Untitled",
+    "attachments/solarMED_optimization-Optimization.drawio 1.svg",
+    "Ejecución modelo MED v1.md",
+    "attachments/solarMED_optimization-Optimization.drawio.svg",
+    "attachments/Simulated_system_diagram.svg",
+    "Optimización.md",
+    "Modelo campo solar.md",
+    "Tratamiento de datos históricos.md",
+    "Análisis de sensibilidad.md",
+    "Ejecución modelo.md",
+    "attachments/solar_field_model.svg",
+    "Nomenclatura.md",
+    "EURECAT/attachments/Diagrama general.svg.md",
+    "EURECAT/attachments/biplot.jpeg",
+    "EURECAT/Optimización.md",
+    "EURECAT/Nomenclatura.md"
+  ]
+}

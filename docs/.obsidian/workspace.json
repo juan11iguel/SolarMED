@@ -1,0 +1,221 @@
+{
+  "main": {
+    "id": "4abf1d478e8aeb87",
+    "type": "split",
+    "children": [
+      {
+        "id": "98c34c86a44be86e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6ea9380ac54801f8",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "fsm_results/test2/report.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "4fb33b05905d5b4c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "e6603db5d603e3da",
+            "type": "leaf",
+            "state": {
+              "type": "reveal-preview-view",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "14fb3fbd823ee314",
+    "type": "split",
+    "children": [
+      {
+        "id": "24432edd89bd7c0e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "170734c5ae00d06d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "asd",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c915cfc532236d46",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          },
+          {
+            "id": "9bed96b88033046a",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "00c67afb423c8e0c",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 293.5100517272949
+  },
+  "right": {
+    "id": "f98bbe65b6ba93ad",
+    "type": "split",
+    "children": [
+      {
+        "id": "9c8801716380bf61",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "083e9fc309ea6159",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "fsm_results/test2/report.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": true,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "82a4432d5de94fc6",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {}
+            }
+          },
+          {
+            "id": "608b6df9cf7b385a",
+            "type": "leaf",
+            "state": {
+              "type": "advanced-tables-toolbar",
+              "state": {}
+            }
+          },
+          {
+            "id": "0dd79fa6bf6a702b",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              }
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 274.5,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "command-palette:Open command palette": false,
+      "markdown-importer:Open format converter": false,
+      "audio-recorder:Start/stop recording": false,
+      "canvas:Create new canvas": false,
+      "workspaces:Manage workspace layouts": false,
+      "table-editor-obsidian:Advanced Tables Toolbar": false,
+      "obsidian-excalidraw-plugin:Create new drawing": false,
+      "slides-extended:Show slide preview": false
+    }
+  },
+  "active": "6ea9380ac54801f8",
+  "lastOpenFiles": [
+    "Validation signals list.md",
+    "validation/YYYYMMDD/YYYYMMDD_solarMED_validation_presentation.md",
+    "validation/20230703/attachments/20230703_SolarMED_FSMs.svg",
+    "validation/20230703/attachments/20230703_SolarMED_FSMs.html",
+    "validation/20230703/20230703_solarMED_validation_presentation.md",
+    "validation/20230628/20230628_solarMED_validation_presentation.md",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_STARTING_UP.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_SHUTTING_DOWN.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_OFF.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_IDLE.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_GENERATING_VACUUM.svg",
+    "operating_modes/state_sf_IDLE-ts_IDLE-med_ACTIVE.svg",
+    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_STARTING_UP.svg",
+    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_SHUTTING_DOWN.svg",
+    "operating_modes/state_sf_IDLE-ts_ACTIVE-med_OFF.svg",
+    "operating_modes",
+    "fsm_results/test2/report.md",
+    "fsm_results/test2/attachments",
+    "fsm_results/test2",
+    "fsm_results",
+    "attachments/thermal_storage_validation_20230707_generated_20240509T1215.html",
+    "attachments/thermal_storage_validation_20230707_generated_20240509T1042.html",
+    "attachments/thermal_storage_validation_20230703_generated_20240508T1027.html",
+    "attachments/thermal_storage_validation_20230703_generated_20240508T1017.html",
+    "attachments/SolarMED_validation_20230703.html",
+    "README.md",
+    "models/solar_field.md",
+    "models/MED.md",
+    "models/heat_exchanger.md",
+    "models/complete_system.md",
+    "models/thermal_storage.md",
+    "models/three_way_valve.md",
+    "validation/README.md",
+    "old/Optimization.md",
+    "validation/20230703/20230703_solarMED_validation_report.md",
+    "models.md",
+    "validation/20230703/models.md",
+    "Profiling.md",
+    "Pending tasks.md",
+    "Nomenclature.md",
+    "Issues.md",
+    "Import data.md",
+    "old/Historical data processing.md",
+    "attachments.md",
+    "validation/YYYYMMDD/solarMED_validation_report_YYYYMMDD.md",
+    "validation/20230628/20230628_solarMED_validation_report.md"
+  ]
+}

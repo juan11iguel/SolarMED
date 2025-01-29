@@ -1,0 +1,101 @@
+{
+    "title": "Heat exchanger",
+    "subtitle": "model validation",
+    "height": 1000,
+    "width": 1000,
+    "margin": {
+        "l": 20,
+        "r": 100,
+        "t": 100,
+        "b": 20,
+        "pad": 5
+    },
+    "vertical_spacing": 0.03,
+    "xdomain": [
+        0,
+        0.85
+    ],
+    "arrow_xrel_pos": 60,
+    "plots": {    	
+        "heat_exchanger_flows": {
+            "title": "<b>Flows</b>",
+            "row_height": 1,
+            "bg_color": "bg_gray",
+            "ylabels_left": [
+                "m<sup>3</sup>/h"
+            ],
+            "ylabels_right": [
+                "m<sup>3</sup>/h"
+            ],
+            "ylims_left": "manual",
+            "traces_left": [
+                {
+                    "var_id": "qhx_p",
+                    "color": "plotly_red",
+                    "axis_arrow": true
+                }
+            ],
+            "traces_right": [
+                {
+                    "var_id": "qhx_s",
+                    "color": "plotly_blue",
+                    "axis_arrow": true
+                },
+                {
+                    "var_id": "qhx_s_original",
+                    "color": "plotly_blue",
+                    "dash": "dash",
+                    "axis_arrow": true
+                }
+            ]
+        },
+        "heat_exchanger_temperatures": {
+            "title": "<b>Temperatures</b>",
+            "row_height": 1,
+            "bg_color": "bg_gray",
+            "ylabels_left": [
+                "\u2070C"
+            ],
+            "ylims_left": "manual",
+            "traces_left": [
+                {
+                    "var_id": "Thx_p_in",
+                    "color": "plotly_red"
+                },
+                {
+                    "var_id": "Thx_p_out",
+                    "color": "plotly_red",
+                    "dash": "longdash"
+                },
+                {
+                    "var_id": "Thx_s_out",
+                    "color": "plotly_blue",
+                    "dash": "longdash"
+                },
+                {
+                    "var_id": "Thx_s_in",
+                    "color": "plotly_blue"
+                }
+            ]
+        },
+        "effectiveness": {
+            "title": "<b>Effectiveness - NTU</b>",
+            "row_height": 0.5,
+            "bg_color": "plotly_yellow",
+            "ylabels_left": [
+                "-"
+            ],
+            "ylims_left": [
+                0,
+                1
+            ],
+            "traces_left": [
+                {
+                    "var_id": "epsilon",
+                    "color": "plotly_green",
+                    "name": "\u03b5"
+                }
+            ]
+        }
+    }
+}

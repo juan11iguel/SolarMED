@@ -1,0 +1,114 @@
+{
+  "main": {
+    "id": "4abf1d478e8aeb87",
+    "type": "split",
+    "children": [
+      {
+        "id": "2500d09ac4b93f6d",
+        "type": "leaf",
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "reports/2022-05-16_ETC_processing_Patricia.md",
+            "mode": "preview",
+            "source": false
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "14fb3fbd823ee314",
+    "type": "split",
+    "children": [
+      {
+        "id": "24432edd89bd7c0e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a4834373479028fd",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "170734c5ae00d06d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "c915cfc532236d46",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 444
+  },
+  "right": {
+    "id": "f98bbe65b6ba93ad",
+    "type": "split",
+    "children": [
+      {
+        "id": "9c8801716380bf61",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "083e9fc309ea6159",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "reports/2022-05-16_ETC_processing_Patricia.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": true,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "82a4432d5de94fc6",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {}
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "active": "2500d09ac4b93f6d",
+  "lastOpenFiles": [
+    "reports/2022-05-16_ETC_processing_Patricia.md",
+    "reports/2022-02-11_Tf_heatTrCoefEval.md",
+    "Reuniones/Reunión MED 13 May 2022.md",
+    "reports/Campaña_experimental_Patricia_2022-04-25.md"
+  ]
+}

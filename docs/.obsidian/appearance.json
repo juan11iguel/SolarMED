@@ -1,0 +1,13 @@
+{
+  "theme": "moonstone",
+  "baseFontSize": 18,
+  "enabledCssSnippets": [
+    "justification",
+    "zoomImages",
+    "centerImages",
+    "centerImg",
+    "center_images"
+  ],
+  "accentColor": "",
+  "cssTheme": "Adwaita"
+}
