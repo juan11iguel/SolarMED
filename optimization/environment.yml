@@ -19,5 +19,6 @@ dependencies:
       - phd-visualizations @ git+https://github.com/juan11iguel/phd_visualizations@main
       - pydantic==2.9.2
       # - solarmed-modeling @ git+https://github.com/juan11iguel/solarMED-modeling@med_gpr
-      - /workspaces/SolarMED-optimization/solarMED-modeling # Temporary, fucking VanillaOS
-      - -e /workspaces/SolarMED-optimization  # only works in devcontainer, change path to path in current environment
+      # only works in devcontainer, change path to path in current environment
+      - -e /workspaces/SolarMED/modeling
+      - -e /workspaces/SolarMED/optimization  

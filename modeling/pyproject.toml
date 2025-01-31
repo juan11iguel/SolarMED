@@ -34,4 +34,3 @@ dev-dependencies = [
 [tool.uv.sources]
 phd-visualizations = { git = "https://github.com/juan11iguel/phd_visualizations", branch = "main" }
 med-model-r2023b = { path = "MED_model_installers/linux_python311_for_redistribution_files_only" }
-solarmed-optimization = { git = "https://github.com/juan11iguel/solarMED-optimization", branch = "dev" }
