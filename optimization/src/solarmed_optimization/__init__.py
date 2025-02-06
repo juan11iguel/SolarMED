@@ -17,6 +17,7 @@ from solarmed_modeling.fsms.med import (FsmParameters as MedFsmParams,
 from solarmed_modeling.fsms.sfts import (FsmParameters as SftsFsmParams,
                                          FsmInputs as SfTsFsmInputs)
 
+
 class MedMode(Enum):
     """ Possible decisions for MED operation modes.
     Given this, the FSM inputs are deterministic """
@@ -78,20 +79,35 @@ class EnvironmentVariables:
     """
     # n_horizon: int
     
-    Tmed_c_in: np.ndarray[float]  # Seawater temperature
-    Tamb: np.ndarray[float]  # Ambient temperature
-    I: np.ndarray[float]  # Solar radiation
+    Tmed_c_in: float | np.ndarray[float] | pd.Series  # Seawater temperature
+    Tamb: float | np.ndarray[float] | pd.Series # Ambient temperature
+    I: float | np.ndarray[float] | pd.Series# Solar radiation
     
-    cost_w: np.ndarray[float] # Cost of water, €/m³ 
-    cost_e: np.ndarray[float] # Cost of electricity, €/kWhe
+    cost_w: float | np.ndarray[float] | pd.Series # Cost of water, €/m³ 
+    cost_e: float | np.ndarray[float] | pd.Series # Cost of electricity, €/kWhe
     
-    wmed_f: np.ndarray[float] = None  # Seawater salinity
+    wmed_f: float | np.ndarray[float] | pd.Series = None # Seawater salinity
     
-    def __post_init__(self):
-        # Validate that all the environment variables have the same length
-        assert all([len(getattr(self, var_id)) == len(self.Tmed_c_in) for var_id in ["Tamb", "I", "cost_w", "cost_e"]]), \
-            "All the environment variables should have the same length, which should be the number of model evaluations in the optimization window (optim_window_size // sample_time_mod)"
-    
+    # def __post_init__(self):
+    #     # Validate that all the environment variables have the same length
+    #     assert all(
+    #         len(getattr(self, var_id)) == len(self.Tmed_c_in) 
+    #         for var_id in ["Tamb", "I", "cost_w", "cost_e"]
+    #     ), "All variables must have the same length (optim_window_size // sample_time_mod)"
+
+    def dump_at_index(self, idx: int, return_dict: bool = False) -> "EnvironmentVariables":
+        """
+        Dump instance at a given index.
+
+        Parameters:
+        - idx: Integer index to extract.
+
+        Returns:
+        - A dictionary.
+        """
+        dump =  {name: np.asarray(value)[idx] for name, value in asdict(self).items() if value is not None}
+        
+        return dump if return_dict else EnvironmentVariables(**dump)
     
 @dataclass
 class DecisionVariables:
@@ -125,6 +141,21 @@ class DecisionVariables:
     #             setattr(self, fld.name, value.values.astype(_type))
     #         else:
     #             setattr(self, fld.name, _type(value))
+    
+    def dump_at_index(self, idx: int, return_dict: bool = False) -> "DecisionVariables":
+        """
+        Dump instance at a given index.
+
+        Parameters:
+        - idx: Integer index to extract.
+
+        Returns:
+        - A dictionary.
+        """
+        dump =  {name: np.asarray(value)[idx] for name, value in asdict(self).items() if value is not None}
+        
+        return dump if return_dict else DecisionVariables(**dump)
+        
     
     def dump_in_span(self, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> 'DecisionVariables':
         """
@@ -167,12 +198,21 @@ class DecisionVariables:
 def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: bool = False) -> DecisionVariables | dict:
     """ Dump decision variables at a given index """
     
+    import warnings
+    
+    warnings.warn("This function is deprecated. Use DecisionVariables.dump_at_index instead.", DeprecationWarning)
+    
     # Precioso, equivale a: {field.name: field.type( field.value[idx] )}
     dump = {field.name: get_args(field.type)[0]( getattr(dec_vars, field.name)[idx] ) for field in fields(dec_vars)}
     
     if return_dict:
         return dump
     return DecisionVariables(**dump)
+    
+@dataclass
+class IntegerDecisionVariables:
+    sfts_mode: SfTsMode | pd.Series
+    med_mode: MedMode | pd.Series
     
 @dataclass
 class DecisionVariablesUpdates:
@@ -269,6 +309,7 @@ class ProblemSamples:
 class ProblemParameters:
     sample_time_mod: int = 400 # Model sample time, seconds
     sample_time_opt: int = 3600 * 0.8 # Optimization evaluations period, seconds
+    sample_time_ts: int = 3600 # Thermal storage sample time, seconds (used in nNLP alternative)
     optim_window_time: int = 3600 * 8 # Optimization window size, seconds
     episode_duration: int = None # By default use len(df)
     idx_start: int = None # By default estimate from sf fixed_mod_params.delay_span
@@ -391,3 +432,32 @@ class RealDecVarsBoxBounds:
             qmed_s = (fmp.med.qmed_s_min, fmp.med.qmed_s_max),
             qmed_f = (fmp.med.qmed_f_min, fmp.med.qmed_f_max),
         )
+        
+@dataclass
+class InitialDecVarsValues:
+	sfts_mode: int = 0
+	med_mode: int = 0
+	qsf: float = 0.0
+	qts_src: float = 0.0
+	qmed_s: float = 0.0
+	qmed_f: float = 0.0
+	Tmed_s_in: float = 0.0
+	Tmed_c_out: float = 0.0
+
+@dataclass
+class RealDecisionVariablesUpdatePeriod:
+    qsf: int = 1800
+    qts_src: int = 1800
+    qmed_s: int = 3600
+    qmed_f: int = 3600
+    Tmed_s_in: int = 3600
+    Tmed_c_out: int = 3600
+	
+@dataclass
+class RealDecisionVariablesUpdateTimes:
+    qsf: list[datetime]
+    qts_src: list[datetime]
+    qmed_s: list[datetime]
+    qmed_f: list[datetime]
+    Tmed_s_in: list[datetime]
+    Tmed_c_out: list[datetime]

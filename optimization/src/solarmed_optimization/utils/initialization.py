@@ -15,7 +15,7 @@ from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
 from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm, FsmInputs as SfTsFsmInputs
 from solarmed_modeling.fsms import MedState, SfTsState
 
-from solarmed_optimization.problems import BaseMinlpProblem, EnvironmentVariables
+from solarmed_optimization.problems.minlp import BaseProblem, EnvironmentVariables
 from solarmed_optimization.problems.pygmo import MinlpProblem
 from solarmed_optimization import (DecisionVariables, 
                                    DecisionVariablesUpdates,
@@ -355,7 +355,7 @@ def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int,
     
     
 def generate_population(model: SolarMED, pp: ProblemParameters, 
-                        problem: BaseMinlpProblem, pop_size: int,
+                        problem: BaseProblem, pop_size: int,
                         paths_from_state_df: pd.DataFrame,
                         return_decision_vector: bool = False,
                         dec_vec: np.ndarray = None, 

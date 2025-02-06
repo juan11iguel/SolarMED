@@ -1,11 +1,11 @@
 import plotly.graph_objects as go
 import pandas as pd
 from solarmed_optimization import ProblemData, PopulationResults
-from solarmed_optimization.problems import BaseMinlpProblem
+from solarmed_optimization.problems.minlp import BaseProblem
 from solarmed_optimization.visualization.optim_evolution import (plot_dec_vars_evolution,
                                                                  plot_obj_space_1d_animation)
 
-def generate_visualizations(problem: BaseMinlpProblem, df_hors: list[pd.DataFrame],
+def generate_visualizations(problem: BaseProblem, df_hors: list[pd.DataFrame],
                             df_sim: pd.DataFrame, problem_data: ProblemData,
                             metadata: dict[str, str], pop_results: PopulationResults) -> list[go.Figure]:
     

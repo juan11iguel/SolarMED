@@ -9,10 +9,10 @@ from solarmed_optimization.utils import (decision_vector_to_decision_variables,
                                          evaluate_model,
                                          add_bounds_to_dataframe,
                                          add_dec_vars_to_dataframe)
-from solarmed_optimization.problems import BaseMinlpProblem
+from solarmed_optimization.problems.minlp import BaseProblem
 
 def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int]], 
-                          env_vars: EnvironmentVariables, problem: BaseMinlpProblem,
+                          env_vars: EnvironmentVariables, problem: BaseProblem,
                           model: SolarMED, problem_data: ProblemData, idx_mod: int, 
                           best_idx: int = 0,) -> tuple[pd.DataFrame, pd.DataFrame, SolarMED]:
     

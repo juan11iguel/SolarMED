@@ -10,15 +10,15 @@ from plotly.colors import hex_to_rgb
 from phd_visualizations import save_figure
 
 from solarmed_optimization.utils import flatten_list
-from solarmed_optimization.problems import OptimToFsmsVarIdsMapping
-from solarmed_optimization.problems import BaseMinlpProblem
+from solarmed_optimization.problems.minlp import OptimToFsmsVarIdsMapping
+from solarmed_optimization.problems.minlp import BaseProblem
 
 # Constants
 plt_colors = plotly.colors.qualitative.Plotly
 gray_colors = plotly.colors.sequential.Greys[2:][::-1]
 green_colors = plotly.colors.sequential.Greens[2:][::-1]
 
-def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFrame] | list[list[pd.DataFrame]], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, episode_samples: int = None) -> go.Figure:
+def plot_dec_vars_evolution(problem: BaseProblem, df_hors_: list[pd.DataFrame] | list[list[pd.DataFrame]], df_mod: pd.DataFrame = None, full_xaxis_range: bool = True, episode_samples: int = None) -> go.Figure:
     # df_aux: pd.DataFrame | None = None,
     # TODO: Use grid_specs to define the layout (spacing between plots)
     # TODO: Add support for df_hors being a list of lists of dataframes. 
@@ -397,7 +397,7 @@ def plot_dec_vars_evolution(problem: BaseMinlpProblem, df_hors_: list[pd.DataFra
 
 
 def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: pd.DataFrame, 
-                       df_aux: pd.DataFrame, problem: BaseMinlpProblem,
+                       df_aux: pd.DataFrame, problem: BaseProblem,
                        output_formats: list[Literal["png", "html"]] = ["png"]) -> None:
 
     assert all(out_format in ["png", "html"] for out_format in output_formats), "Invalid output format"

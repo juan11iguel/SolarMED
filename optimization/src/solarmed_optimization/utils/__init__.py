@@ -1,10 +1,12 @@
 from dataclasses import asdict, fields
+from datetime import datetime
 from enum import Enum
 import json
 import math
 from collections.abc import Iterable
 from typing import Any, Type, Literal
 import time
+import warnings
 from loguru import logger
 import numpy as np
 import pandas as pd
@@ -25,6 +27,9 @@ from solarmed_optimization import (DecisionVariables,
                                    SfTsMode,
                                    sfts_fsm_inputs_table)
 # from solarmed_optimization.problems import BaseMinlpProblem # circular import
+
+def deprecated_function():
+    warnings.warn("This function is deprecated and will be removed in future versions.", DeprecationWarning)
 
 def fitness_logger(func: callable) -> callable:
     def wrapper(*args, **kwargs) -> Any:
@@ -57,6 +62,14 @@ def flatten_list(nested_list: list[list]) -> list:
         return nested_list # Not actually a nested list
     return [item for sublist in nested_list for item in sublist]
     
+def infer_attribute_name(instance: Any, target_type: type) -> str | None:
+    """Infers the attribute name in a dataclass based on the type of its value."""
+    for field in fields(instance):
+        field_type = field.type
+        # Check if the field's type matches the target type
+        if target_type == field_type or (hasattr(field_type, "__args__") and target_type in field_type.__args__):
+            return field.name
+    return None
 
 class CustomEncoder(json.JSONEncoder):
     """ Custom JSON encoder supporting NumPy arrays and Enums
@@ -154,6 +167,28 @@ def downsample_by_segments(source_array:  np.ndarray, target_size: int, dtype: T
         source_array[int(i * segment_size):int((i + 1) * segment_size)].mean()
         for i in range(target_size)
     ]).astype(dtype)
+    
+
+def resample_timeseries_range_and_fill(series: pd.Series, sample_time: int, dt_span: tuple[datetime, datetime] = None) -> pd.Series:
+    """Extracts a given range from a larger time series and resamples it to a given sample time,
+    finally fills the last value
+
+    Args:
+        series (pd.Series): Series to be resampled
+        sample_time (int): Sample time in seconds
+        dt_span (tuple[datetime, datetime]): Start and end datetime of the range to be extracted
+
+    Returns:
+        pd.Series: Resampled series with the last value filled
+    """
+    series = series.copy().loc[dt_span[0]:dt_span[1]] if dt_span is not None else series.copy()
+    series_ = series.resample(f'{sample_time}s', origin="start").mean()
+    
+    return pd.concat([
+        series_, 
+        pd.Series([series.loc[series_.index[-1]:dt_span[1]].mean()], index=[dt_span[1]])
+    ])
+    
 
 def resample_decision_variables(dec_vars: DecisionVariables, dec_var_updates: DecisionVariablesUpdates) -> DecisionVariables:
     """Resample decision variable object
@@ -298,7 +333,7 @@ def evaluate_model(model: SolarMED,
                    env_vars: EnvironmentVariables,
                    n_evals_mod: int,
                    mode: Literal["optimization", "evaluation"] = "optimization",
-                #    model_dec_var_ids: list[str] = None,
+                   model_dec_var_ids: list[str] = None,
                    df_mod: pd.DataFrame = None,
                    df_start_idx: int = None) -> pd.DataFrame | float:
     """ Evaluate the model for a given decision vector and environment variables
@@ -319,11 +354,15 @@ def evaluate_model(model: SolarMED,
         
     if mode == "optimization":
         fitness: np.ndarray[float] = np.zeros((n_evals_mod, ))
-        ics: np.ndarray[float] = np.zeros((n_evals_mod, len(model_dec_var_ids)))
+        if model_dec_var_ids is not None:
+            ics: np.ndarray[float] = np.zeros((n_evals_mod, len(model_dec_var_ids)))
+        else:
+            ics = None
     
     # dec_var_ids = list(asdict(dec_vars).keys())
     for step_idx in range(n_evals_mod):
-        dv: DecisionVariables = dump_at_index_dec_vars(dec_vars, step_idx)
+        dv: DecisionVariables = dec_vars.dump_at_index(step_idx)
+        ev: EnvironmentVariables = env_vars.dump_at_index(step_idx)
         
         # print(f"{dv.med_vac_state=}")
         
@@ -350,10 +389,10 @@ def evaluate_model(model: SolarMED,
             med_vacuum_state = med_fsm_inputs.med_vacuum_state,
             
             ## Environment
-            I=env_vars.I[step_idx],
-            Tamb=env_vars.Tamb[step_idx],
-            Tmed_c_in=env_vars.Tmed_c_in[step_idx],
-            wmed_f=env_vars.wmed_f[step_idx] if env_vars.wmed_f is not None else None,
+            I=ev.I,
+            Tamb=ev.Tamb,
+            Tmed_c_in=ev.Tmed_c_in,
+            wmed_f=ev.wmed_f if ev.wmed_f is not None else None,
             
             # Additional parameters
             compute_fitness=True if mode == "evaluation" else False
@@ -361,21 +400,21 @@ def evaluate_model(model: SolarMED,
         
         if mode == "optimization":
             # Inequality contraints, decision variables should be the same after model evaluation: |dec_vars-dec_vars_model| < tol
-            ics[step_idx, :] = None
             # TODO: Fix this after change of Med decision variable to an indirect one
+            # ics[step_idx, :] = None
             # ics[step_idx, :] = compute_dec_var_differences(dec_vars=asdict(dv), 
             #                                                model_dec_vars=model.model_dump(include=model_dec_var_ids),
             #                                                model_dec_var_ids=model_dec_var_ids)
             fitness[step_idx] = model.evaluate_fitness_function(
-                cost_e=env_vars.cost_e[step_idx],
-                cost_w=env_vars.cost_w[step_idx],
+                cost_e=ev.cost_e,
+                cost_w=ev.cost_w,
                 objective_type='minimize'
             )
         if mode == "evaluation":
             df_mod = model.to_dataframe(df_mod, )
                 
     if mode == "optimization":
-        return np.sum(fitness), ics.mean(axis=0)
+        return np.sum(fitness), ics.mean(axis=0) if ics is not None else None
     elif mode == "evaluation":
         if df_start_idx is not None:
             df_mod.index = pd.RangeIndex(start=df_start_idx, stop=len(df_mod)+df_start_idx)
