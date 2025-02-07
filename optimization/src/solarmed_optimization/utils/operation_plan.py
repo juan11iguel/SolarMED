@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from solarmed_optimization import SfTsMode, MedMode, IntegerDecisionVariables
+from solarmed_optimization import IntegerDecisionVariables, SubsystemId, SubsystemDecVarId 
 from solarmed_optimization.utils import infer_attribute_name
 
 
@@ -16,14 +16,6 @@ class IrradianceThresholds(Enum):
     """ Irradiance thresholds (W/m²)"""
     min = 300
     max = 600
-    
-class SubsystemId(Enum):
-    SFTS = "sfts"
-    MED = "med"
-    
-class SubsystemDecVarId(Enum):
-    SFTS = SfTsMode
-    MED = MedMode
     
 class ActionType(Enum):
     STARTUP = auto()

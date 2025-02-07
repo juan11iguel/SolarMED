@@ -15,8 +15,7 @@ from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
 from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm, FsmInputs as SfTsFsmInputs
 from solarmed_modeling.fsms import MedState, SfTsState
 
-from solarmed_optimization.problems.minlp import BaseProblem, EnvironmentVariables
-from solarmed_optimization.problems.pygmo import MinlpProblem
+from solarmed_optimization.problems.minlp import BaseProblem, EnvironmentVariables, Problem
 from solarmed_optimization import (DecisionVariables, 
                                    DecisionVariablesUpdates,
                                    ProblemData,
@@ -166,7 +165,7 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
     
 
 def initialize_problem_instance(problem_data: ProblemData, idx_mod: int,
-                       fsm_data_path: Path, return_env_vars: bool = False) -> MinlpProblem | tuple[MinlpProblem, EnvironmentVariables]:
+                       fsm_data_path: Path, return_env_vars: bool = False) -> Problem | tuple[Problem, EnvironmentVariables]:
     
     # alias definition    
     pp = problem_data.problem_params
@@ -184,7 +183,7 @@ def initialize_problem_instance(problem_data: ProblemData, idx_mod: int,
     )
 
     ## Initialize problem
-    problem = MinlpProblem(
+    problem = Problem(
         model=problem_data.model, 
         sample_time_opt=pp.sample_time_opt,
         optim_window_time=pp.optim_window_time,

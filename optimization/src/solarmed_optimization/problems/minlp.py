@@ -361,7 +361,7 @@ def generate_bounds(problem_instance: BaseProblem, readable_format: bool = False
 
         return lbb, ubb, integer_dec_vars_mapping
     
-def evaluate_fitness_minlp(problem_instance: BaseProblem, x: np.ndarray[float | int] | list[np.ndarray[float | int]],) -> list[float] | list[list[float]]:
+def evaluate_fitness(problem_instance: BaseProblem, x: np.ndarray[float | int] | list[np.ndarray[float | int]],) -> list[float] | list[list[float]]:
     # print(f"{x=}")
     def evaluate(x: np.ndarray[float | int]) -> list[float]:
         model: SolarMED = SolarMED(**problem_instance.model_dict)
@@ -434,7 +434,7 @@ class Problem(BaseProblem):
     def fitness(self, x: np.ndarray[float | int], store_x: bool = True) -> list[float]:
         # return [0.0]
         
-        output = evaluate_fitness_minlp(self, x)
+        output = evaluate_fitness(self, x)
         
         # Store decision vector
         if store_x:

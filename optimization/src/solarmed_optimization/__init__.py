@@ -1,3 +1,4 @@
+import math
 from typing import get_args, NamedTuple, Literal
 from dataclasses import dataclass, fields, field, is_dataclass, asdict
 from enum import Enum
@@ -70,6 +71,14 @@ sfts_fsm_inputs_table: dict[tuple[SfTsMode, SfTsState], SfTsFsmInputs] = {
     (SfTsMode.ACTIVE, SfTsState.SF_HEATING_TS): SfTsFsmInputs(sf_active=True, ts_active=True),
 }
 
+class SubsystemId(Enum):
+    SFTS = "sfts"
+    MED = "med"
+    
+class SubsystemDecVarId(Enum):
+    SFTS = SfTsMode
+    MED = MedMode
+
 @dataclass
 class EnvironmentVariables:
     """
@@ -108,6 +117,28 @@ class EnvironmentVariables:
         dump =  {name: np.asarray(value)[idx] for name, value in asdict(self).items() if value is not None}
         
         return dump if return_dict else EnvironmentVariables(**dump)
+    
+    def resample(self, *args, **kwargs) -> "EnvironmentVariables":
+        """ Return a new resampled environment variables instance """
+        
+        output = {}
+        for name, value in asdict(self).items():
+            if value is None:
+                continue
+            elif not isinstance(value, pd.Series):
+                raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
+            
+            target_freq = int(float(args[0][:-1]))
+            current_freq = value.index.freq.n
+            
+            value = value.resample(*args, **kwargs)
+            if  target_freq > current_freq: # Downsample
+                value = value.mean()
+            else: # Upsample
+                value = value.interpolate()
+            output[name] = value
+            
+        return EnvironmentVariables(**output)
     
 @dataclass
 class DecisionVariables:
@@ -341,6 +372,7 @@ class ProblemParameters:
         ]
     })
     dec_var_updates: DecisionVariablesUpdates = None # Set automatically in utils.initialization.problem_initialization if not manually defined
+    optim_window_days: int = None # Automatically computed from optim_window_time
     
     def __post_init__(self):
         """ Make convenient to initialize this dataclass from dumped instances """
@@ -350,6 +382,8 @@ class ProblemParameters:
                 if isinstance(value, dict):
                 # if not isinstance(value, fld.type) and value is not None:
                     setattr(self, fld.name, fld.type(**value))
+                    
+        self.optim_window_days = math.ceil(self.optim_window_time / (24*3600))
 
 @dataclass
 class ProblemData:

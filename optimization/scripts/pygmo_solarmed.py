@@ -18,7 +18,7 @@ from solarmed_optimization.utils.initialization import (problem_initialization,
 from solarmed_optimization.utils.evaluation import evaluate_optimization
 from solarmed_optimization.utils.serialization import OptimizationResults
 from solarmed_optimization.utils.visualization import generate_visualizations
-from solarmed_optimization.problems.pygmo import MinlpProblem
+# from solarmed_optimization.problems.minlp import Problem
 
 logger.disable("phd_visualizations")
 
