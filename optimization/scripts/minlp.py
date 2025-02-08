@@ -8,9 +8,9 @@ import pygmo as pg
 from solarmed_optimization import (EnvironmentVariables,
                                    ProblemParameters,
                                    ProblemSamples)
-from solarmed_optimization.utils import (evaluate_model,
-                                         decision_vector_to_decision_variables,
+from solarmed_optimization.utils import (decision_vector_to_decision_variables,
                                          validate_dec_var_updates)
+from solarmed_optimization.utils.evaluation import evaluate_model
 from solarmed_optimization.utils.initialization import problem_initialization
 from solarmed_optimization.problems.pygmo import MinlpProblem
 

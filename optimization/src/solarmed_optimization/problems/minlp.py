@@ -24,10 +24,10 @@ from solarmed_optimization import (EnvironmentVariables,
                                    sfts_fsm_inputs_table)
 from solarmed_optimization.path_explorer.utils import import_results
 from solarmed_optimization.utils import (forward_fill_resample, 
-                                         evaluate_model,
                                          decision_vector_to_decision_variables,
                                          get_valid_modes,
                                          flatten_list)
+from solarmed_optimization.utils.evaluation import evaluate_model
 
 np.set_printoptions(precision=1, suppress=True)
 

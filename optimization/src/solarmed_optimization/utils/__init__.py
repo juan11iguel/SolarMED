@@ -10,22 +10,17 @@ import warnings
 from loguru import logger
 import numpy as np
 import pandas as pd
-from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import MedState
 from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
-from solarmed_modeling.fsms.sfts import FsmInputs as SfTsFsmInputs
 from solarmed_optimization import (DecisionVariables, 
                                    DecisionVariablesUpdates, 
-                                   EnvironmentVariables, 
                                    dump_at_index_dec_vars,
                                    ProblemSamples,
                                    ProblemParameters,
                                    RealLogicalDecVarDependence,
                                    RealDecVarsBoxBounds,
                                    MedMode,
-                                   med_fsm_inputs_table,
-                                   SfTsMode,
-                                   sfts_fsm_inputs_table)
+                                   med_fsm_inputs_table)
 # from solarmed_optimization.problems import BaseMinlpProblem # circular import
 
 def deprecated_function():
@@ -328,101 +323,6 @@ def validate_dec_var_updates(dec_var_updates: DecisionVariablesUpdates, optim_wi
                 setattr(dec_var_updates, var_id, max_dec_var_updates)
             
 
-def evaluate_model(model: SolarMED, 
-                   dec_vars: DecisionVariables, 
-                   env_vars: EnvironmentVariables,
-                   n_evals_mod: int,
-                   mode: Literal["optimization", "evaluation"] = "optimization",
-                   model_dec_var_ids: list[str] = None,
-                   df_mod: pd.DataFrame = None,
-                   df_start_idx: int = None) -> pd.DataFrame | float:
-    """ Evaluate the model for a given decision vector and environment variables
-        n_evals_mod is the number of model evaluations, whose value depends on what
-        is being evaluated:
-        - If mode is optimization, n_evals_mod should be the number of model evaluations in the optimization window 
-        (optim_window_time // sample_time_mod)
-        - If mode is evaluation, n_evals_mod should be the number of model evaluations in one optimization step 
-        (sample_time_opt // sample_time_mod)
-        - Though an arbitrary number of evaluations can be performed, make sure that `n_evals_mod` is lower or equal 
-        to the number of elements in the decision vector and environment variables.
-    """
-    # if mode == "optimization":
-    #     assert model_dec_var_ids is not None, "`model_dec_var_ids` is required if `mode` is set to 'optimization'"
-    
-    # if df_mod is None and mode == "evaluation":
-    #     df_mod = model.to_dataframe()
-        
-    if mode == "optimization":
-        fitness: np.ndarray[float] = np.zeros((n_evals_mod, ))
-        if model_dec_var_ids is not None:
-            ics: np.ndarray[float] = np.zeros((n_evals_mod, len(model_dec_var_ids)))
-        else:
-            ics = None
-    
-    # dec_var_ids = list(asdict(dec_vars).keys())
-    for step_idx in range(n_evals_mod):
-        dv: DecisionVariables = dec_vars.dump_at_index(step_idx)
-        ev: EnvironmentVariables = env_vars.dump_at_index(step_idx)
-        
-        # print(f"{dv.med_vac_state=}")
-        
-        # Get the MED FSM inputs for the current MED mode and state
-        med_fsm_inputs: MedFsmInputs = med_fsm_inputs_table[ (MedMode(dv.med_mode), model.med_state) ]
-        sfts_fsm_inputs: SfTsFsmInputs = sfts_fsm_inputs_table[ (SfTsMode(dv.sfts_mode), model.sf_ts_state) ]
-        
-        # TODO: Add here some low-level control/validation
-        # - qts_src should be zero if Tsf_out is below Tts_c_b? Tts_h_t? Which temperature should be the threshold?
-        
-        model.step(
-            # Decision variables
-            ## Thermal storage
-            qts_src = dv.qts_src * sfts_fsm_inputs.ts_active,
-            
-            ## Solar field
-            qsf = dv.qsf * sfts_fsm_inputs.sf_active,
-            
-            ## MED
-            qmed_s = dv.qmed_s * med_fsm_inputs.med_active,
-            qmed_f = dv.qmed_f * med_fsm_inputs.med_active,
-            Tmed_s_in = dv.Tmed_s_in,
-            Tmed_c_out = dv.Tmed_c_out,
-            med_vacuum_state = med_fsm_inputs.med_vacuum_state,
-            
-            ## Environment
-            I=ev.I,
-            Tamb=ev.Tamb,
-            Tmed_c_in=ev.Tmed_c_in,
-            wmed_f=ev.wmed_f if ev.wmed_f is not None else None,
-            
-            # Additional parameters
-            compute_fitness=True if mode == "evaluation" else False
-        )
-        
-        if mode == "optimization":
-            # Inequality contraints, decision variables should be the same after model evaluation: |dec_vars-dec_vars_model| < tol
-            # TODO: Fix this after change of Med decision variable to an indirect one
-            # ics[step_idx, :] = None
-            # ics[step_idx, :] = compute_dec_var_differences(dec_vars=asdict(dv), 
-            #                                                model_dec_vars=model.model_dump(include=model_dec_var_ids),
-            #                                                model_dec_var_ids=model_dec_var_ids)
-            fitness[step_idx] = model.evaluate_fitness_function(
-                cost_e=ev.cost_e,
-                cost_w=ev.cost_w,
-                objective_type='minimize'
-            )
-        if mode == "evaluation":
-            df_mod = model.to_dataframe(df_mod, )
-                
-    if mode == "optimization":
-        return np.sum(fitness), ics.mean(axis=0) if ics is not None else None
-    elif mode == "evaluation":
-        if df_start_idx is not None:
-            df_mod.index = pd.RangeIndex(start=df_start_idx, stop=len(df_mod)+df_start_idx)
-        return df_mod#, ics # ic temporary to validate
-    else:
-        raise ValueError(f"Invalid mode: {mode}")
-    
-    
 def add_bounds_to_dataframe(df: pd.DataFrame, problem, target: Literal['optim_step', 'optim_window'], df_idx: int = 0) -> pd.DataFrame:
                             #target_size: int, source_size: int = None, 
     

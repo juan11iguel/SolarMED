@@ -5,12 +5,10 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from loguru import logger
-from iapws import IAPWS97 as w_props
 import pygmo as pg
 
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import SolarMedState
-from solarmed_modeling.thermal_storage import thermal_storage_two_tanks_model
 
 from solarmed_optimization import (RealDecVarsBoxBounds, 
                                    DecisionVariablesUpdates,
@@ -21,8 +19,9 @@ from solarmed_optimization import (RealDecVarsBoxBounds,
                                    RealDecisionVariablesUpdatePeriod,
                                    RealDecisionVariablesUpdateTimes,
                                    RealLogicalDecVarDependence)
-from solarmed_optimization.utils import evaluate_model, resample_timeseries_range_and_fill
-from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
+from solarmed_optimization.utils.evaluation import evaluate_model_multi_day
+# from solarmed_optimization.utils.evaluation import evaluate_idle_thermal_storage
+# from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
 
 def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod, 
                                  int_dec_vars_list: list[IntegerDecisionVariables]) -> RealDecisionVariablesUpdateTimes:
@@ -97,69 +96,6 @@ def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariab
 		real_dec_var_times.append(RealDecisionVariablesUpdateTimes(**temp_dict))
 
 	return real_dec_var_times
-
-def evaluate_idle_thermal_storage(Tamb: pd.Series, dt_span: tuple[datetime, datetime], model: SolarMED,
-                                  sample_time: int = 3600, ) -> tuple[np.ndarray[float], np.ndarray[float]]:
-    """Evaluate the thermal storage when the only factor are the thermal losses
-    to the environment (idle operation). This function evaluates the thermal 
-    storage with the given sample time, but only returns the temperature profile
-    at the last step.
-
-    Args:
-        sample_time (int): Time precision of the steps to evaluate
-        Tamb (pd.Series): Ambient temperature
-        dt_span (tuple[datetime, datetime]): Start and end datetimes to evaluate
-        model (_type_, optional): Complete system model instance, used to extract
-        initial temperatures and model parameters.
-
-    Returns:
-        tuple[np.ndarray[float], np.ndarray[float]]: Final temperature profile for the
-        hot and cold tanks.
-    """
-    
-    Tamb = resample_timeseries_range_and_fill(Tamb, sample_time=sample_time, dt_span=dt_span)
-    elapsed_time_sec = (dt_span[1] - dt_span[0]).total_seconds()
-    
-    N = int( elapsed_time_sec // sample_time )
-    Tts_h = model.Tts_h
-    Tts_c = model.Tts_c
-    
-    wprops = (w_props(P=1.5, T=Tts_h[1]+273.15), 
-              w_props(P=1.5, T=Tts_c[1]+273.15))
-
-    for idx in range(N):
-        
-        Tts_h, Tts_c = thermal_storage_two_tanks_model(
-            Ti_ant_h=Tts_h, Ti_ant_c=Tts_c,  # [ºC], [ºC]
-            Tt_in=0,  # ºC
-            Tb_in=0,  # ºC
-            Tamb=Tamb.iloc[idx],  # ºC
-
-            qsrc=0,  # m³/h
-            qdis=0,  # m³/h
-
-            model_params=model.model_params.ts,
-            water_props=wprops,
-            sample_time=sample_time, 
-        )
-        
-    remaining_time = elapsed_time_sec - N * sample_time
-    if remaining_time <= 0:
-        return Tts_h, Tts_c
-    else:
-        return thermal_storage_two_tanks_model(
-            Ti_ant_h=Tts_h, Ti_ant_c=Tts_c,  # [ºC], [ºC]
-            Tt_in=0,  # ºC
-            Tb_in=0,  # ºC
-            Tamb=Tamb.iloc[-1],  # ºC
-
-            qsrc=0,  # m³/h
-            qdis=0,  # m³/h
-
-            model_params=model.model_params.ts,
-            water_props=wprops,
-            sample_time=remaining_time,
-        )
 
 # class NlpProblem
 class Problem:
@@ -318,65 +254,30 @@ class Problem:
             
 		# Model initialization logic after external evaluation of thermal storage
 		model: SolarMED = SolarMED(**self.model_dict)
-		operation_end0: datetime = self.episode_range[0]
-		fitness_total = 0
-  
+
 		# Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
 		x[np.abs(x) < 1e-6] = 0
 
 		# Convert complete decision (whole episode) vector to decision variables with model sample time
 		dec_vars_episode: DecisionVariables = self.decision_vector_to_decision_variables(x=x)
 
-		n_days = (self.episode_range[-1] - self.episode_range[0]).days
-		for day_idx in range(n_days+1):
-		# day_idx = 0
-			day = self.episode_range[0].day + day_idx    
-			# Compute operation start and end datetimes for the current day
-			daily_data = []
-			for var_id in self.dec_var_int_ids:
-				var_values = getattr(dec_vars_episode, var_id)
-				daily_data.append(
-					var_values[(var_values.index.day >= day) & (var_values.index.day < day+1)]
-				)
-			operation_start, operation_end = get_start_and_end_datetimes(series=daily_data)
-
-			if debug_mode:
-				logger.info(f"{day_idx=} | {operation_start=}, {operation_end=}")
-   
-			# Evaluate thermal storage until start of operation
-			if debug_mode:
-				logger.info(f"{day_idx=} | Before idle evaluation: {model.Tts_h=}, {model.Tts_c=}")
-			Tts_h, Tts_c = evaluate_idle_thermal_storage( 
-				sample_time=self.sample_time_ts,
-				Tamb=self.env_vars.Tamb,
-				dt_span=(operation_end0, operation_start),
-				model=model
-			)
-			if debug_mode:
-				logger.info(f"{day_idx=} | After idle evaluation: {Tts_h=}, {Tts_c=}")
-			model.Tts_h = Tts_h
-			model.Tts_c = Tts_c
-  
-			# Evaluate fitness for the current day
-			dec_vars = dec_vars_episode.dump_in_span(span=(operation_start, operation_end), return_format= "values")
-			# The model instance is updated within the evaluate_model function
-			fitness, _ = evaluate_model(model = model, 
-										n_evals_mod = len(dec_vars.qmed_f),
-										mode = "optimization",
-										dec_vars = dec_vars, 
-										env_vars = self.env_vars)
-			fitness_total += fitness
-			operation_end0 = operation_end
-			
-			if debug_mode:
-				logger.info(f"{day_idx=} | {fitness=}, {fitness_total=}")
+		fitness_total = evaluate_model_multi_day(
+			model=model,
+			dec_vars=dec_vars_episode,
+			env_vars=self.env_vars,
+			n_evals_mod=len(dec_vars_episode.qmed_f),
+			evaluation_range=self.episode_range,
+			mode="optimization",
+			dec_var_int_ids=self.dec_var_int_ids,
+			sample_time_ts=self.sample_time_ts
+		)
     
 		# Store decision vector and fitness value
 		if store_x:
 			self.x_evaluated.append(x.tolist())
 			self.fitness_history.append(fitness_total)
   
-		print(f"Evaluation {len(self.fitness_history)} | {fitness_total=}")
+		print(f"Evaluation {len(self.fitness_history)} | {fitness_total=}, qsf={np.unique(self.decision_vector_to_decision_variables(x=x, resample=False).qsf)}")
   
 		return [fitness_total]
 
