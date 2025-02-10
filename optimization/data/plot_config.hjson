@@ -150,7 +150,7 @@
       
 
           {
-            var_id: "benefit",
+            var_id: "net_profit",
             name: "B (u.m.)",
             mode: "lines",
             color: "dc_green", # gray
@@ -382,11 +382,11 @@
           color: "plotly_blue",
           width: 3,
         },
-        {
-          "var_id": "qts_dis_original",
-          "name": "q<sub>ts,dis,measured</sub>",
-          "color": "plotly_blue", "width": 1.5, "dash": "dash"
-        },
+        // {
+        //   "var_id": "qts_dis_original",
+        //   "name": "q<sub>ts,dis,measured</sub>",
+        //   "color": "plotly_blue", "width": 1.5, "dash": "dash"
+        // },
         {
           var_id: "qts_src", //"qts_src",
           name: "q<sub>ts,src</sub>"
@@ -394,11 +394,11 @@
           color: "plotly_red",
           width: 3,
         },
-        {
-          "var_id": "qts_src_original", #"qts_src",
-          "name": "q<sub>ts,src,measured</sub>",
-          "color": "plotly_red", "dash": "dash", "width": 1.5,
-        },
+        // {
+        //   "var_id": "qts_src_original", #"qts_src",
+        //   "name": "q<sub>ts,src,measured</sub>",
+        //   "color": "plotly_red", "dash": "dash", "width": 1.5,
+        // },
       ],
 
       // traces_right: [
@@ -693,9 +693,9 @@
       ],
 
       // Added pressure for reference during vacuum generation
-      "ylabels_right": ["mbar"],
-      "ylims_right": "manual",
-      "traces_right": [ {"var_id": "Pmed_c"}, {"var_id": "Pmed_14"} ]
+      // "ylabels_right": ["mbar"],
+      // "ylims_right": "manual",
+      // "traces_right": [ {"var_id": "Pmed_c"}, {"var_id": "Pmed_14"} ]
     },
 
     // power_balance: {

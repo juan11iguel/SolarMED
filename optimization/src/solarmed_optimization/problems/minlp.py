@@ -12,6 +12,7 @@ from solarmed_modeling.fsms import SolarMedState
 from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
 from solarmed_modeling.fsms.sfts import FsmInputs as SfTsFsmInputs
 
+from solarmed_optimization.problems import BaseMinlpProblem
 from solarmed_optimization import (EnvironmentVariables,
                                    DecisionVariables,
                                    DecisionVariablesUpdates,
@@ -32,7 +33,7 @@ from solarmed_optimization.utils.evaluation import evaluate_model
 np.set_printoptions(precision=1, suppress=True)
 
 @dataclass
-class BaseProblem:
+class BaseProblem(BaseMinlpProblem):
     """
     x: decision vector.
     - shape: ( n inputs x n horizon )
@@ -84,7 +85,7 @@ class BaseProblem:
                  fsm_valid_sequences: dict[ str, list[list] ],
                  fsm_data_path: Path = Path("../results"),
                  use_inequality_contraints: bool = True
-                ):
+                ) -> None:
 
         self.optim_window_size = optim_window_time
         self.dec_var_updates = dec_var_updates

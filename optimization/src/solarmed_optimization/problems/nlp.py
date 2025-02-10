@@ -10,6 +10,7 @@ import pygmo as pg
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import SolarMedState
 
+from solarmed_optimization.problems import BaseNlpProblem
 from solarmed_optimization import (RealDecVarsBoxBounds, 
                                    DecisionVariablesUpdates,
                                    EnvironmentVariables,
@@ -97,8 +98,8 @@ def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariab
 
 	return real_dec_var_times
 
-# class NlpProblem
-class Problem:
+
+class Problem(BaseNlpProblem):
 	sample_time_mod: int # Model sample time
 	sample_time_ts: int  # Thermal storage sample time
 	env_vars: EnvironmentVariables # Environment variables
@@ -132,6 +133,7 @@ class Problem:
 		self.env_vars = env_vars.resample(f"{self.sample_time_mod}s", origin="start")
 		self.initial_values = initial_dec_vars_values
 		self.real_dec_vars_update_period = real_dec_vars_update_period
+		self.int_dec_vars_pre_resample= IntegerDecisionVariables(**asdict(int_dec_vars))
 
 		self.episode_range = env_vars.I.index[0], env_vars.I.index[-1]
 		self.dec_var_ids, self.dec_var_dtypes = zip(*[(field.name, get_args(field.type)[0]) for field in fields(DecisionVariables)])
@@ -176,10 +178,10 @@ class Problem:
 		for int_dec_var_id, int_dec_var_values in asdict(int_dec_vars).items():
 			# from env_vars.index[0] to int_dec_var.index[0] -> some initial provided value
 			int_dec_var_values = pd.concat([
-        			pd.Series(index=[self.episode_range[0]], 
-                     		  data=[getattr(initial_dec_vars_values, int_dec_var_id)]), 
-           			int_dec_var_values
-              	])
+				pd.Series(index=[self.episode_range[0]], 
+						  data=[getattr(initial_dec_vars_values, int_dec_var_id)]), 
+				int_dec_var_values
+			])
 			# From int_dec_var.index[-1] to env_vars.index[-1] the last value is kept
 			# Actually, we don't keep simulating after the last integer decision variable value is set to zero
    			# setattr(
@@ -197,9 +199,6 @@ class Problem:
 				int_dec_var_values.resample(f"{self.sample_time_mod}s").ffill()
 			)
 		self.int_dec_vars = int_dec_vars
-
-	def get_bounds(self, ) -> tuple[np.ndarray, np.ndarray]:
-		return np.concatenate(self.box_bounds_lower), np.concatenate(self.box_bounds_upper)
 
 	def __post_init__(self, ) -> None:
 		logger.info(f"""{self.get_name()} initialized.
@@ -237,18 +236,35 @@ class Problem:
 		for var_id in self.dec_var_real_ids:
 			num_updates = getattr(self.dec_var_updates, var_id)
 			dec_var_times = getattr(self.real_dec_vars_times, var_id)
+			
 			# from env_vars.index[0] to real_dec_var_time.index[0] -> some initial provided value
 			data = np.insert(x[cnt:cnt+num_updates], 0, getattr(self.initial_values, var_id))
+			data = np.append(data, data[-1]) # Keep the last value until the end of the episode
+			
 			index = np.insert(dec_var_times, 0, self.episode_range[0])
+			index = np.append(index, self.episode_range[-1])
 			decision_dict[var_id] = pd.Series(data=data, index=index)
+
 			if resample:
 				decision_dict[var_id] = decision_dict[var_id].resample(f"{self.sample_time_mod}s", origin="start").ffill()
+    
 			cnt += num_updates
 			
+		int_dec_var_index = list(asdict(self.int_dec_vars).values())[0].index # precioso
+		assert int_dec_var_index[0] == self.episode_range[0], \
+			f"Initial integer decision variable time should be the same as the episode start: {int_dec_var_index[0]=}, {self.episode_range[0]=}"
+		# assert int_dec_var_index[-1] >= self.episode_range[-1] - pd.Timedelta(seconds=self.sample_time_mod), \
+		# 	f"Last integer decision variable time should span until the episode end: {int_dec_var_index[-1]=}, {self.episode_range[-1]=}"
+   
+	
+   
 		return DecisionVariables(
 			**decision_dict,
 			**asdict(self.int_dec_vars)
 		)
+  
+	def get_bounds(self, ) -> tuple[np.ndarray, np.ndarray]:
+		return np.concatenate(self.box_bounds_lower), np.concatenate(self.box_bounds_upper)
 		
 	def fitness(self, x: np.ndarray[float],  store_x: bool = True, debug_mode: bool = False) -> list[float]:
             
@@ -265,11 +281,11 @@ class Problem:
 			model=model,
 			dec_vars=dec_vars_episode,
 			env_vars=self.env_vars,
-			n_evals_mod=len(dec_vars_episode.qmed_f),
 			evaluation_range=self.episode_range,
 			mode="optimization",
 			dec_var_int_ids=self.dec_var_int_ids,
-			sample_time_ts=self.sample_time_ts
+			sample_time_ts=self.sample_time_ts,
+   			debug_mode=debug_mode
 		)
     
 		# Store decision vector and fitness value
@@ -281,7 +297,7 @@ class Problem:
   
 		return [fitness_total]
 
-	def gradient(self, x):
+	def gradient(self, x) -> np.ndarray:
 		return pg.estimate_gradient(lambda x: self.fitness(x), x)
 
 
@@ -297,21 +313,36 @@ def generate_bounds(problem_instance: Problem, int_dec_vars: IntegerDecisionVari
 			lower_limit = getattr(problem_instance.real_dec_vars_box_bounds, var_id)[0],
 			upper_limit = getattr(problem_instance.real_dec_vars_box_bounds, var_id)[1],
 			update_period = getattr(problem_instance.real_dec_vars_update_period, var_id) # seconds
+			update_times_index = pd.DatetimeIndex(getattr(problem_instance.real_dec_vars_times, var_id))
 			
 			# Get integer decision variable values
 			int_var_id = RealLogicalDecVarDependence[var_id].value
    			# Either zeros or ones, otherwise some logic should be included to translate the values
 			int_var_values: pd.Series = getattr(int_dec_vars, int_var_id)
-			# Resample integer decision variable to real decision variable sample time
-			aux_logical_var_values = (
-       			int_var_values
-          		.resample(f"{update_period}s", origin=int_var_values.index[0])
-            	.ffill()
-             	# .bfill()
-             	.values
-			)
+   
+			lb_ = []
+			ub_ = []
+			for day in int_var_values.index.normalize().unique(): # For each day
+				# Get the range for the current day
+				op_start = update_times_index[update_times_index.normalize() == day][0]
+				op_end = update_times_index[update_times_index.normalize() == day][-1]				
+				
+    			# Resample integer decision variable to real decision variable sample time
+				int_var_day_data_resampled = (
+					int_var_values
+					.resample(f"{update_period}s", origin=op_start)
+					.ffill()
+					# .bfill()
+				)
+				# Filter data for the current operation day
+				aux_logical_var_values = int_var_day_data_resampled[
+					(int_var_day_data_resampled.index >= op_start) & 
+					(int_var_day_data_resampled.index <= op_end)
+				].values
+				lb_.extend(lower_limit * aux_logical_var_values)
+				ub_.extend(upper_limit * aux_logical_var_values)
 
-			lb[var_idx] = lower_limit * aux_logical_var_values
-			ub[var_idx] = upper_limit * aux_logical_var_values
+			lb[var_idx] = np.array(lb_)
+			ub[var_idx] = np.array(ub_)
    
 		return lb, ub

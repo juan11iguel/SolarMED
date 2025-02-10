@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from datetime import datetime
 from typing import Literal
 from iapws import IAPWS97 as w_props
@@ -16,8 +17,7 @@ from solarmed_optimization.utils import (decision_vector_to_decision_variables,
                                          add_bounds_to_dataframe,
                                          add_dec_vars_to_dataframe, resample_timeseries_range_and_fill)
 from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
-from solarmed_optimization.problems.minlp import BaseProblem as MinlpBaseProblem
-from solarmed_optimization.problems.nlp import Problem as NlpProblem
+from solarmed_optimization.problems import BaseNlpProblem, BaseMinlpProblem
 
 
 def evaluate_idle_thermal_storage(Tamb: pd.Series, dt_span: tuple[datetime, datetime], model: SolarMED,
@@ -130,7 +130,8 @@ def evaluate_model(model: SolarMED,
 
         # TODO: Add here some low-level control/validation
         # - qts_src should be zero if Tsf_out is below Tts_c_b? Tts_h_t? Which temperature should be the threshold?
-        if model.Tsf_out < model.Tts_h_m:
+        Tsf_out = model.Tsf_out if model.Tsf_out is not None else 0
+        if Tsf_out < model.Tts_h[1]:
             dv.qts_src = 0.0
 
         model.step(
@@ -184,13 +185,10 @@ def evaluate_model(model: SolarMED,
 def evaluate_model_multi_day(model: SolarMED,
                              dec_vars: DecisionVariables,
                              env_vars: EnvironmentVariables,
-                             n_evals_mod: int,
                              evaluation_range: tuple[datetime, datetime],
                              mode: Literal["optimization", "evaluation"] = "optimization",
                              dec_var_int_ids: list[str] = None,
                              sample_time_ts: int = None,
-                             df_mod: pd.DataFrame = None,
-                             df_start_idx: int = None,
                              debug_mode: bool = False) -> pd.DataFrame | float:
     # TODO: Tener a esta función llamando a evaluate_model es un poco chapuza, 
     # la idea sería modificar evaluate_model para que sea válida tanto como para 
@@ -199,10 +197,14 @@ def evaluate_model_multi_day(model: SolarMED,
     operation_end0: datetime = evaluation_range[0]
     fitness_total = 0
     n_days = (evaluation_range[1] - evaluation_range[0]).days +1
+    df_mod = None
+    if mode == "evaluation":
+        df_columns = model.to_dataframe().columns
     
+    env_vars_index = list(asdict(env_vars).values())[0].index
     for day_idx in range(n_days):
 		# day_idx = 0
-        day = env_vars.Tamb.index[0].day + day_idx
+        day = env_vars_index[0].day + day_idx
         # Compute operation start and end datetimes for the current day using integer decision variables
         daily_data = []
         for var_id in dec_var_int_ids:
@@ -211,11 +213,13 @@ def evaluate_model_multi_day(model: SolarMED,
                 var_values[(var_values.index.day >= day) & (var_values.index.day < day+1)]
             )
         operation_start, operation_end = get_start_and_end_datetimes(series=daily_data)
-
+        
         if debug_mode:
             logger.info(f"{day_idx=} | {operation_start=}, {operation_end=}")
 
         # Evaluate thermal storage until start of operation
+        Tts_h0 = model.Tts_h
+        Tts_c0 = model.Tts_c
         if debug_mode:
             logger.info(f"{day_idx=} | Before idle evaluation: {model.Tts_h=}, {model.Tts_c=}")
         Tts_h, Tts_c = evaluate_idle_thermal_storage( 
@@ -224,23 +228,36 @@ def evaluate_model_multi_day(model: SolarMED,
             dt_span=(operation_end0, operation_start),
             model=model
         )
+        if mode == "evaluation":
+            # Prepend data prior to operation start using nans and environment variables
+            # Absolutamente terrible
+            data = {
+                **asdict(env_vars), 
+                **{name: pd.Series(data=[val], index=[operation_end0], name=name) 
+                    for name, val in zip(["Tts_h_t", "Tts_h_m", "Tts_h_b", "Tts_c_t", "Tts_c_m", "Tts_c_b"], [*Tts_h0, *Tts_c0])}
+            }
+            df = pd.DataFrame(data, index=[operation_end0], columns=df_columns)
+            if df_mod is None:
+                df_mod = df
+            else:
+                df_mod = pd.concat([df_mod, df])
+        
         if debug_mode:
             logger.info(f"{day_idx=} | After idle evaluation: {Tts_h=}, {Tts_c=}")
         model.Tts_h = Tts_h
         model.Tts_c = Tts_c
 
         # Evaluate fitness for the current day
-        dec_vars_day = dec_vars.dump_in_span(span=(operation_start, operation_end), return_format= "values")
+        dec_vars_day = dec_vars.dump_in_span(span=(operation_start, operation_end), return_format="values")
+        env_vars_day = env_vars.dump_in_span(span=(operation_start, operation_end), return_format="series")
+        env_vars_day_index = list(asdict(env_vars_day).values())[0].index
         # The model instance is updated within the evaluate_model function
         outputs = evaluate_model(model=model,
                                  dec_vars=dec_vars_day,
-                                 env_vars=env_vars,
-                                 n_evals_mod=n_evals_mod,
-                                 mode=mode,
-                                 df_mod=df_mod,
-                                 df_start_idx=df_start_idx)
+                                 env_vars=env_vars_day,
+                                 n_evals_mod=env_vars_day_index.shape[0],
+                                 mode=mode)
         
-        operation_end0 = operation_end
         if mode == "optimization":
             fitness = outputs[0]
             fitness_total += fitness
@@ -248,7 +265,20 @@ def evaluate_model_multi_day(model: SolarMED,
             if debug_mode:
                 logger.info(f"{day_idx=} | {fitness=}, {fitness_total=}")        
         elif mode == "evaluation":
-            df_mod = outputs
+            # Concatenate active operation for current day to previous data
+            # Also regularize the index
+            df_mod = pd.concat([
+                df_mod, 
+                outputs.set_index(
+                    env_vars_day_index
+                    # pd.date_range(
+                    # start=operation_start, 
+                    # end=operation_end - env_vars_index.freq, 
+                    # freq=env_vars_index.freq, )
+                )
+            ]).resample(env_vars_index.freq, origin="start").ffill()
+        
+        operation_end0 = operation_end
     
     if mode == "optimization":
         return fitness_total
@@ -257,7 +287,7 @@ def evaluate_model_multi_day(model: SolarMED,
 
 
 def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int]], 
-                          env_vars: EnvironmentVariables, problem: MinlpBaseProblem,
+                          env_vars: EnvironmentVariables, problem: BaseMinlpProblem,
                           model: SolarMED, problem_data: ProblemData, idx_mod: int, 
                           best_idx: int = 0,) -> tuple[pd.DataFrame, pd.DataFrame, SolarMED]:
     
@@ -315,8 +345,8 @@ def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int
     return df_hor, df_sim, model # model is already updated, but return it anyway
 
 
-def evaluate_optimization_nlp(x: np.ndarray[float], env_vars: EnvironmentVariables, 
-                              problem: NlpProblem, model: SolarMED) -> pd.DataFrame:
+def evaluate_optimization_nlp(x: np.ndarray[float], # env_vars: EnvironmentVariables, 
+                              problem: BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
     
     # Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
     x[np.abs(x) < 1e-6] = 0
@@ -325,8 +355,7 @@ def evaluate_optimization_nlp(x: np.ndarray[float], env_vars: EnvironmentVariabl
     df_hor =  evaluate_model_multi_day(
         model=model,
         dec_vars=dec_vars,
-        env_vars=env_vars,
-        n_evals_mod=len(dec_vars.qmed_f),
+        env_vars=problem.env_vars,
         evaluation_range=problem.episode_range,
         mode="evaluation",
         dec_var_int_ids=problem.dec_var_int_ids,
@@ -334,5 +363,8 @@ def evaluate_optimization_nlp(x: np.ndarray[float], env_vars: EnvironmentVariabl
         
     )
     df_hor = add_dec_vars_to_dataframe(df_hor, dec_vars, df_idx=df_hor.index[0])
+    
+    # Change index
+    # df_hor.index = list(asdict(dec_vars).values())[0].index
     
     return df_hor

@@ -357,7 +357,11 @@ def add_bounds_to_dataframe(df: pd.DataFrame, problem, target: Literal['optim_st
 def add_dec_vars_to_dataframe(df: pd.DataFrame, dec_vars: DecisionVariables, df_idx: int = 0) -> pd.DataFrame:
 
     for var_id, var_values in asdict(dec_vars).items():
-        df.loc[df_idx:df_idx+len(var_values), f"dec_var_{var_id}"] = var_values
+        if isinstance(var_values, pd.Series):
+            # Ideally var_values should already be compatible with dataframe, not having to trim it here with [0:len(df)]
+            df.loc[var_values.index[0:len(df)], f"dec_var_{var_id}"] = var_values.values[0:len(df)]
+        else:
+            df.loc[df_idx:df_idx+len(var_values), f"dec_var_{var_id}"] = var_values
         
     return df
 

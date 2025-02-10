@@ -79,6 +79,45 @@ class SubsystemDecVarId(Enum):
     SFTS = SfTsMode
     MED = MedMode
 
+
+def dump_in_span(vars_dict: dict, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> dict:
+        """
+        Dump variables within a given span.
+        
+        Args:
+            vars_dict: A dictionary containing the variables to dump.
+            span: A tuple representing the range (indices or datetimes).
+            return_format: Format of the returned values ("values" or "series").
+        
+        Returns:
+            A new dictionary containing the filtered data.
+        """
+        if isinstance(span[0], datetime):
+            # Ensure all attributes are pd.Series for datetime filtering
+            for name, value in vars_dict.items():
+                if not isinstance(value, pd.Series) and value is not None:
+                    raise TypeError(f"All attributes must be pd.Series for datetime indexing: {name} is {type(value)}")
+            
+            # Extract the range
+            dt_start, dt_end = span
+            span_vars_dict = {
+                name: value[(value.index >= dt_start) & (value.index < dt_end)]
+                for name, value in vars_dict.items() if value is not None
+            }
+        else:
+            # Assume numeric indices
+            idx_start, idx_end = span
+            span_vars_dict = {
+                name: value[idx_start:idx_end]
+                if isinstance(value, (pd.Series, np.ndarray)) else value
+                for name, value in vars_dict.items()
+            }
+
+        if return_format == "values":
+            span_vars_dict = {name: value.values if isinstance(value, pd.Series) else value for name, value in span_vars_dict.items()}
+
+        return span_vars_dict
+    
 @dataclass
 class EnvironmentVariables:
     """
@@ -117,6 +156,12 @@ class EnvironmentVariables:
         dump =  {name: np.asarray(value)[idx] for name, value in asdict(self).items() if value is not None}
         
         return dump if return_dict else EnvironmentVariables(**dump)
+    
+    def dump_in_span(self, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> 'EnvironmentVariables':
+        """ Dump environment variables within a given span """
+        
+        vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
+        return EnvironmentVariables(**vars_dict)
     
     def resample(self, *args, **kwargs) -> "EnvironmentVariables":
         """ Return a new resampled environment variables instance """
@@ -186,44 +231,12 @@ class DecisionVariables:
         dump =  {name: np.asarray(value)[idx] for name, value in asdict(self).items() if value is not None}
         
         return dump if return_dict else DecisionVariables(**dump)
-        
     
     def dump_in_span(self, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> 'DecisionVariables':
-        """
-        Dump decision variables within a given span.
+        """ Dump decision variables within a given span """
         
-        Args:
-            span: A tuple representing the range (indices or datetimes).
-            return_format: Format of the returned values ("values" or "series").
-        
-        Returns:
-            A new instance of DecisionVariables containing the filtered data.
-        """
-        if isinstance(span[0], datetime):
-            # Ensure all attributes are pd.Series for datetime filtering
-            for value in asdict(self).values():
-                if not isinstance(value, pd.Series):
-                    raise TypeError("All attributes must be pd.Series for datetime indexing.")
-            
-            # Extract the range
-            dt_start, dt_end = span
-            dec_vars_dict = {
-                name: value[(value.index >= dt_start) & (value.index < dt_end)]
-                for name, value in asdict(self).items()
-            }
-        else:
-            # Assume numeric indices
-            idx_start, idx_end = span
-            dec_vars_dict = {
-                name: value[idx_start:idx_end]
-                if isinstance(value, (pd.Series, np.ndarray)) else value
-                for name, value in asdict(self).items()
-            }
-
-        if return_format == "values":
-            dec_vars_dict = {name: value.values if isinstance(value, pd.Series) else value for name, value in dec_vars_dict.items()}
-        
-        return DecisionVariables(**dec_vars_dict)
+        vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
+        return DecisionVariables(**vars_dict)
         
                 
 def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: bool = False) -> DecisionVariables | dict:
