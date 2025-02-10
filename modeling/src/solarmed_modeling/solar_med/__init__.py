@@ -1412,7 +1412,7 @@ class SolarMED(BaseModel):
         
         return self.net_loss
 
-    def to_dataframe(self, df=None, rename_flows: bool = False) -> pd.DataFrame:
+    def to_dataframe(self, df=None, rename_flows: bool = False, index: pd.DatetimeIndex | pd.Index = None) -> pd.DataFrame:
         """
         Take all fields that are of type `timeseries` (property `var_type`) and export them in a pandas dataframe
 
@@ -1437,7 +1437,7 @@ class SolarMED(BaseModel):
 
 
         # Create a dataframe from the dictionary
-        data = pd.DataFrame(self.model_dump(include=self.export_fields_df, by_alias=True), index=[0])
+        data = pd.DataFrame(self.model_dump(include=self.export_fields_df, by_alias=True), index=[0] if index is None else [index])
 
         # Add the thermal storage temperatures
         data["Tts_h_t"], data["Tts_h_m"], data["Tts_h_b"] = self.Tts_h
@@ -1459,8 +1459,7 @@ class SolarMED(BaseModel):
         if rename_flows:
             data.rename(columns=lambda x: re.sub('^m(?!ed)', 'q', x), inplace=True) # Peligroso
 
-        
-        return pd.concat([df, data], ignore_index=True) if df is not None else data
+        return pd.concat([df, data], ignore_index=True if index is None else False) if df is not None else data
 
     def model_dump_configuration(self) -> dict:
         """

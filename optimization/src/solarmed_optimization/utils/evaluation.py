@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+from solarmed_modeling.fsms import MedState
 from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
 from solarmed_modeling.fsms.sfts import FsmInputs as SfTsFsmInputs
 from solarmed_modeling.solar_med import SolarMED
@@ -20,68 +21,97 @@ from solarmed_optimization.utils.operation_plan import get_start_and_end_datetim
 from solarmed_optimization.problems import BaseNlpProblem, BaseMinlpProblem
 
 
-def evaluate_idle_thermal_storage(Tamb: pd.Series, dt_span: tuple[datetime, datetime], model: SolarMED,
-								  sample_time: int = 3600, ) -> tuple[np.ndarray[float], np.ndarray[float]]:
-	"""Evaluate the thermal storage when the only factor are the thermal losses
-	to the environment (idle operation). This function evaluates the thermal 
-	storage with the given sample time, but only returns the temperature profile
-	at the last step.
+def evaluate_idle_thermal_storage(env_vars: EnvironmentVariables, dt_span: tuple[datetime, datetime], model: SolarMED,
+								  sample_time: int = 3600, df: pd.DataFrame = None) -> tuple[np.ndarray[float], np.ndarray[float]]:
+    """Evaluate the thermal storage when the only factor are the thermal losses
+    to the environment (idle operation). This function evaluates the thermal 
+    storage with the given sample time, but only returns the temperature profile
+    at the last step.
 
-	Args:
-		sample_time (int): Time precision of the steps to evaluate
-		Tamb (pd.Series): Ambient temperature
-		dt_span (tuple[datetime, datetime]): Start and end datetimes to evaluate
-		model (_type_, optional): Complete system model instance, used to extract
-		initial temperatures and model parameters.
+    Args:
+        sample_time (int): Time precision of the steps to evaluate
+        Tamb (pd.Series): Ambient temperature
+        dt_span (tuple[datetime, datetime]): Start and end datetimes to evaluate
+        model (_type_, optional): Complete system model instance, used to extract
+        initial temperatures and model parameters.
 
-	Returns:
-		tuple[np.ndarray[float], np.ndarray[float]]: Final temperature profile for the
-		hot and cold tanks.
-	"""
+    Returns:
+        tuple[np.ndarray[float], np.ndarray[float]]: Final temperature profile for the
+        hot and cold tanks.
+    """
 
-	Tamb = resample_timeseries_range_and_fill(Tamb, sample_time=sample_time, dt_span=dt_span)
-	elapsed_time_sec = (dt_span[1] - dt_span[0]).total_seconds()
+    # Tamb = resample_timeseries_range_and_fill(Tamb, sample_time=sample_time, dt_span=dt_span)
+    env_vars = env_vars.resample(f"{sample_time}s", origin=dt_span[0]).dump_in_span(dt_span, return_format="series")
+    elapsed_time_sec = (dt_span[1] - dt_span[0]).total_seconds()
 
-	N = int( elapsed_time_sec // sample_time )
-	Tts_h = model.Tts_h
-	Tts_c = model.Tts_c
+    N = int( elapsed_time_sec // sample_time )
 
-	wprops = (w_props(P=1.5, T=Tts_h[1]+273.15),
-			  w_props(P=1.5, T=Tts_c[1]+273.15))
+    Tts_h = [model.Tts_h]
+    Tts_c = [model.Tts_c]
+    wprops = (w_props(P=1.5, T=Tts_h[-1][1]+273.15),
+              w_props(P=1.5, T=Tts_c[-1][1]+273.15))
 
-	for idx in range(N):
+    for idx in range(N):
 
-		Tts_h, Tts_c = thermal_storage_two_tanks_model(
-			Ti_ant_h=Tts_h, Ti_ant_c=Tts_c,  # [ºC], [ºC]
-			Tt_in=0,  # ºC
-			Tb_in=0,  # ºC
-			Tamb=Tamb.iloc[idx],  # ºC
+        Tts_h_, Tts_c_ = thermal_storage_two_tanks_model(
+            Ti_ant_h=Tts_h[-1], Ti_ant_c=Tts_c[-1],  # [ºC], [ºC]
+            Tt_in=0,  # ºC
+            Tb_in=0,  # ºC
+            Tamb=env_vars.Tamb.iloc[idx],  # ºC
 
-			qsrc=0,  # m³/h
-			qdis=0,  # m³/h
+            qsrc=0,  # m³/h
+            qdis=0,  # m³/h
 
-			model_params=model.model_params.ts,
-			water_props=wprops,
-			sample_time=sample_time,
-		)
+            model_params=model.model_params.ts,
+            water_props=wprops,
+            sample_time=sample_time,
+        )
+        Tts_h.append(Tts_h_)
+        Tts_c.append(Tts_c_)
 
-	remaining_time = elapsed_time_sec - N * sample_time
-	if remaining_time <= 0:
-		return Tts_h, Tts_c
-	else:
-		return thermal_storage_two_tanks_model(
-			Ti_ant_h=Tts_h, Ti_ant_c=Tts_c,  # [ºC], [ºC]
-			Tt_in=0,  # ºC
-			Tb_in=0,  # ºC
-			Tamb=Tamb.iloc[-1],  # ºC
+    remaining_time = elapsed_time_sec - N * sample_time
 
-			qsrc=0,  # m³/h
-			qdis=0,  # m³/h
+    if remaining_time > 0:
+        Tts_h_, Tts_c_ = thermal_storage_two_tanks_model(
+            Ti_ant_h=Tts_h[-1], Ti_ant_c=Tts_c[-1],  # [ºC], [ºC]
+            Tt_in=0,  # ºC
+            Tb_in=0,  # ºC
+            Tamb=env_vars.Tamb.iloc[-1],  # ºC
 
-			model_params=model.model_params.ts,
-			water_props=wprops,
-			sample_time=remaining_time,
-		)
+            qsrc=0,  # m³/h
+            qdis=0,  # m³/h
+
+            model_params=model.model_params.ts,
+            water_props=wprops,
+            sample_time=remaining_time,
+        )
+        Tts_h.append(Tts_h_)
+        Tts_c.append(Tts_c_)
+
+    if df is not None:
+        # Monstruoso
+        index = pd.date_range(start=dt_span[0], end=dt_span[1], freq=f"{sample_time}s")
+        if remaining_time > 0:
+            index = np.append(index, dt_span[1])
+        data = {
+                **asdict(env_vars), 
+                **{
+                    f"Tts_{key}_{pos}": list(val)
+                    for key, vals in zip(["h", "c"], [zip(*Tts_h), zip(*Tts_c)])  
+                    for pos, val in zip(["t", "m", "b"], vals)
+                }
+            }
+        df_ = pd.DataFrame(data, index=index, columns=df.columns)
+        # Remove the last row since it's added when evaluting the complete model
+        df_ = df_.iloc[:-1]
+        
+        if df.index[-1] == dt_span[0]:
+            # Replace initial dataframe
+            df = df_
+        else:
+            df = pd.concat([df, df_])
+            
+    return Tts_h[-1], Tts_c[-1], df
 
 def evaluate_model(model: SolarMED,
                    dec_vars: DecisionVariables,
@@ -118,6 +148,7 @@ def evaluate_model(model: SolarMED,
             ics = None
 
     # dec_var_ids = list(asdict(dec_vars).keys())
+    current_state = model.current_state
     for step_idx in range(n_evals_mod):
         dv: DecisionVariables = dec_vars.dump_at_index(step_idx)
         ev: EnvironmentVariables = env_vars.dump_at_index(step_idx)
@@ -158,6 +189,11 @@ def evaluate_model(model: SolarMED,
             # Additional parameters
             compute_fitness=True if mode == "evaluation" else False
         )
+        
+        # print(f"{model.current_state=}")
+        if model.current_state != current_state:
+            print(f"{env_vars.Tamb.index[step_idx]} | {model.current_state=}")
+            current_state = model.current_state
 
         if mode == "optimization":
             # Inequality contraints, decision variables should be the same after model evaluation: |dec_vars-dec_vars_model| < tol
@@ -194,18 +230,23 @@ def evaluate_model_multi_day(model: SolarMED,
     # la idea sería modificar evaluate_model para que sea válida tanto como para 
     # días individuales como para múltiples días
     
+    # TODO: evaluation_range debería poder tener un número de pares de fechas arbitrario
+    # Cuando en un mismo día haya múltiples parejas, la primera marca temporal es el arranque
+    # la última la parada, y las intermedias son suspensiones / reinicios de la MED 
+    
     operation_end0: datetime = evaluation_range[0]
     fitness_total = 0
     n_days = (evaluation_range[1] - evaluation_range[0]).days +1
+    env_vars_index = list(asdict(env_vars).values())[0].index
     df_mod = None
     if mode == "evaluation":
-        df_columns = model.to_dataframe().columns
+        df_mod = model.to_dataframe()
+        df_mod.index = [operation_end0]
     
-    env_vars_index = list(asdict(env_vars).values())[0].index
     for day_idx in range(n_days):
+        # Compute operation start and end datetimes for the current day using integer decision variables
 		# day_idx = 0
         day = env_vars_index[0].day + day_idx
-        # Compute operation start and end datetimes for the current day using integer decision variables
         daily_data = []
         for var_id in dec_var_int_ids:
             var_values = getattr(dec_vars, var_id)
@@ -213,35 +254,19 @@ def evaluate_model_multi_day(model: SolarMED,
                 var_values[(var_values.index.day >= day) & (var_values.index.day < day+1)]
             )
         operation_start, operation_end = get_start_and_end_datetimes(series=daily_data)
-        
         if debug_mode:
             logger.info(f"{day_idx=} | {operation_start=}, {operation_end=}")
 
         # Evaluate thermal storage until start of operation
-        Tts_h0 = model.Tts_h
-        Tts_c0 = model.Tts_c
         if debug_mode:
             logger.info(f"{day_idx=} | Before idle evaluation: {model.Tts_h=}, {model.Tts_c=}")
-        Tts_h, Tts_c = evaluate_idle_thermal_storage( 
+        Tts_h, Tts_c, df_mod = evaluate_idle_thermal_storage( 
             sample_time=sample_time_ts,
-            Tamb=env_vars.Tamb,
+            env_vars=env_vars,
             dt_span=(operation_end0, operation_start),
-            model=model
+            model=model,
+            df=df_mod if mode == "evaluation" else None,
         )
-        if mode == "evaluation":
-            # Prepend data prior to operation start using nans and environment variables
-            # Absolutamente terrible
-            data = {
-                **asdict(env_vars), 
-                **{name: pd.Series(data=[val], index=[operation_end0], name=name) 
-                    for name, val in zip(["Tts_h_t", "Tts_h_m", "Tts_h_b", "Tts_c_t", "Tts_c_m", "Tts_c_b"], [*Tts_h0, *Tts_c0])}
-            }
-            df = pd.DataFrame(data, index=[operation_end0], columns=df_columns)
-            if df_mod is None:
-                df_mod = df
-            else:
-                df_mod = pd.concat([df_mod, df])
-        
         if debug_mode:
             logger.info(f"{day_idx=} | After idle evaluation: {Tts_h=}, {Tts_c=}")
         model.Tts_h = Tts_h
@@ -251,8 +276,7 @@ def evaluate_model_multi_day(model: SolarMED,
         dec_vars_day = dec_vars.dump_in_span(span=(operation_start, operation_end), return_format="values")
         env_vars_day = env_vars.dump_in_span(span=(operation_start, operation_end), return_format="series")
         env_vars_day_index = list(asdict(env_vars_day).values())[0].index
-        # The model instance is updated within the evaluate_model function
-        outputs = evaluate_model(model=model,
+        outputs = evaluate_model(model=model, # The model instance is updated within the evaluate_model function
                                  dec_vars=dec_vars_day,
                                  env_vars=env_vars_day,
                                  n_evals_mod=env_vars_day_index.shape[0],
@@ -269,16 +293,35 @@ def evaluate_model_multi_day(model: SolarMED,
             # Also regularize the index
             df_mod = pd.concat([
                 df_mod, 
-                outputs.set_index(
-                    env_vars_day_index
-                    # pd.date_range(
-                    # start=operation_start, 
-                    # end=operation_end - env_vars_index.freq, 
-                    # freq=env_vars_index.freq, )
-                )
+                outputs.set_index(env_vars_day_index)
             ]).resample(env_vars_index.freq, origin="start").ffill()
         
-        operation_end0 = operation_end
+        # Handle system shutdown/suspend
+        time_delta = pd.Timedelta(seconds=model.sample_time)
+        stop_time = pd.Timedelta(seconds=model.sample_time)
+        while model.med_state != MedState.OFF:
+            model.step(
+                qts_src=0,
+                qsf=0,
+                qmed_s=0,
+                qmed_f=0,
+                Tmed_s_in=0,
+                Tmed_c_out=0,
+                med_vacuum_state=0,
+                I=env_vars.I.loc[operation_end + stop_time],
+                Tamb=env_vars.Tamb.loc[operation_end + stop_time],
+                Tmed_c_in=env_vars.Tmed_c_in.loc[operation_end + stop_time],
+                compute_fitness=True
+            )
+            stop_time += time_delta.round('ns')
+            
+            if mode == "evaluation":
+                df_mod = model.to_dataframe(df_mod, index=df_mod.index[-1] + time_delta)
+        
+        if debug_mode:
+            logger.info(f"{day_idx=} | Took {stop_time//60} minutes to shutdown the system")
+        
+        operation_end0 = operation_end + stop_time
     
     if mode == "optimization":
         return fitness_total
@@ -359,8 +402,7 @@ def evaluate_optimization_nlp(x: np.ndarray[float], # env_vars: EnvironmentVaria
         evaluation_range=problem.episode_range,
         mode="evaluation",
         dec_var_int_ids=problem.dec_var_int_ids,
-        sample_time_ts=problem.sample_time_ts,
-        
+        sample_time_ts=problem.sample_time_ts,   
     )
     df_hor = add_dec_vars_to_dataframe(df_hor, dec_vars, df_idx=df_hor.index[0])
     

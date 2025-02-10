@@ -14,8 +14,8 @@
   // Available dash types: ['dash', 'dashdot', 'dot', 'longdash', 'longdashdot', 'solid (default)'] 
 
   # General plot attributes
-  title: "Solar MED",
-  subtitle: "Experimental results", // Model validation?
+  title: "Solar MED optimal coupling",
+  subtitle: "Evaluation results", // Model validation?
   height: 2500,
   width: 1000,
   margin: {
@@ -316,7 +316,7 @@
             mode: "lines",
             color: "plotly_red",
             width: 3,
-            fill_between: "Pth_hx_s", # Traces to plot fill between need to be defined next to each other
+            // fill_between: "Pth_hx_s", # Traces to plot fill between need to be defined next to each other
             },
             {
             var_id: "Pth_hx_s",
@@ -324,7 +324,7 @@
             mode: "lines",
             color: "plotly_blue", # Should never be greater than Phx_p, but define a color anyway
             width: 3,
-            fill_between: "Pth_hx_p", # Traces to plot fill between need to be defined next to each other
+            // fill_between: "Pth_hx_p", # Traces to plot fill between need to be defined next to each other
             },
         ]
     },
@@ -440,7 +440,7 @@
               "mode": "lines",
               "color": "plotly_yellow",
               "width": 3,
-              "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
+              // "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
             },
             {
               "var_id": "Pth_ts_dis",
@@ -448,137 +448,141 @@
               "mode": "lines",
               "color": "wct_purple",
               "width": 3,
-              "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
+              // "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
             },
           ]
         },
 
-    "temperature_hot_top": {
-          "row_height": 0.33,
-          "title": "Temperature, Hot - top",
-          "bg_color": "bg_blue", # bg gray
-          # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-          "ylabels_left": ["⁰C"],
-          "ylims_left": [60, 100],
-          "tight_vertical_spacing": True,
-    
-          "traces_left": [
-            # Hot tank
-            {"var_id": "Tts_h_t", "mode": "lines", "color": "plotly_red", "width": 3,},
-           
-            # From solar field
-            {"var_id": "Tts_h_in", "mode": "markers", "color": "plotly_yellow", "width": 3, "opacity": 0.5,
-              "conditional":{ "var_id": "qts_src", "operator": ">", "threshold_value": 1,}
-            },
+    thermal_storage_temperatures_hot: {
+      row_height: 0.6,
+      title: "Hot tank",
+      bg_color: "bg_blue", # bg gray
+      # ylabels_left: ["T<sub>wct</sub> (ºC)"],
+      ylabels_left: ["⁰C"],
+      ylims_left: "manual",
+      // ylims_left: [60, 100],
+      tight_vertical_spacing: true,
 
-            # To MED
-            {"var_id": "Tts_h_out", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
-              "conditional":{ "var_id": "qts_dis", "operator": ">", "threshold_value": 1,}
-            },        
-          ]
-        },
-          
-      "temperatures_hot_med": {
-        "row_height": 0.33,
-        "title": "Temperature, Hot - medium",
-        "bg_color": "bg_blue", # bg gray
-        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-        "ylabels_left": ["⁰C"],
-        "ylims_left": 'manual',
-        "tight_vertical_spacing": True,
-  
-        "traces_left": [
+      "traces_left": [
           # Hot tank
-          {"var_id": "Tts_h_m", "mode": "lines", "color": "plotly_red", "width": 3,},
-        ]
-      },
-  
-      "temperatures_hot_bottom": {
-        "row_height": 0.33,
-        "title": "Temperature, Hot - bottom",
-        "bg_color": "bg_blue", # bg gray
-        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-        "ylabels_left": ["⁰C"],
-        "ylims_left": 'manual',
-  
-        "traces_left": [
-          # Hot tank
-          {"var_id": "Tts_h_b", "mode": "lines", "color": "plotly_red", "width": 3,},
-        ]
-      },
-        
-  
-      "temperatures_cold_top": {
-        "row_height": 0.33,
-        "title": "Temperature, Cold - top",
-        "bg_color": "bg_blue", # bg gray
-        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-        "ylabels_left": ["⁰C"],
-        "ylims_left": 'manual',
-        "tight_vertical_spacing": True,
-  
-        "traces_left": [
-          # Hot tank
-          {"var_id": "Tts_c_t", "mode": "lines", "color": "plotly_blue", "width": 3,},
-        ]
-      },
-  
-      "temperatures_cold_med": {
-        "row_height": 0.33,
-        "title": "Temperature, Cold - Medium",
-        "bg_color": "bg_blue", # bg gray
-        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-        "ylabels_left": ["⁰C"],
-        "ylims_left": 'manual',
-        "tight_vertical_spacing": True,
-  
-        "traces_left": [
-          # Hot tank
-          {"var_id": "Tts_c_m", "mode": "lines", "color": "plotly_blue", "width": 3,},
-        ]
-      },
-        
-      "temperatures_cold_bottom": {
-        "row_height": 0.33,
-        "title": "Temperature, Cold - bottom",
-        "bg_color": "bg_blue", # bg gray
-        # "ylabels_left": ["T<sub>wct</sub> (ºC)"],
-        "ylabels_left": ["⁰C"],
-        "ylims_left": 'manual',
-  
-        "traces_left": [
-          {"var_id": "Tts_c_b", "mode": "lines", "color": "plotly_blue", "width": 3,},
-          # From MED
-          {"var_id": "Tts_c_in", "mode": "markers", "color": "wct_purple", "width": 3, "opacity": 0.5,
-            "conditional":{ "var_id": "qmed_s", "operator": ">", "threshold_value": 1,}
+          {
+            "var_id": "Tts_h_t",
+            "mode": "lines",
+            "color": "plotly_red", # gray
+            "width": 3,
           },
-        ]
-      },
+          {
+            "var_id": "Tts_h_m",
+            "mode": "lines",
+            "dash": "dash",
+            "color": "plotly_red", # gray
+            "width": 3,
+          },
+          {
+            "var_id": "Tts_h_b",
+            "mode": "lines",
+            "color": "plotly_red", # gray
+            "dash": "dot",
+            "width": 3,
+          },
+  
+          # To MED
+          {
+            "var_id": "Tts_h_out",
+            "mode": "markers",
+            "color": "wct_purple",
+            "width": 3,
+            "conditional":{
+                "var_id": "qts_dis",
+                "operator": ">",
+                "threshold_value": 1,
+            }
+          },
+  
+          # From solar field
+          {"var_id": "Tts_h_in", "mode": "markers", "color": "plotly_yellow", "width": 3, "opacity": 0.5,
+            "conditional":{ "var_id": "qts_src", "operator": ">", "threshold_value": 1,}
+          },
+      ]
 
-     three_way_valve: {
-       title: "Three-way valve",
-       row_height: 0.5,
-       bg_color: "bg_gray",
-       ylabels_left: ["m<sup>3</sup>/h"],
-       ylabels_right: ["⁰C"],
-       ylims_left: 'manual',
+      # TODO: Estaría guay añadir una traza a la derecha con la evolución de 
+      # la energía disponible (línea con área), calculada relativa a la Ts_in de la MED
+    },
 
-       traces_left: [
-         {
-           var_id: "q3wv_src",
-           mode: "lines",
-           color: "plotly_red",
-           axis_arrow: true,
-           arrow_yrel_pos: 0.95,
-         },
-         {
-           var_id: "q3wv_dis",
-           mode: "lines",
-           color: "wct_purple",
-           axis_arrow: true,
-           arrow_yrel_pos: 0.85,
-         },
-       ],
+    thermal_storage_temperatures_cold: {
+      row_height: 0.6,
+      title: "Cold tank",
+      bg_color: "bg_blue", # bg gray
+      ylabels_left: ["⁰C"],
+      ylims_left: "manual",
+
+
+      traces_left: [
+
+        # Cold tank
+        {
+          var_id: "Tts_c_t",
+          mode: "lines",
+          color: "plotly_green", # gray
+          width: 3,
+        },
+        {
+          var_id: "Tts_c_m",
+          mode: "lines",
+          dash: "dash",
+          color: "plotly_green",
+          width: 3,
+        },
+        {
+          var_id: "Tts_c_b",
+          mode: "lines",
+          color: "plotly_green",
+          dash: "dot",
+          width: 3,
+        },
+
+        # From MED
+        {
+          "var_id": "Tts_c_in",
+          "mode": "markers",
+          "color": "c_blue",
+          "width": 3,
+          "conditional":{
+              "var_id": "qmed_s",
+              "operator": ">",
+              "threshold_value": 1,
+          }
+        },
+      ]
+
+      # TODO: Estaría guay añadir una traza a la derecha con la evolución de
+      # la energía disponible (línea con área), calculada relativa a la Ts_in de la MED
+    },
+
+    //  three_way_valve: {
+    //    title: "Three-way valve",
+    //    row_height: 0.5,
+    //    bg_color: "bg_gray",
+    //    ylabels_left: ["m<sup>3</sup>/h"],
+    //    ylabels_right: ["⁰C"],
+    //    ylims_left: 'manual',
+
+    //    traces_left: [
+    //      {
+    //        var_id: "q3wv_src",
+    //        mode: "lines",
+    //        color: "plotly_red",
+    //        axis_arrow: true,
+    //        arrow_yrel_pos: 0.95,
+    //      },
+    //      {
+    //        var_id: "q3wv_dis",
+    //        mode: "lines",
+    //        color: "wct_purple",
+    //        axis_arrow: true,
+    //        arrow_yrel_pos: 0.85,
+    //      },
+    //    ],
     //
     //   traces_right: [
     //     {
@@ -603,7 +607,7 @@
     //       arrow_yrel_pos: 1.05,
     //     },
     //   ]
-    },
+    // },
 
     med_flows: {
       title: "<b>MED</b>"
