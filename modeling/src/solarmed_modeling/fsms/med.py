@@ -179,7 +179,7 @@ class MedFsm(BaseFsm):
         # Not enterily sure if set_active_cooldown_done and set_off_cooldown_done
         # really bring something, if we want to have some internal variable to keep track of the 
         # internal state, we can just set it in the condition callback
-        self.machine.add_state(st.OFF, on_enter=["set_off_cooldown_start"]) # , on_exit=["set_off_cooldown_done"])#, on_enter=['reset_fsm'])
+        self.machine.add_state(st.OFF, on_enter=["set_off_cooldown_start", "set_brine_empty", "reset_vacuum", "reset_startup"]) # , on_exit=["set_off_cooldown_done"])#, on_enter=['reset_fsm'])
         self.machine.add_state(st.GENERATING_VACUUM)
         self.machine.add_state(st.IDLE,) # on_enter=["set_idle_cooldown"])
         self.machine.add_state(st.STARTING_UP, on_enter=['set_brine_non_empty'])
@@ -289,6 +289,13 @@ class MedFsm(BaseFsm):
     #     logger.info(f"[{self.name}] Off cooldown done")
         
     ## Vacuum
+    def reset_vacuum(self, *args) -> None:
+        """ Set the brine as non-empty """
+        
+        self.internal_state.vacuum_generated = False
+        self.internal_state.vacuum_elapsed_samples = 0
+        logger.info(f"[{self.name}] Vacuum reset")
+        
     def set_vacuum_start(self, *args) -> None:
         """ Set the start of the vacuum generation """
         
@@ -297,8 +304,9 @@ class MedFsm(BaseFsm):
         #     return
 
         # Else
-        self.internal_state.vacuum_generated = False
-        self.internal_state.vacuum_elapsed_samples = 0 # 0 samples, it will be incremented in the first check in this same step
+        self.reset_vacuum(*args)
+        # self.internal_state.vacuum_generated = False
+        # self.internal_state.vacuum_elapsed_samples = 0 # 0 samples, it will be incremented in the first check in this same step
         logger.info(f"[{self.name}] Started generating vacuum. {self.internal_state.vacuum_elapsed_samples}/{self.vacuum_duration_samples} samples to complete")
     
     # def set_vacuum_reset(self, *args) -> None:
@@ -324,12 +332,12 @@ class MedFsm(BaseFsm):
         self.internal_state.brine_emptying_elapsed_samples = 0
         logger.info(f"[{self.name}] Started emptying brine. {self.internal_state.brine_emptying_elapsed_samples}/{self.brine_emptying_samples} samples to complete")
 
-    # def set_brine_empty(self, *args) -> None:
-    #     """ Set the brine as empty """
+    def set_brine_empty(self, *args) -> None:
+        """ Set the brine as empty """
         
-    #     self.internal_state.brine_empty = True
-    #     self.internal_state.brine_emptying_elapsed_samples = 0
-    #     logger.info(f"[{self.name}] Brine emptied")
+        self.internal_state.brine_empty = True
+        self.internal_state.brine_emptying_elapsed_samples = 0
+        logger.info(f"[{self.name}] Brine emptied")
 
     def set_brine_non_empty(self, *args) -> None:
         """ Set the brine as non-empty """
@@ -357,10 +365,10 @@ class MedFsm(BaseFsm):
     #     # self.internal_state.startup_elapsed_samples = self.startup_duration_samples
     #     logger.info(f"[{self.name}] Startup done")
 
-    # def reset_startup(self, *args):
-    #     self.internal_state.startup_done = False
-    #     self.internal_state.startup_elapsed_samples = 0
-    #     logger.info(f"[{self.name}] Startup reset")
+    def reset_startup(self, *args):
+        self.internal_state.startup_done = False
+        self.internal_state.startup_elapsed_samples = 0
+        logger.info(f"[{self.name}] Startup reset")
 
     # State machine transition conditions
     ## Active
@@ -520,4 +528,15 @@ class MedFsm(BaseFsm):
             )
         
         return np.all(self.inputs_array > 0)
+    
+    def reset_cooldowns(self, ) -> None:
+        """ Reset the cooldown counters """
+        
+        self.internal_state.active_cooldown_elapsed_samples = self.active_cooldown_duration_samples
+        self.internal_state.off_cooldown_elapsed_samples = self.off_cooldown_duration_samples
+        
+        self.internal_state.active_cooldown_done = True
+        self.internal_state.off_cooldown_done = True
+        
+        logger.info(f"[{self.name}] Cooldown reset")
 

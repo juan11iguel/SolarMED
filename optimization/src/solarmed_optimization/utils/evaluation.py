@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from solarmed_modeling.fsms import MedState
+from solarmed_modeling.fsms import MedState, SfTsState
 from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
 from solarmed_modeling.fsms.sfts import FsmInputs as SfTsFsmInputs
 from solarmed_modeling.solar_med import SolarMED
@@ -120,7 +120,8 @@ def evaluate_model(model: SolarMED,
                    mode: Literal["optimization", "evaluation"] = "optimization",
                    model_dec_var_ids: list[str] = None,
                    df_mod: pd.DataFrame = None,
-                   df_start_idx: int = None) -> pd.DataFrame | float:
+                   df_start_idx: int = None,
+                   debug_mode: bool = False) -> pd.DataFrame | float:
     """ Evaluate the model for a given decision vector and environment variables
         n_evals_mod is the number of model evaluations, whose value depends on what
         is being evaluated:
@@ -149,21 +150,23 @@ def evaluate_model(model: SolarMED,
 
     # dec_var_ids = list(asdict(dec_vars).keys())
     current_state = model.current_state
+    time_in_state = 0
     for step_idx in range(n_evals_mod):
         dv: DecisionVariables = dec_vars.dump_at_index(step_idx)
         ev: EnvironmentVariables = env_vars.dump_at_index(step_idx)
-
-        # print(f"{dv.med_vac_state=}")
-
+        
         # Get the MED FSM inputs for the current MED mode and state
         med_fsm_inputs: MedFsmInputs = med_fsm_inputs_table[ (MedMode(dv.med_mode), model.med_state) ]
         sfts_fsm_inputs: SfTsFsmInputs = sfts_fsm_inputs_table[ (SfTsMode(dv.sfts_mode), model.sf_ts_state) ]
 
-        # TODO: Add here some low-level control/validation
+        # Low-level control/validation
         # - qts_src should be zero if Tsf_out is below Tts_c_b? Tts_h_t? Which temperature should be the threshold?
         Tsf_out = model.Tsf_out if model.Tsf_out is not None else 0
         if Tsf_out < model.Tts_h[1]:
             dv.qts_src = 0.0
+        # - med_active should be True when in this step vacuum generation is finished
+        if model._med_fsm.internal_state.vacuum_elapsed_samples == model._med_fsm.vacuum_duration_samples -1:
+            med_fsm_inputs.med_active = True
 
         model.step(
             # Decision variables
@@ -190,10 +193,21 @@ def evaluate_model(model: SolarMED,
             compute_fitness=True if mode == "evaluation" else False
         )
         
+        # if model.med_state.value == 2:
+        #     steps_in_idle += 1
+        #     print(f"{steps_in_idle=}")
+        # else:
+        #     steps_in_idle = 0
+            
+        
+        time_in_state += model.sample_time
+        
         # print(f"{model.current_state=}")
         if model.current_state != current_state:
-            print(f"{env_vars.Tamb.index[step_idx]} | {model.current_state=}")
-            current_state = model.current_state
+            if debug_mode:
+                print(f"{env_vars.Tamb.index[step_idx]} | {current_state=}, {time_in_state=}")
+                current_state = model.current_state
+                time_in_state = 0
 
         if mode == "optimization":
             # Inequality contraints, decision variables should be the same after model evaluation: |dec_vars-dec_vars_model| < tol
@@ -280,7 +294,8 @@ def evaluate_model_multi_day(model: SolarMED,
                                  dec_vars=dec_vars_day,
                                  env_vars=env_vars_day,
                                  n_evals_mod=env_vars_day_index.shape[0],
-                                 mode=mode)
+                                 mode=mode,
+                                 debug_mode=debug_mode)
         
         if mode == "optimization":
             fitness = outputs[0]
@@ -296,23 +311,33 @@ def evaluate_model_multi_day(model: SolarMED,
                 outputs.set_index(env_vars_day_index)
             ]).resample(env_vars_index.freq, origin="start").ffill()
         
-        # Handle system shutdown/suspend
+        # Complete sub-systems shutdown/suspend
         time_delta = pd.Timedelta(seconds=model.sample_time)
         stop_time = pd.Timedelta(seconds=model.sample_time)
-        while model.med_state != MedState.OFF:
+        while model.med_state != MedState.OFF or model.sf_ts_state != SfTsState.IDLE:
+            time_idx = min(env_vars_index[-1], operation_end + stop_time)
+            
             model.step(
+                # SfTs
                 qts_src=0,
                 qsf=0,
+                
+                # MED
                 qmed_s=0,
                 qmed_f=0,
                 Tmed_s_in=0,
                 Tmed_c_out=0,
                 med_vacuum_state=0,
-                I=env_vars.I.loc[operation_end + stop_time],
-                Tamb=env_vars.Tamb.loc[operation_end + stop_time],
-                Tmed_c_in=env_vars.Tmed_c_in.loc[operation_end + stop_time],
+                
+                # Environment
+                I=env_vars.I.loc[time_idx],
+                Tamb=env_vars.Tamb.loc[time_idx],
+                Tmed_c_in=env_vars.Tmed_c_in.loc[time_idx],
                 compute_fitness=True
             )
+            fitness_total += model.evaluate_fitness_function(cost_e=env_vars.cost_e[time_idx], 
+                                                             cost_w=env_vars.cost_w[time_idx], 
+                                                             objective_type='minimize')
             stop_time += time_delta.round('ns')
             
             if mode == "evaluation":
@@ -322,6 +347,10 @@ def evaluate_model_multi_day(model: SolarMED,
             logger.info(f"{day_idx=} | Took {stop_time//60} minutes to shutdown the system")
         
         operation_end0 = operation_end + stop_time
+        
+        # Assuming that the next day means a fresh start
+        # All cooldowns should be done by then, reset them
+        model.reset_fsms_cooldowns()
     
     if mode == "optimization":
         return fitness_total

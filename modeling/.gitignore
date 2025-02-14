@@ -1,9 +1,9 @@
 # Custom
 *.code-workspace
 docs/.obsidian/workspace.json
-auxiliar/watermining_modelfolder/*
-data/datasets/*
-results/
+auxiliar_material/watermining_modelfolder
+# data/datasets/*
+# results/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

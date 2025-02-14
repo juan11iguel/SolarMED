@@ -19,3 +19,28 @@ def generate_visualizations(problem: BaseProblem, df_hors: list[pd.DataFrame],
                            margin=dict(t=50, b=100), height=600)
     
     return figs
+
+
+def condition_result_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Condition the optimization results DataFrame for visualization purposes."""
+    
+    df["med_active"] = df["med_active"].fillna(False).astype(bool)
+    df["sf_active"] = df["sf_active"].fillna(False).astype(bool)
+    df["sf_ts_state"] = df["sf_ts_state"].fillna(0).astype(int)
+    df["med_state"] = df["med_state"].fillna(0).astype(int)
+    df["Pth_hx_p"] = df["Pth_hx_p"].fillna(0)
+    df["Pth_hx_s"] = df["Pth_hx_s"].fillna(0)
+    df["net_profit"] = df["net_profit"].fillna(0)
+    df["net_loss"] = df["net_loss"].fillna(0)
+    df["Jtotal"] = df["Jtotal"].fillna(0)
+    
+
+    # Infer objects to avoid silent downcasting
+    df = df.infer_objects(copy=False)
+
+    # New plot variables
+    df["cumulative_net_profit"] = df["net_profit"].cumsum()
+    # df["sfts_mode"] = df["sf_ts_state"] + 1
+    # df["med_mode"] = df["med_state"].apply(lambda x: 2 if 1 <= x < 5 or x == 5 else 1 if x == 0 else x)
+    
+    return df

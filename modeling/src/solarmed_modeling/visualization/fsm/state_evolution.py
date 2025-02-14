@@ -191,12 +191,12 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
 
             for idx in range(0, len(results_df)-step_size, step_size):
 
-                x_aux, y_aux = get_coordinates_edge(src_node_id=f"step{idx:03}_{results_df.iloc[idx][state_col].value}",
-                                                    dst_node_id=f"step{idx+step_size:03}_{results_df.iloc[idx+step_size][state_col].value}",
+                x_aux, y_aux = get_coordinates_edge(src_node_id=f"step{idx:03}_{int(results_df.iloc[idx][state_col])}",
+                                                    dst_node_id=f"step{idx+step_size:03}_{int(results_df.iloc[idx+step_size][state_col])}",
                                                     nodes_df=n_df, y_shift=last_val)
 
                 # If the y value of the current state is equal from the previous one, add a solid line to connect them
-                if results_df.iloc[idx][state_col].value == results_df.iloc[idx+step_size][state_col].value:
+                if int(results_df.iloc[idx][state_col]) == int(results_df.iloc[idx+step_size][state_col]):
                     Xr[system_idx] += x_aux
                     Yr[system_idx] += y_aux
 

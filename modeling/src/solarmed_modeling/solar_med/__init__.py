@@ -1532,6 +1532,14 @@ class SolarMED(BaseModel):
                 pickle.dump(dump, f)
 
         return dump
+    
+    def reset_fsms_cooldowns(self) -> None:
+        """
+        Reset the cooldowns of the FSMs
+        """
+        
+        self._med_fsm.reset_cooldowns()
+        self._sf_ts_fsm.reset_cooldowns()
 
     # def init_matlab_engine(self) -> None:
     #     """

@@ -5,6 +5,7 @@ import inspect
 from typing import Callable, Literal, Type
 from enum import Enum
 from pathlib import Path
+from abc import ABC, abstractmethod
 
 from loguru import logger
 import numpy as np
@@ -214,7 +215,7 @@ def filter_invalid_combinations(inputs_cls: FsmInputs, conditions: list[Combinat
     
     return invalid_combinations
 
-class BaseFsm:
+class BaseFsm(ABC):
 
     """
     Base class for Finite State Machines (FSM)
@@ -587,3 +588,7 @@ class BaseFsm:
         # return self._inputs_cls(**stay_in_st_combos[0])
         
         return self.states_inputs_set[self.state.name]
+    
+    @abstractmethod
+    def reset_cooldowns(self, ) -> None:
+        ...

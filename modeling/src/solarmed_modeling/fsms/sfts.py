@@ -336,3 +336,14 @@ class SolarFieldWithThermalStorageFsm(BaseFsm):
         self.internal_state.recirculating_ts_cooldown_done = cooldown_done
         
         return cooldown_done
+    
+    def reset_cooldowns(self) -> None:
+        """ Reset cooldown counters """
+        
+        self.internal_state.idle_cooldown_elapsed_samples = self.idle_cooldown_samples
+        self.internal_state.recirculating_ts_cooldown_elapsed_samples = self.recirculating_ts_cooldown_samples
+        
+        self.internal_state.idle_cooldown_done = True
+        self.internal_state.recirculating_ts_cooldown_done = True
+
+        logger.info(f"[{self.name}] Cooldowns reset")

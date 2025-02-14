@@ -16,7 +16,7 @@
   # General plot attributes
   title: "Solar MED optimal coupling",
   subtitle: "Evaluation results", // Model validation?
-  height: 2500,
+  height: 1800,
   width: 1000,
   margin: {
     l:20,
@@ -34,12 +34,12 @@
   legends: {
 
     # Global legends
-    "global_legend": { # Name it as you want
-        "title": "Optimization layer",
-        "bgcolor": "bg_blue",
-        "x": 0.9,
-        "y": 0.8,
-    },
+    // "global_legend": { # Name it as you want
+    //     "title": "Optimization layer",
+    //     "bgcolor": "bg_blue",
+    //     "x": 0.9,
+    //     "y": 0.8,
+    // },
     // "legend_control": {
     //     "title": "Control layer",
     //     "bgcolor": "bg_gray",
@@ -60,8 +60,8 @@
   # In traces, specify the variables to be plotted, the definition order controls the order of the traces in the plot
   plots: {
     environment: {
-      title: "Environment",
-      row_height: 0.5,
+      title: "<b>Environment</b>",
+      row_height: 1,
       bg_color: "steelblue",
       ylabels_left: ["ºC"],
       ylabels_right: ["I (W/m<sup>2</sup>)"], # As many as n_yaxis-1
@@ -83,9 +83,9 @@
           // name: "experimental value", # "T<sub>amb,ts</sub>",
           mode: "lines",
           color: "plotly_green",
-          showlegend: true,
+          // showlegend: true,
           width: 3,
-          legend_id: 'global_legend',
+          // legend_id: 'global_legend',
           axis_arrow: true,
           arrow_yrel_pos: 1.05,
         },
@@ -95,8 +95,8 @@
           mode: "lines",
           color: "plotly_blue",
           width: 3,
-          showlegend: true,
-          legend_id: 'global_legend',
+          // showlegend: true,
+          // legend_id: 'global_legend',
           axis_arrow: true,
           arrow_yrel_pos: 1.05,
         },
@@ -125,10 +125,10 @@
       ]
     },
 
-    costs: {
-      title: "Costs",
-      row_height: 0.4,
-      bg_color: "steelblue",
+    fitness: {
+      title: "<b>Fitness</b>",
+      row_height: 1,
+      bg_color: "bg_gray",
       # ylabels_left: ["C (u.m.)"],
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
       ylabels_left: ["B (u.m.)"],
@@ -136,19 +136,6 @@
       ylims_left: 'manual',
 
       traces_left: [
-      #[
-      #  {
-      #    name: "C",
-      #    mode: "lines",
-      #    color: "plotly_blue",
-      #    var_id: "C_opt",
-      #    showlegend: false,
-      #    axis_arrow: true,
-      #    arrow_yrel_pos: 1.05
-      #  }
-      #],
-      
-
           {
             var_id: "net_profit",
             name: "B (u.m.)",
@@ -156,7 +143,7 @@
             color: "dc_green", # gray
             showlegend: false,
             axis_arrow: true,
-            arrow_yrel_pos: 0.95
+            arrow_yrel_pos: 1.05,
           },
         ],
 
@@ -183,26 +170,143 @@
             color: "wct_purple", # gray
             showlegend: false,
             axis_arrow: true,
-            arrow_yrel_pos: 0.95,
+            arrow_yrel_pos: 1.05,
           },
         ]
       ]
     },
 
-    solar_field_flows: {
-      // TODO: Include other flows that exist in the real system if it does not clog the visualization too much
-      title: "<b>Solar field</b>",
-      row_height: 0.33,
-      bg_color: "bg_gray", # bg gray
-      ylabels_left: ["m<sup>3</sup>/h"],
-      // ylabels_right: ["P<sub>th</sub> (kW<sub>th</sub>)"],
+    fitness_cumulative: {
+      row_height: 0.5,
+      bg_color: "bg_gray",
+      # ylabels_left: ["C (u.m.)"],
+      # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
+      ylabels_left: ["Cumulative<br>fitness (u.m.)"],
       ylims_left: 'manual',
-      tigth_vertical_spacing: true,
+      
+      # Plotted between this plot and the next one
+      show_active: true,
+      active_var_id: "dec_var_sfts_mode",
+      active_color: "plotly_yellow",
+
+      traces_left: [
+          {
+            var_id: "cumulative_net_profit",
+            name: "B cum. (u.m.)",
+            mode: "lines",
+            color: "dc_green", # gray
+            showlegend: false,
+            fill: "tozeroy",
+          },
+        ],
+    },
+
+    operational_states_sfts: {
+      title: <b>Operational states</b>
+      bg_color: "steelblue",
+      row_height: 0.5,
+      ylabels_left: ["sf-ts<br>state"],
 
       # Plotted between this plot and the next one
       show_active: true,
-      active_var_id: "sf_active",
-      active_color: "plotly_yellow", # Needs to end with 
+      active_var_id: "dec_var_med_mode",
+      active_color: "wct_purple",
+
+      traces_left: [
+        {
+          var_id: "sf_ts_state",
+          name: "sfts state",
+          fill: "tozeroy",
+          color: "plotly_yellow",
+          // stackgroup: "one",
+        },
+        // {
+        //   var_id: "med_state",
+        //   name: "med state",
+        //   fill: "tozeroy",
+        //   color: "wct_purple",
+        //   // stackgroup: "one",
+        // }
+      ],
+
+      // traces_right: [
+      //   {
+      //     var_id: "dec_var_sfts_mode",
+      //     name: "sfts mode",
+      //     // fill: "tonexty",
+      //     color: "plotly_yellow",
+      //     dash: "dash"
+      //   },
+      //   {
+      //     var_id: "dec_var_med_mode",
+      //     name: "med mode",
+      //     // fill: true,
+      //     color: "wct_purple",
+      //     dash: "dash"
+      //   }
+      // ]
+
+    },
+    operational_states_med: {
+        bg_color: "steelblue",
+        row_height: 0.5,
+        ylabels_left: ["MED<br>state"],
+        ylims_left: 'manual',
+
+        traces_left: [
+          {
+            var_id: "med_state",
+            name: "med state",
+            fill: "tozeroy",
+            color: "wct_purple",
+            // stackgroup: "one",
+          }
+        ],
+    },
+
+    power_balance: {
+        title: "<b>Energy source-load</b>",
+        bg_color: "bg_gray",
+        row_height: 1,
+        ylabels_left: ["Power balance <br>(kW<sub>th</sub>)"],
+        ylims_left: 'manual',
+        tight_vertical_spacing: true,
+    
+        traces_left: [
+            {
+            var_id: "Pth_hx_p",
+            name: "P<sub>th,sf</sub>",
+            mode: "lines",
+            color: "plotly_yellow",
+            width: 3,
+            fill_between: "Pth_hx_s", # Traces to plot fill between need to be defined next to each other
+            },
+            {
+            var_id: "Pth_ts_dis",
+            name: "P<sub>th,med</sub>",
+            mode: "lines",
+            color: "wct_purple", # Should never be greater than Phx_p, but define a color anyway
+            width: 3,
+            fill_between: "Pth_hx_p", # Traces to plot fill between need to be defined next to each other
+            },
+        ]
+    },
+
+    flows: {
+      // TODO: Include other flows that exist in the real system if it does not clog the visualization too much
+      title: "",
+      row_height: 1,
+      bg_color: "bg_gray", # bg gray
+      ylabels_left: ["Flows (m<sup>3</sup>/h)"],
+      ylabels_right: ["m<sup>3</sup>/h"],
+      // ylabels_right: ["P<sub>th</sub> (kW<sub>th</sub>)"],
+      ylims_left: 'manual',
+      // tigth_vertical_spacing: true,
+
+      # Plotted between this plot and the next one
+      // show_active: true,
+      // active_var_id: "sf_active",
+      // active_color: "plotly_yellow", # Needs to end with 
 
 
       traces_left: [
@@ -210,34 +314,52 @@
         {
           var_id: "qsf",
           mode: "lines",
-          color: "dc_green", # gray
+          color: "plotly_yellow", # gray
           width: 3,
           // dash: "dashdot", # "dot", "dash", "dashdot"
           // showlegend: true,
           // legend_id: 'temperatures_dc_cv',
-        }
+        },
+        {
+          var_id: "qts_dis",
+          name: "q<sub>ts,dis</sub>",
+          mode: "lines",
+          color: "plotly_blue",
+          width: 3,
+        },
+        // {
+        //   "var_id": "qts_dis_original",
+        //   "name": "q<sub>ts,dis,measured</sub>",
+        //   "color": "plotly_blue", "width": 1.5, "dash": "dash"
+        // },
+        {
+          var_id: "qts_src", //"qts_src",
+          name: "q<sub>ts,src</sub>"
+          mode: "lines",
+          color: "plotly_red",
+          width: 3,
+        },
       ],
 
-      // traces_right: [
-      //   // Experimental
-      //   {
-      //     var_id: "Psf",
-      //     name: "P<sub>sf</sub> (kW<sub>th</sub>)",
-      //     mode: "lines",
-      //     color: "plotly_yellow",
-      //     dash: "dash",
-      //     axis_arrow: true,
-      //     arrow_yrel_pos: 1.05,
-      //   }
-      // ]
+      traces_right: [
+        {
+          var_id: "qmed_s",
+          mode: "lines",
+          color: "wct_purple",
+          axis_arrow: true,
+          arrow_yrel_pos: 1.05,
+          width: 3,
+        },
+      ]
     },
     
     solar_field_temperatures: {
+      title: "<b>Subsystems</b><br>Solar field",
       // TODO: Include other temperatures that exist in the real system if it does not clog,
       // probably better to move to its ows visualization
-      row_height: 0.6,
+      row_height: 1,
       bg_color: "bg_gray", # bg gray
-      ylabels_left: ["⁰C"],
+      ylabels_left: ["Temperatures<br>(⁰C)"],
       # ylabels_left: ["T<sub>dc</sub> (ºC)"],
       ylims_left: 'manual',
 
@@ -260,80 +382,11 @@
       ]
     },
 
-    heat_exchanger_flows: {
-      title: "<b>Heat exchanger</b>",
-      row_height: 0.3,
-      bg_color: "bg_gray", # bg gray
-      ylabels_left: ["m<sup>3</sup>/h"],
-      // ylabels_right: ["kW<sub>th</sub>"],
-      tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
-      ylims_left: 'manual',
-
-      traces_left: [
-        {
-          var_id: "qhx_p",
-          mode: "lines",
-          color: "plotly_red",
-          width: 3,
-        },
-        {
-          var_id: "qhx_s", // "qhx_s",
-          mode: "lines",
-          color: "plotly_blue",
-          width: 3,
-        },
-      ],
-      // traces_right: [
-      //   {
-      //     var_id: "Phx_p",
-      //     mode: "lines",
-      //     dash: "dash",
-      //     color: "plotly_red",
-      //     width: 2,
-      //   },
-      //   {
-      //     var_id: "Phx_s", // "qhx_s",
-      //     mode: "lines",
-      //     dash: "dash",
-      //     color: "plotly_blue",
-      //     width: 2,
-      //   },
-      // ]
-    },
-
-    heat_exchanger_power: {
-        title: "Power balance",
-        row_height: 0.5,
-        bg_color: "bg_gray", # bg gray
-        ylabels_left: ["kW<sub>th</sub>"],
-        ylims_left: 'manual',
-        tight_vertical_spacing: true,
-    
-        traces_left: [
-            {
-            var_id: "Pth_hx_p",
-            name: "P<sub>th,hx,p</sub>",
-            mode: "lines",
-            color: "plotly_red",
-            width: 3,
-            // fill_between: "Pth_hx_s", # Traces to plot fill between need to be defined next to each other
-            },
-            {
-            var_id: "Pth_hx_s",
-            name: "P<sub>th,hx,s</sub>",
-            mode: "lines",
-            color: "plotly_blue", # Should never be greater than Phx_p, but define a color anyway
-            width: 3,
-            // fill_between: "Pth_hx_p", # Traces to plot fill between need to be defined next to each other
-            },
-        ]
-    },
-
     heat_exchanger_temperatures: {
-      title: "Temperatures",
-      row_height: 0.8,
+      title: "Heat exchanger",
+      row_height: 1,
       bg_color: "bg_gray", # bg gray
-      ylabels_left: ["⁰C"],
+      ylabels_left: ["Temperatures<br>(⁰C)"],
       ylims_left: [60, 120],
 
       traces_left: [
@@ -366,102 +419,14 @@
       ]
     },
 
-    thermal_storage_flows: {
-      title: "<b>Thermal storage</b>",
-      row_height: 0.45,
-      bg_color: "bg_gray", # bg gray
-      ylabels_left: ["m<sup>3</sup>/h"],
-      // ylabels_right: ["kW<sub>th</sub>"],
-      ylims_left: 'manual',
-
-      traces_left: [
-        {
-          var_id: "qts_dis",
-          name: "q<sub>ts,dis</sub>",
-          mode: "lines",
-          color: "plotly_blue",
-          width: 3,
-        },
-        // {
-        //   "var_id": "qts_dis_original",
-        //   "name": "q<sub>ts,dis,measured</sub>",
-        //   "color": "plotly_blue", "width": 1.5, "dash": "dash"
-        // },
-        {
-          var_id: "qts_src", //"qts_src",
-          name: "q<sub>ts,src</sub>"
-          mode: "lines",
-          color: "plotly_red",
-          width: 3,
-        },
-        // {
-        //   "var_id": "qts_src_original", #"qts_src",
-        //   "name": "q<sub>ts,src,measured</sub>",
-        //   "color": "plotly_red", "dash": "dash", "width": 1.5,
-        // },
-      ],
-
-      // traces_right: [
-      //   {
-      //     var_id: "Pts_src",
-      //     name: "P<sub>ts,src</sub> (kW<sub>th</sub>)",
-      //     mode: "lines",
-      //     color: "plotly_yellow",
-      //     dash: "dash",
-      //     axis_arrow: true,
-      //     arrow_yrel_pos: 0.85,
-      //   },
-      //   {
-      //     var_id: "Pts_dis",
-      //     name: "P<sub>ts,dis</sub> (kW<sub>th</sub>)",
-      //     mode: "lines",
-      //     color: "wct_purple",
-      //     dash: "dash",
-      //     axis_arrow: true,
-      //     arrow_yrel_pos: 0.95,
-      //   }
-      // ]
-
-      # TODO: Estaría guay añadir trazas a la derecha con power balance
-    },
-
-    "thermal_storage_power_balance": {
-          "row_height": 0.5,
-          "title": "Power balance",
-          "bg_color": "bg_gray", # bg gray
-          "ylabels_left": ["kW<sub>th</sub>"],
-          "ylims_left": [0, 260],
-    
-          "traces_left": [
-            # Make this a filled trace between source and discharge, where the color is red when there is more discharge than recharge, and green otherwise
-            {
-              "var_id": "Pth_ts_src",
-              "name": "P<sub>th,ts,src</sub>",
-              "mode": "lines",
-              "color": "plotly_yellow",
-              "width": 3,
-              // "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
-            },
-            {
-              "var_id": "Pth_ts_dis",
-              "name": "P<sub>ts,dis</sub>",
-              "mode": "lines",
-              "color": "wct_purple",
-              "width": 3,
-              // "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
-            },
-          ]
-        },
-
     thermal_storage_temperatures_hot: {
-      row_height: 0.6,
-      title: "Hot tank",
+      row_height: 1,
+      title: "Thermal storage",
       bg_color: "bg_blue", # bg gray
       # ylabels_left: ["T<sub>wct</sub> (ºC)"],
-      ylabels_left: ["⁰C"],
+      ylabels_left: ["Hot tank<br>temp.(⁰C)"],
       ylims_left: "manual",
-      // ylims_left: [60, 100],
-      tight_vertical_spacing: true,
+      ylims_left: [50, 100],
 
       "traces_left": [
           # Hot tank
@@ -510,12 +475,11 @@
     },
 
     thermal_storage_temperatures_cold: {
-      row_height: 0.6,
-      title: "Cold tank",
+      row_height: 1,
       bg_color: "bg_blue", # bg gray
-      ylabels_left: ["⁰C"],
-      ylims_left: "manual",
-
+      ylabels_left: ["Cold tank<br>temp.(⁰C)"],
+      // ylims_left: "manual",
+      ylims_left: [40, 100],
 
       traces_left: [
 
@@ -559,69 +523,19 @@
       # la energía disponible (línea con área), calculada relativa a la Ts_in de la MED
     },
 
-    //  three_way_valve: {
-    //    title: "Three-way valve",
-    //    row_height: 0.5,
-    //    bg_color: "bg_gray",
-    //    ylabels_left: ["m<sup>3</sup>/h"],
-    //    ylabels_right: ["⁰C"],
-    //    ylims_left: 'manual',
-
-    //    traces_left: [
-    //      {
-    //        var_id: "q3wv_src",
-    //        mode: "lines",
-    //        color: "plotly_red",
-    //        axis_arrow: true,
-    //        arrow_yrel_pos: 0.95,
-    //      },
-    //      {
-    //        var_id: "q3wv_dis",
-    //        mode: "lines",
-    //        color: "wct_purple",
-    //        axis_arrow: true,
-    //        arrow_yrel_pos: 0.85,
-    //      },
-    //    ],
-    //
-    //   traces_right: [
-    //     {
-    //       var_id: "T3wv_src",
-    //       mode: "lines",
-    //       color: "plotly_red",
-    //       axis_arrow: true,
-    //       arrow_yrel_pos: 1.05,
-    //     },
-    //     {
-    //       var_id: "T3wv_dis_in",
-    //       mode: "lines",
-    //       color: "wct_purple",
-    //       axis_arrow: true,
-    //       arrow_yrel_pos: 1.05,
-    //     },
-    //     {
-    //       var_id: "T3wv_dis_out",
-    //       mode: "lines",
-    //       color: "c_blue",
-    //       axis_arrow: true,
-    //       arrow_yrel_pos: 1.05,
-    //     },
-    //   ]
-    // },
-
     med_flows: {
-      title: "<b>MED</b>"
-      row_height: 0.8,
+      title: "Desalination unit",
+      row_height: 0.7,
       bg_color: "bg_gray",
-      ylabels_left: ["m<sup>3</sup>/h"],
+      ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
       ylabels_right: ["m<sup>3</sup>/h"],
       tigth_vertical_spacing: true,
       ylims_left: 'manual',
 
       # Plotted between this plot and the next one
-      show_active: true,
-      active_var_id: "med_active",
-      active_color: "dc_green", # Needs to end with 
+      // show_active: true,
+      // active_var_id: "med_active",
+      // active_color: "dc_green", # Needs to end with 
 
       traces_left: [
         {
@@ -662,7 +576,7 @@
     med_temperatures: {
       row_height: 1,
       bg_color: "bg_gray", # bg gray
-      ylabels_left: ["⁰C"],
+      ylabels_left: ["Temperatures<br>(⁰C)"],
       ylims_left: 'manual',
 
       traces_left: [
@@ -701,61 +615,6 @@
       // "ylims_right": "manual",
       // "traces_right": [ {"var_id": "Pmed_c"}, {"var_id": "Pmed_14"} ]
     },
-
-    // power_balance: {
-    //   row_height: 1,
-    //   bg_color: "bg_gray", # bg gray
-    //   ylabels_left: ["Power (kW<sub>th</sub>)"],
-    //   ylabels_right: ["Avail. energy (kWh<sub>th</sub>)", "Temperature (⁰C)"]
-
-    //   # Shift yaxis
-    //   yaxis_left_shift: [0.5], // Move to top half of the plot area
-    //   yaxis_right_shift: [0, 0.5], // [Origin of plot, top half]  
-
-    //   # Power
-    //   traces_left: [
-    //     {
-    //       var_id: "Pth_sf",
-    //       name: "P<sub>th,sf</sub>",
-    //       mode: "lines",
-    //       color: "plotly_red",
-    //       axis_arrow: true,
-    //       arrow_yrel_pos: 1.05,
-    //     },
-    //     {
-    //       var_id: "Pth_med",
-    //       name: "P<sub>th,med</sub>",
-    //       mode: "lines",
-    //       color: "c_blue",
-    //       axis_arrow: true,
-    //       arrow_yrel_pos: 1.05,
-    //     },
-    //   ]
-
-    //   traces_right: [
-    //     # Energy
-    //     {
-    //       trace_type: cum_filled_area,
-    //       var_id: ["Eth_Tmed_s_in_min", "Eth_Tmed_s_in", "Eth_Tmed_s_in_max"]
-    //     }
-
-    //     # Temperature
-    //     {
-    //       var_id: "Thx_s_out",
-    //       color: "plotly_red"
-    //       dash: dashed,
-    //       axis_arrow: true,
-    //       arrow_yrel_pos: 1.05,
-    //     },
-    //     {
-    //       var_id: "Tmed_s_in",
-    //       color: "c_blue"
-    //       dash: dashed,
-    //       axis_arrow: true,
-    //       arrow_yrel_pos: 1.05,
-    //     },
-    //   ]
-    // }
 
   }
 }

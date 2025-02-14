@@ -239,12 +239,12 @@ class OperationPlanner:
     
     def __str__(self) -> str:
         output = [f"Generated {len(self.plans)} operation plans"]
-        for plan in self.plans:
-            output_parts = []
+        for plan_idx, plan in enumerate(self.plans):
+            output_parts = [f"{plan_idx} |"]
             for subsystem_idx, (subsystem_id, _) in enumerate(self.operation_actions.items()):
                 transition_str = " -> ".join(map(str, plan[subsystem_idx]))
                 output_parts.append(f"{subsystem_id}: {transition_str}")
-            output.append(", ".join(output_parts))
+            output.append("".join(output_parts))
         return "\n".join(output)
     
     def generate_decision_series(self, I: pd.Series | list[pd.Series]) -> list[IntegerDecisionVariables]:

@@ -293,7 +293,8 @@ class Problem(BaseNlpProblem):
 			self.x_evaluated.append(x.tolist())
 			self.fitness_history.append(fitness_total)
   
-		print(f"Evaluation {len(self.fitness_history)} | {fitness_total=}, qsf={np.unique(self.decision_vector_to_decision_variables(x=x, resample=False).qsf)}")
+		if debug_mode:
+			print(f"Evaluation {len(self.fitness_history)} | {fitness_total=}, qsf={np.unique(self.decision_vector_to_decision_variables(x=x, resample=False).qsf)}")
   
 		return [fitness_total]
 
