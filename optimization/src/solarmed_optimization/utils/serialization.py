@@ -18,6 +18,12 @@ class AlgoLogColumns(Enum):
     GACO = ["Gen", "Fevals", "Best", "Kernel", "Oracle", "dx", "dp"]
     SGA = ["Gen", "Fevals", "Best", "Improvement", "Mutations"]
     NSGA2 = ["Gen", "Fevals", "ideal_point"]
+    SIMULATED_ANNEALING = ["Fevals", "Best", "Current", "Mean range", "Temperature"]
+    DE = ["Gen", "Fevals", "Best", "dx", "df"]
+    CMAES = ["Gen", "Fevals", "Best", "dx", "df", "sigma"]
+    SEA = ["Gen", "Fevals", "Best", "Improvement", "Mutations"]
+    PSO_GEN = ["Gen", "Fevals", "gbest", "Mean Vel.", "Mean lbest", "Avg. Dist."]
+    SADE = ["Gen", "Fevals", "Best", "F", "CR", "dx", "df"]
     
     @property
     def columns(self) -> list[str]:
@@ -39,6 +45,19 @@ class FilenamesMapping(Enum):
     
 def step_idx_to_step_id(step_idx: int) -> str:
     return f"step_{step_idx:03d}"
+
+def export_algo_logs(algo_logs: list[ pd.DataFrame ] | list[ list[tuple[int|float]] ], 
+                     output_path: Path, 
+                     algo_ids: list[str], 
+                     table_ids: list[str]) -> None:
+    # Extract algorithm logs
+    for idx, (algo_id, algo_log) in enumerate(zip(algo_ids, algo_logs)):
+        if not isinstance(algo_log, pd.DataFrame):
+            # print(algo_id)
+            algo_logs[idx] = pd.DataFrame(algo_log, columns=AlgoLogColumns[algo_id.upper()].columns)
+    
+    with pd.HDFStore(output_path, mode='a') as store:
+        [store.put(table_id, algo_log) for algo_log, table_id in zip(algo_logs, table_ids)]
 
 def export_optimization_results(output_path: Path, 
                                 step_idx: int,

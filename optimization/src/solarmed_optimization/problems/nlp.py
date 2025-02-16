@@ -123,7 +123,9 @@ class Problem(BaseNlpProblem):
                  env_vars: EnvironmentVariables, 
                  real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod,
                  model: SolarMED,
-                 sample_time_ts: int
+                 sample_time_ts: int,
+                 store_x: bool = False,
+                 store_fitness: bool = True,
                 ) -> None:
      
 		int_dec_vars = IntegerDecisionVariables(**asdict(int_dec_vars)) # Avoid modifying the original instance
@@ -134,6 +136,8 @@ class Problem(BaseNlpProblem):
 		self.initial_values = initial_dec_vars_values
 		self.real_dec_vars_update_period = real_dec_vars_update_period
 		self.int_dec_vars_pre_resample= IntegerDecisionVariables(**asdict(int_dec_vars))
+		self.store_x = store_x
+		self.store_fitness = store_fitness
 
 		self.episode_range = env_vars.I.index[0], env_vars.I.index[-1]
 		self.dec_var_ids, self.dec_var_dtypes = zip(*[(field.name, get_args(field.type)[0]) for field in fields(DecisionVariables)])
@@ -266,7 +270,7 @@ class Problem(BaseNlpProblem):
 	def get_bounds(self, ) -> tuple[np.ndarray, np.ndarray]:
 		return np.concatenate(self.box_bounds_lower), np.concatenate(self.box_bounds_upper)
 		
-	def fitness(self, x: np.ndarray[float],  store_x: bool = True, debug_mode: bool = False) -> list[float]:
+	def fitness(self, x: np.ndarray[float], debug_mode: bool = False) -> list[float]:
             
 		# Model initialization logic after external evaluation of thermal storage
 		model: SolarMED = SolarMED(**self.model_dict)
@@ -289,8 +293,9 @@ class Problem(BaseNlpProblem):
 		)
     
 		# Store decision vector and fitness value
-		if store_x:
+		if self.store_x:
 			self.x_evaluated.append(x.tolist())
+		if self.store_fitness:
 			self.fitness_history.append(fitness_total)
   
 		if debug_mode:

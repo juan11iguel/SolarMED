@@ -66,6 +66,9 @@ def infer_attribute_name(instance: Any, target_type: type) -> str | None:
             return field.name
     return None
 
+def extract_prefix(text: str) -> str:
+    return "_".join(text.split("_pop")[0].split("_"))
+
 class CustomEncoder(json.JSONEncoder):
     """ Custom JSON encoder supporting NumPy arrays and Enums
         Example usage: json.dumps(array, cls=NumpyEncoder)

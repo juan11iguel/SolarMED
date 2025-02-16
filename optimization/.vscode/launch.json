@@ -20,6 +20,15 @@
             "program": "${workspaceFolder}/scripts/pygmo_solarmed.py",
             "console": "integratedTerminal",
             "justMyCode": false,
+        },
+        {
+            "name": "Algo comparison",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/scripts",
+            "program": "${workspaceFolder}/scripts/nNLP_algo_comp.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
         }
     ]
 }
