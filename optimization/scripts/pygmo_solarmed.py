@@ -14,7 +14,7 @@ from solarmed_optimization import (EnvironmentVariables,
 from solarmed_optimization.utils.initialization import (problem_initialization, 
                                                         InitialStates, 
                                                         generate_population,
-                                                        initialize_problem_instance)
+                                                        initialize_problem_instance_minlp)
 from solarmed_optimization.utils.evaluation import evaluate_optimization
 from solarmed_optimization.utils.serialization import OptimizationResults
 from solarmed_optimization.utils.visualization import generate_visualizations
@@ -107,7 +107,7 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         print(f"Range: {hor_span}")
 
         # 1. Initialize the problem instance
-        problem, env_vars = initialize_problem_instance(problem_data=problem_data, idx_mod=idx_mod,
+        problem, env_vars = initialize_problem_instance_minlp(problem_data=problem_data, idx_mod=idx_mod,
                                                         fsm_data_path=fsm_data_path, return_env_vars=True)
         ## Environment variables predictions
         # ds = df.iloc[hor_span[0]:hor_span[1]]

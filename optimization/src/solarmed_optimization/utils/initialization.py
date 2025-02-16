@@ -15,17 +15,22 @@ from solarmed_modeling.fsms.med import MedFsm, FsmInputs as MedFsmInputs
 from solarmed_modeling.fsms.sfts import SolarFieldWithThermalStorageFsm, FsmInputs as SfTsFsmInputs
 from solarmed_modeling.fsms import MedState, SfTsState
 
-from solarmed_optimization.problems.minlp import BaseProblem, EnvironmentVariables, Problem
 from solarmed_optimization import (DecisionVariables, 
                                    DecisionVariablesUpdates,
                                    ProblemData,
                                    ProblemParameters,
                                    ProblemSamples,)
+# MINLP
+from solarmed_optimization.problems.nlp import Problem as NlpProblem
 from solarmed_optimization.utils import (validate_dec_var_updates, 
                                          times_to_samples,
                                          decision_variables_to_decision_vector,
                                          decision_vector_to_decision_variables,
                                          validate_real_dec_vars)
+# nNLP
+from solarmed_optimization.problems.minlp import BaseProblem, EnvironmentVariables, Problem as MinlpProblem
+from solarmed_optimization.utils.operation_plan import OperationPlanner
+from solarmed_optimization import RealDecisionVariablesUpdatePeriod, InitialDecVarsValues
 
 logger.disable("phd_visualizations")
 
@@ -164,8 +169,77 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
                        model=model)
     
 
-def initialize_problem_instance(problem_data: ProblemData, idx_mod: int,
-                       fsm_data_path: Path, return_env_vars: bool = False) -> Problem | tuple[Problem, EnvironmentVariables]:
+def initialize_problem_instance_nNLP(problem_data: ProblemData,
+                                     operation_actions: dict[str, list[tuple[str, int]]] = None, 
+                                     idx_mod: int = 0) -> list[NlpProblem]:
+    
+    if operation_actions is None:
+        operation_actions: dict = {
+            # Day 1 -----------------------  # Day 2 -----------------------
+            "sfts": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
+            "med": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
+        }
+    
+    ps: ProblemSamples = problem_data.problem_samples
+    pp: ProblemParameters = problem_data.problem_params
+    model = problem_data.model
+    df = problem_data.df
+    
+    hor_span = (idx_mod + 1, idx_mod + 1 + ps.n_evals_mod_in_hor_window)
+    ds = df.iloc[hor_span[0] : hor_span[1]]
+
+    env_vars: EnvironmentVariables = EnvironmentVariables(
+        I=ds["I"],
+        Tamb=ds["Tamb"],
+        Tmed_c_in=ds["Tmed_c_in"],
+        cost_w=pd.Series(
+            data=np.ones((ps.n_evals_mod_in_hor_window,)) * pp.env_params.cost_w,
+            index=ds.index,
+        ),
+        cost_e=pd.Series(
+            data=np.ones((ps.n_evals_mod_in_hor_window,)) * pp.env_params.cost_e,
+            index=ds.index,
+        ),
+    )
+    # For operation plan, environment variables are only available with a one hour resolution
+    env_vars_opt = env_vars.resample(f"{pp.sample_time_opt}s", origin="start")
+
+    print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
+
+    # 3. Build operation plan
+    operation_planner = OperationPlanner.initialize(operation_actions)
+    print(operation_planner)
+
+    I = [
+        env_vars_opt.I.loc[
+            df.index[0] + pd.Timedelta(days=n_day) : df.index[0]
+            + pd.Timedelta(days=n_day + 1)
+        ]
+        .resample(f"{10}min", origin="start")
+        .interpolate()
+        for n_day in range(pp.optim_window_days)
+    ]
+    int_dec_vars_list = operation_planner.generate_decision_series(I)
+
+    # 4. Initialize problem instances
+    return [
+        NlpProblem(
+            int_dec_vars=int_dec_vars,
+            # Planner layer should get time imprecise weather forecasts
+            env_vars=env_vars_opt,
+            real_dec_vars_update_period=RealDecisionVariablesUpdatePeriod(), # TODO: Should be part of problem params
+            model=model,
+            initial_dec_vars_values=InitialDecVarsValues(), # TODO: Should be part of problem params
+            sample_time_ts=pp.sample_time_ts,
+            
+            store_x=False,
+            store_fitness=False,
+        ) for int_dec_vars in int_dec_vars_list
+    ]
+
+
+def initialize_problem_instance_minlp(problem_data: ProblemData, idx_mod: int,
+                       fsm_data_path: Path, return_env_vars: bool = False) -> MinlpProblem | tuple[MinlpProblem, EnvironmentVariables]:
     
     # alias definition    
     pp = problem_data.problem_params
@@ -183,7 +257,7 @@ def initialize_problem_instance(problem_data: ProblemData, idx_mod: int,
     )
 
     ## Initialize problem
-    problem = Problem(
+    problem = MinlpProblem(
         model=problem_data.model, 
         sample_time_opt=pp.sample_time_opt,
         optim_window_time=pp.optim_window_time,

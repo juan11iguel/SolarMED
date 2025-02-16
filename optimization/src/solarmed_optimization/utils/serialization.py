@@ -15,6 +15,7 @@ from solarmed_optimization.utils import CustomEncoder
 
 class AlgoLogColumns(Enum):
     """Enum for the algorithm logs columns."""
+    
     GACO = ["Gen", "Fevals", "Best", "Kernel", "Oracle", "dx", "dp"]
     SGA = ["Gen", "Fevals", "Best", "Improvement", "Mutations"]
     NSGA2 = ["Gen", "Fevals", "ideal_point"]
@@ -31,6 +32,7 @@ class AlgoLogColumns(Enum):
 
 class FilenamesMapping(Enum):
     """Enum for the file ids to filenames mapping."""
+    
     METADATA = "metadata.json"
     PROBLEM_PARAMS = "problem_params.json"
     INITIAL_STATES = "initial_states.json"

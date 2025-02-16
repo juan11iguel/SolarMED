@@ -431,6 +431,24 @@ def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: p
                     figure_path=output_path, formats=["png"])#, "html"])
         
         
+def plot_obj_scape_comp_1d(fitness_history_list: list[np.ndarray[float]], algo_ids: list[str], **kwargs) -> go.Figure:
+    
+    assert len(fitness_history_list) == len(algo_ids), "fitness_history_list and algo_ids should have the same length"
+    
+    # First create the base plot calling plot_obj_space_1d_no_animation
+    fig = plot_obj_space_1d_no_animation(fitness_history_list[0], algo_id=algo_ids[0])
+    
+    # And then add the other fitness histories
+    for algo_id, fitness_history in zip(algo_ids[1:], fitness_history_list[1:]):
+        avg_fitness = [np.mean(x) for x in fitness_history]
+        generation = np.arange(len(fitness_history))
+        
+        fig.add_trace(go.Scatter(x=generation, y=avg_fitness, mode="lines", name=algo_id))
+        
+    fig.update_layout(**kwargs)
+    
+    return fig
+        
 """
 From here is basically copied from EvoX: https://github.com/EMI-Group/evox/blob/main/src/evox/vis_tools/plot.py#L4
 Have to find a better way to import this without having to install the whole package nor copying code
@@ -443,28 +461,41 @@ def plot_obj_space_1d(fitness_history: list[np.ndarray[float]], animation: bool 
         return plot_obj_space_1d_no_animation(fitness_history, **kwargs)
 
 
-def plot_obj_space_1d_no_animation(fitness_history: list[np.ndarray[float]], **kwargs) -> go.Figure:
+def plot_obj_space_1d_no_animation(fitness_history: list[np.ndarray[float]], algo_id: str = None, **kwargs) -> go.Figure:
 
-    min_fitness = [np.min(x) for x in fitness_history]
-    max_fitness = [np.max(x) for x in fitness_history]
-    median_fitness = [np.median(x) for x in fitness_history]
     avg_fitness = [np.mean(x) for x in fitness_history]
     generation = np.arange(len(fitness_history))
 
-    fig = go.Figure(
-        [
+    additional_scatters = []
+    if len(fitness_history.shape) > 1:
+        min_fitness = [np.min(x) for x in fitness_history]
+        max_fitness = [np.max(x) for x in fitness_history]
+        median_fitness = [np.median(x) for x in fitness_history]
+        
+        additional_scatters = [
             go.Scatter(x=generation, y=min_fitness, mode="lines", name="Min"),
             go.Scatter(x=generation, y=max_fitness, mode="lines", name="Max"),
             go.Scatter(x=generation, y=median_fitness, mode="lines", name="Median"),
-            go.Scatter(x=generation, y=avg_fitness, mode="lines", name="Average"),
+        ]
+        
+    # Layout defaults
+    kwargs.setdefault("yaxis_title", "Fitness")
+    kwargs.setdefault("xaxis_title", "Number of objective function evaluations")
+    kwargs.setdefault("title_text", "<b>Fitness evolution</b><br>comparison between different algorithms")
+        
+    fig = go.Figure(
+        [
+            *additional_scatters,
+            go.Scatter(x=generation, y=avg_fitness, mode="lines", name="Average" if algo_id is None else algo_id),
         ],
         layout=go.Layout(
-            legend={
-                "x": 1,
-                "y": 1,
-                "xanchor": "auto",
-            },
-            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+            showlegend=True,
+            # legend={
+            #     "x": 1,
+            #     "y": 1,
+            #     "xanchor": "auto",
+            # },
+            # margin={"l": 0, "r": 0, "t": 0, "b": 0},
             **kwargs
         ),
     )
