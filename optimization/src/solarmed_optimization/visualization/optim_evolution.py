@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Literal
+from collections.abc import Iterable
 import numpy as np
 import pandas as pd
 from plotly.subplots import make_subplots
@@ -467,7 +468,7 @@ def plot_obj_space_1d_no_animation(fitness_history: list[np.ndarray[float]], alg
     generation = np.arange(len(fitness_history))
 
     additional_scatters = []
-    if len(fitness_history.shape) > 1:
+    if isinstance(fitness_history[0], Iterable):
         min_fitness = [np.min(x) for x in fitness_history]
         max_fitness = [np.max(x) for x in fitness_history]
         median_fitness = [np.median(x) for x in fitness_history]

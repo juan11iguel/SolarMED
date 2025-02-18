@@ -1,20 +1,16 @@
 import copy
-import json
 from pathlib import Path
 import time
-from datetime import datetime
 import numpy as np
 import pandas as pd
 from loguru import logger
 import pygmo as pg
-import itertools
 
 from phd_visualizations import save_figure
 
 from solarmed_optimization import (
     EnvironmentVariables,
     ProblemParameters,
-    AlgorithmParameters,
     ProblemSamples,
     RealDecisionVariablesUpdatePeriod,
     InitialDecVarsValues,
@@ -26,11 +22,9 @@ from solarmed_optimization.utils.initialization import (
     InitialStates,
 )
 from solarmed_optimization.utils.operation_plan import OperationPlanner
-from solarmed_optimization.utils.evaluation import evaluate_optimization_nlp
-from solarmed_optimization.utils.serialization import OptimizationResults, export_algo_logs
-from solarmed_optimization.utils.visualization import generate_visualizations
+from solarmed_optimization.utils.serialization import export_algo_comparison
 from solarmed_optimization.visualization.nlp import plot_op_mode_change_candidates
-from solarmed_optimization.utils import CustomEncoder, extract_prefix
+from solarmed_optimization.utils import extract_prefix
 
 logger.disable("phd_visualizations")
 
@@ -46,12 +40,18 @@ data_path: Path = Path("../data")
 date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
 
 # Parameters
-max_n_obj_fun_evals: int = 1000
-pop_sizes: list[int] = [10, 20, 50] #, 150]
+max_n_obj_fun_evals: int = 10
+pop_sizes: list[int] = [10]#, 20, 50] #, 150]
 
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=36 * 3600,  # 1d12h
     sample_time_opt=3600,  # 1h, In NLP-operation plan just used to resample environment variables
+    operation_actions= {
+        # Day 1 -----------------------  # Day 2 -----------------------
+        "sfts": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
+        "med": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
+    },
+    initial_states = InitialStates(Tts_h=[90, 80, 70], Tts_c=[70, 60, 50])
 )
 
 # optim_params: AlgorithmParameters = AlgorithmParameters(
@@ -60,14 +60,11 @@ problem_params: ProblemParameters = ProblemParameters(
 #     seed_num=32
 # )        
 
-operation_actions: dict = {
-    # Day 1 -----------------------  # Day 2 -----------------------
-    "sfts": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
-    "med": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
+metadata: dict = {
+    "date_str": date_str,
+    "max_n_obj_fun_evals": max_n_obj_fun_evals,
+    "pop_sizes": pop_sizes,
 }
-
-# Set to None to use values from data
-initial_states: InitialStates = InitialStates(Tts_h=[90, 80, 70], Tts_c=[70, 60, 50])
 
 if not base_output_path.exists():
     base_output_path.mkdir()
@@ -89,7 +86,6 @@ def main() -> None:
         problem_params=problem_params,
         date_str=date_str,
         data_path=data_path,
-        initial_states=initial_states,
     )
     ps: ProblemSamples = problem_data.problem_samples
     pp: ProblemParameters = problem_data.problem_params
@@ -121,7 +117,7 @@ def main() -> None:
     print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
 
     # 3. Build operation plan
-    operation_planner = OperationPlanner.initialize(operation_actions)
+    operation_planner = OperationPlanner.initialize(pp.operation_actions)
     print(operation_planner)
 
     I = [
@@ -136,12 +132,12 @@ def main() -> None:
     int_dec_vars_list = operation_planner.generate_decision_series(I)
 
     # Generate and save visualization of operation mode change candidates
-    save_figure(
-        plot_op_mode_change_candidates(I_series=df["I"], pp=pp),
-        figure_name="op_mode_change_candidates",
-        figure_path=base_output_path,
-        formats=["html", "png", "svg"],
-    )
+    # save_figure(
+    #     plot_op_mode_change_candidates(I_series=df["I"], pp=pp),
+    #     figure_name="op_mode_change_candidates",
+    #     figure_path=base_output_path,
+    #     formats=["html", "png", "svg"],
+    # )
 
     # 4. Initialize problem instance for one candidate
     candidate_idx: int = 0
@@ -151,9 +147,9 @@ def main() -> None:
         int_dec_vars=int_dec_vars,
         # Planner layer should get time imprecise weather forecasts
         env_vars=env_vars_opt,
-        real_dec_vars_update_period=RealDecisionVariablesUpdatePeriod(), # TODO: Should be part of problem params
+        real_dec_vars_update_period=pp.real_dec_vars_update_period,
         model=model,
-        initial_dec_vars_values=InitialDecVarsValues(), # TODO: Should be part of problem params
+        initial_dec_vars_values=pp.initial_dec_vars_values,
         sample_time_ts=pp.sample_time_ts,
         
         store_x=False,
@@ -188,6 +184,7 @@ def main() -> None:
             if algo_id in ["sea"]:
                 if pop_idx > 0:
                     continue
+                pop_size = 1
                 
                 # Only one individual, so as many generations as obj fun evals available
                 n_gen_ = max_n_obj_fun_evals
@@ -195,8 +192,12 @@ def main() -> None:
             else:
                 n_gen_ = n_gen
                 
-            results_dict[f"{algo_id}_pop_{pop_size}_gen_{n_gen_}"] = {"x0": pop0.champion_x,
-                                                        "fitness0": pop0.champion_f,}
+            results_dict[f"{algo_id}_pop_{pop_size}_gen_{n_gen_}"] = {
+                "x0": pop0.champion_x,
+                "fitness0": pop0.champion_f,
+                "pop_size": pop_size,
+                "n_gen": n_gen_,
+            }
             
             algo = pg.algorithm(getattr(pg, algo_id)(**algo_params, gen=n_gen_))
             # Does this make the memory footprint grow too much?
@@ -207,7 +208,6 @@ def main() -> None:
                 pg.island(algo=algo, pop=copy.deepcopy(pop0))
             )
             
-
     # 6. Evaluate the archipielago
     archi.evolve()
     print(archi)
@@ -217,8 +217,8 @@ def main() -> None:
         time.sleep(5)
         print(f"Elapsed time: {time.time() - start_time:.0f}")
         # print(f"Current evolution results | Best fitness: {pop_current.champion_f[0]}, \nbest decision vector: {pop_current.champion_x}")
-    optim_eval_elapsed_time = int(time.time() - start_time)
-    print(f"Completed evolution! Took {time.time() - start_time:.0f} seconds") 
+    metadata["evaluation_time"] = int(time.time() - start_time)
+    print(f"Completed evolution! Took {metadata["evaluation_time"] - start_time:.0f} seconds") 
 
     # 7. Generate results
     # For now just extract evolved populations
@@ -233,13 +233,13 @@ def main() -> None:
         algo_logs.append( isl.get_algorithm().extract( getattr(pg, algo_id) ).get_log() )
                 
     # 8. Save results
-    file_id = f"{datetime.now():%Y%m%dT%H%M}_for_{date_str}_data"
+    export_algo_comparison(
+        results_dict=results_dict, output_path=base_output_path,
+        metadata=metadata, problem_params=problem_params,
+        algo_logs=algo_logs, algo_ids=algo_ids, table_ids=list(results_dict.keys())
+    )
     
-    export_algo_logs(algo_logs, base_output_path / f"algo_logs_{file_id}.h5", 
-                     algo_ids=algo_ids, table_ids=list(results_dict.keys()))
     
-    with open(base_output_path / f"algo_comp_eval_at_{file_id}.json", "w") as f:
-        json.dump(results_dict, f, indent=4, cls=CustomEncoder)
     
     
 if __name__ == "__main__":

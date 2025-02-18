@@ -30,7 +30,6 @@ from solarmed_optimization.utils import (validate_dec_var_updates,
 # nNLP
 from solarmed_optimization.problems.minlp import BaseProblem, EnvironmentVariables, Problem as MinlpProblem
 from solarmed_optimization.utils.operation_plan import OperationPlanner
-from solarmed_optimization import RealDecisionVariablesUpdatePeriod, InitialDecVarsValues
 
 logger.disable("phd_visualizations")
 
@@ -51,7 +50,6 @@ renames_dict: dict[str, str] = {
 }
 
 def problem_initialization(problem_params: ProblemParameters, date_str: str, data_path: Path = Path("./data"),
-                           initial_states: InitialStates = None,
                            set_dec_var_updates: bool = True) -> ProblemData:
     
     pp: ProblemParameters = problem_params
@@ -135,11 +133,11 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
 
         validate_dec_var_updates(dec_var_updates=pp.dec_var_updates, optim_window_time=pp.optim_window_time, sample_time_mod=pp.sample_time_mod)
 
-    Tts_h = initial_states.Tts_h if initial_states is not None else [df['Tts_h_t'].iloc[pp.idx_start], df['Tts_h_m'].iloc[pp.idx_start], df['Tts_h_b'].iloc[pp.idx_start]]
-    Tts_c = initial_states.Tts_c if initial_states is not None else [df['Tts_c_t'].iloc[pp.idx_start], df['Tts_c_m'].iloc[pp.idx_start], df['Tts_c_b'].iloc[pp.idx_start]]
-    fsm_internal_states = initial_states.fsms_internal_states if initial_states is not None else pp.fsm_internal_states
-    Tsf_in_ant = initial_states.Tsf_in_ant if initial_states is not None else df['Tsf_in'].iloc[pp.idx_start-ps.span:pp.idx_start].values
-    qsf_ant = initial_states.qsf_ant if initial_states is not None else df['qsf'].iloc[pp.idx_start-ps.span:pp.idx_start].values
+    Tts_h = pp.initial_states.Tts_h if pp.initial_states is not None else [df['Tts_h_t'].iloc[pp.idx_start], df['Tts_h_m'].iloc[pp.idx_start], df['Tts_h_b'].iloc[pp.idx_start]]
+    Tts_c = pp.initial_states.Tts_c if pp.initial_states is not None else [df['Tts_c_t'].iloc[pp.idx_start], df['Tts_c_m'].iloc[pp.idx_start], df['Tts_c_b'].iloc[pp.idx_start]]
+    fsm_internal_states = pp.initial_states.fsms_internal_states if pp.initial_states is not None else pp.fsm_internal_states
+    Tsf_in_ant = pp.initial_states.Tsf_in_ant if pp.initial_states is not None else df['Tsf_in'].iloc[pp.idx_start-ps.span:pp.idx_start].values
+    qsf_ant = pp.initial_states.qsf_ant if pp.initial_states is not None else df['qsf'].iloc[pp.idx_start-ps.span:pp.idx_start].values
     
     # Initialize model instance
     model = SolarMED(
@@ -170,20 +168,27 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
     
 
 def initialize_problem_instance_nNLP(problem_data: ProblemData,
-                                     operation_actions: dict[str, list[tuple[str, int]]] = None, 
+                                     # Integrated in ProblemData.ProblemParameters
+                                     #operation_actions: dict[str, list[tuple[str, int]]] = None,
+                                     #real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = RealDecisionVariablesUpdatePeriod(),
+                                     #initial_dec_vars_values: InitialDecVarsValues = InitialDecVarsValues(),
                                      idx_mod: int = 0) -> list[NlpProblem]:
     
-    if operation_actions is None:
-        operation_actions: dict = {
-            # Day 1 -----------------------  # Day 2 -----------------------
-            "sfts": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
-            "med": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
-        }
+    # if operation_actions is None:
+    #     operation_actions: dict = {
+    #         # Day 1 -----------------------  # Day 2 -----------------------
+    #         "sfts": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
+    #         "med": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
+    #     }
     
     ps: ProblemSamples = problem_data.problem_samples
     pp: ProblemParameters = problem_data.problem_params
     model = problem_data.model
     df = problem_data.df
+    
+    assert getattr(pp, 'operation_actions', None) is not None, "Operation actions must be defined in the ProblemParameters"
+    assert getattr(pp, 'real_dec_vars_update_period', None) is not None, "Real decision variables update period must be defined in the ProblemParameters"
+    assert getattr(pp, 'initial_dec_vars_values', None) is not None, "Initial decision variables values must be defined in the ProblemParameters"
     
     hor_span = (idx_mod + 1, idx_mod + 1 + ps.n_evals_mod_in_hor_window)
     ds = df.iloc[hor_span[0] : hor_span[1]]
@@ -207,7 +212,7 @@ def initialize_problem_instance_nNLP(problem_data: ProblemData,
     print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
 
     # 3. Build operation plan
-    operation_planner = OperationPlanner.initialize(operation_actions)
+    operation_planner = OperationPlanner.initialize(pp.operation_actions)
     print(operation_planner)
 
     I = [
@@ -227,9 +232,9 @@ def initialize_problem_instance_nNLP(problem_data: ProblemData,
             int_dec_vars=int_dec_vars,
             # Planner layer should get time imprecise weather forecasts
             env_vars=env_vars_opt,
-            real_dec_vars_update_period=RealDecisionVariablesUpdatePeriod(), # TODO: Should be part of problem params
+            real_dec_vars_update_period=pp.real_dec_vars_update_period,
             model=model,
-            initial_dec_vars_values=InitialDecVarsValues(), # TODO: Should be part of problem params
+            initial_dec_vars_values=pp.initial_dec_vars_values,
             sample_time_ts=pp.sample_time_ts,
             
             store_x=False,

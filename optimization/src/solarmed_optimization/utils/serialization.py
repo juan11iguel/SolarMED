@@ -1,6 +1,7 @@
 from pathlib import Path
 from dataclasses import asdict, dataclass
 import json
+from datetime import datetime
 from typing import Any
 import pandas as pd
 import plotly.graph_objects as go
@@ -48,18 +49,59 @@ class FilenamesMapping(Enum):
 def step_idx_to_step_id(step_idx: int) -> str:
     return f"step_{step_idx:03d}"
 
-def export_algo_logs(algo_logs: list[ pd.DataFrame ] | list[ list[tuple[int|float]] ], 
-                     output_path: Path, 
-                     algo_ids: list[str], 
-                     table_ids: list[str]) -> None:
+def export_algo_comparison(results_dict: dict, metadata:dict, problem_params: ProblemParameters,
+                           algo_logs: list[ pd.DataFrame ] | list[ list[tuple[int|float]] ], algo_ids: list[str], table_ids: list[str],
+                           output_path: Path, ) -> None:
+    """
+    Exports algorithm comparison results to an HDF5 file and a JSON file.
+    Args:
+        results_dict (dict): Dictionary containing the results of the algorithm comparison.
+        metadata (dict): Metadata information related to the algorithm comparison.
+        problem_params (ProblemParameters): Parameters of the problem being solved.
+        algo_logs (list[pd.DataFrame] | list[list[tuple[int | float]]]): List of algorithm logs, either as DataFrames or lists of tuples.
+        algo_ids (list[str]): List of algorithm identifiers.
+        table_ids (list[str]): List of table identifiers for storing logs in the HDF5 file.
+        output_path (Path): Path to the output directory where the files will be saved.
+    Raises:
+        KeyError: If none of the possible fitness keys are found in the algorithm logs.
+    Returns:
+        None
+    """
+    
+    file_id = f"eval_at_{datetime.now():%Y%m%dT%H%M}_for_{metadata['date_str']}_data"
+    
     # Extract algorithm logs
     for idx, (algo_id, algo_log) in enumerate(zip(algo_ids, algo_logs)):
         if not isinstance(algo_log, pd.DataFrame):
             # print(algo_id)
             algo_logs[idx] = pd.DataFrame(algo_log, columns=AlgoLogColumns[algo_id.upper()].columns)
     
-    with pd.HDFStore(output_path, mode='a') as store:
+    with pd.HDFStore(output_path / f"algo_logs_{file_id}.h5", mode='a') as store:
         [store.put(table_id, algo_log) for algo_log, table_id in zip(algo_logs, table_ids)]
+    logger.info(f"Exported algorithm logs to {output_path / f'algo_logs_{file_id}.h5'}")
+        
+    # Add fitness_history to the results dict
+    possible_fitness_keys: list[str] = ["Best", "gbest"]
+    for cs_id, algo_log in zip(table_ids, algo_logs):
+        fitness_value = None
+        for key in possible_fitness_keys:
+            if key in algo_log.columns:
+                fitness_value = algo_log[key].values
+                break
+        if fitness_value is None:
+            raise KeyError(f"None of the possible fitness keys {possible_fitness_keys} found in case study {cs_id}")
+        # print(f"Case study: {cs_id} | Fitness: {fitness_value}")
+        results_dict[cs_id]["fitness_history"] = fitness_value
+        
+    output_dict = {
+        "metadata": metadata,
+        "problem_params": asdict(problem_params),
+        "results": results_dict,
+    }
+        
+    with open(output_path / f"algo_comp_{file_id}.json", "w") as f:
+        json.dump(output_dict, f, indent=4, cls=CustomEncoder)
+    logger.info(f"Exported algorithm comparison results to {output_path / f'algo_comp_{file_id}.json'}")
 
 def export_optimization_results(output_path: Path, 
                                 step_idx: int,

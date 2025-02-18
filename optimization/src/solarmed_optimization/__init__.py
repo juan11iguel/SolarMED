@@ -11,7 +11,8 @@ from solarmed_modeling.solar_med import (SolarMED,
                                          ModelParameters,
                                          FixedModelParameters,
                                          FsmParameters,
-                                         FsmInternalState)
+                                         FsmInternalState,
+                                         InitialStates)
 from solarmed_modeling.fsms import MedState, SfTsState, MedVacuumState
 from solarmed_modeling.fsms.med import (FsmParameters as MedFsmParams,
                                         FsmInputs as MedFsmInputs)
@@ -329,124 +330,6 @@ class OptimVarIdstoModelVarIdsMapping(Enum):
     Tmed_s_in = "Tmed_s_in"
     Tmed_c_out = "Tmed_c_out"
 
-@dataclass
-class FsmData:
-    metadata: dict
-    paths_df: pd.DataFrame
-    valid_inputs: list[list[list[float]]]
-    
-@dataclass
-class ProblemSamples:
-    # Times to samples transformation
-    n_evals_mod_in_hor_window: int # Number of model evalations along the optimization window
-    n_evals_mod_in_opt_step: int # Number of model evaluations in one optimization step
-    episode_samples: int # Number of samples in one episode
-    optim_window_samples: int # Number of samples in the optimization window
-    max_opt_steps: int # Max number of steps for the optimization scheme
-    span: int # Number of previous samples to keep track of
-    default_n_dec_var_updates: int # Default number of decision variable updates in the optimization window (depends on sample_time_opt)
-    max_dec_var_updates: int # Maximum number of decision variable updates in the optimization window (depends on sample_time_mod)
-    min_dec_var_updates: int  = 1 # Minimum number of decision variable updates in the optimization window
-    
-
-@dataclass
-class ProblemParameters:
-    sample_time_mod: int = 400 # Model sample time, seconds
-    sample_time_opt: int = 3600 * 0.8 # Optimization evaluations period, seconds
-    sample_time_ts: int = 3600 # Thermal storage sample time, seconds (used in nNLP alternative)
-    optim_window_time: int = 3600 * 8 # Optimization window size, seconds
-    episode_duration: int = None # By default use len(df)
-    idx_start: int = None # By default estimate from sf fixed_mod_params.delay_span
-    env_params: EnvironmentParameters = field(default_factory=lambda: EnvironmentParameters())
-    fixed_model_params: FixedModelParameters = field(default_factory=lambda: FixedModelParameters())
-    model_params: ModelParameters = field(default_factory=lambda: ModelParameters())
-    fsm_params: FsmParameters = field(default_factory=lambda: FsmParameters(
-        med=MedFsmParams(
-            vacuum_duration_time = 1*3600, # 1 hour
-            brine_emptying_time = 30*60,   # 30 minutes
-            startup_duration_time = 20*60, # 20 minutes
-            off_cooldown_time = 12*3600,   # 12 hours
-            active_cooldown_time = 4*3600, # 3 hours
-        ),
-        sf_ts=SftsFsmParams(
-            recirculating_ts_enabled = False,
-            idle_cooldown_time = 1*3600,   # 1 hour
-            # TODO: Add an OFF cooldown time similar to the MED
-        )
-    ))
-    fsm_internal_states: FsmInternalState = field(default_factory=lambda: FsmInternalState())
-    fsm_valid_sequences: dict[ str, list[list[int]] ] = field(default_factory=lambda: {
-        'MED': [
-            [MedState.IDLE.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
-            [MedState.GENERATING_VACUUM.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
-        ],
-        'SFTS': [
-            [SfTsState.HEATING_UP_SF.value, SfTsState.SF_HEATING_TS.value],
-        ]
-    })
-    dec_var_updates: DecisionVariablesUpdates = None # Set automatically in utils.initialization.problem_initialization if not manually defined
-    optim_window_days: int = None # Automatically computed from optim_window_time
-    
-    def __post_init__(self):
-        """ Make convenient to initialize this dataclass from dumped instances """
-        for fld in fields(self):
-            if is_dataclass(fld.type):
-                value = getattr(self, fld.name)
-                if isinstance(value, dict):
-                # if not isinstance(value, fld.type) and value is not None:
-                    setattr(self, fld.name, fld.type(**value))
-                    
-        self.optim_window_days = math.ceil(self.optim_window_time / (24*3600))
-
-@dataclass
-class ProblemData:
-    df: pd.DataFrame
-    problem_params: ProblemParameters
-    problem_samples: ProblemSamples 
-    model: SolarMED
-
-@dataclass
-class AlgorithmParameters:
-    pop_size: int = 32
-    n_gen: int = 80
-    seed_num: int = 23
-    
-@dataclass
-class PopulationResults:
-    pop_per_gen: list[list[float|int]] # (gen, individual, dec.variable)
-    fitness_per_gen: list[list[float]] # (gen, individual)
-    time_per_gen: list[float] # (gen, )
-    time_total: float
-    best_idx_per_gen: list[int] # (gen, )
-    worst_idx_per_gen: list[int] # (gen, )
-    
-    # def __post_init__(self, ):
-    #     # Check type of attributes, if they are numpy arrays, make them into lists
-
-    @classmethod
-    def initialize(cls, problem, pop_size: int, n_gen: int, elapsed_time: int) -> 'PopulationResults':
-    
-        x_evaluated = problem.x_evaluated
-        fitness_record = problem.fitness_history
-        x_history: list[list[list[int | float]]] = []
-        fitness_history: list[list[float]] = []
-        best_idx: list[int] = []
-        worst_idx: list[int] = []
-        for idx in range(0, len(x_evaluated)-1, pop_size):
-            x_history.append( x_evaluated[idx:idx+pop_size] )
-            fitness_history.append( fitness_record[idx:idx+pop_size] )
-            best_idx.append( int(np.argmin(fitness_history[-1])) )
-            worst_idx.append( int(np.argmax(fitness_history[-1])) )
-                
-        return cls(
-            pop_per_gen=x_history,
-            fitness_per_gen=fitness_history,
-            best_idx_per_gen=best_idx,
-            worst_idx_per_gen=worst_idx,
-            time_per_gen=elapsed_time/n_gen,
-            time_total=elapsed_time
-        )
-        
 class RealLogicalDecVarDependence(Enum):
     """ Utility class that defines dependence relationship between real 
     decision variables and operation modes / integer ones """
@@ -508,3 +391,132 @@ class RealDecisionVariablesUpdateTimes:
     qmed_f: list[datetime]
     Tmed_s_in: list[datetime]
     Tmed_c_out: list[datetime]
+@dataclass
+class FsmData:
+    metadata: dict
+    paths_df: pd.DataFrame
+    valid_inputs: list[list[list[float]]]
+    
+@dataclass
+class ProblemSamples:
+    # Times to samples transformation
+    n_evals_mod_in_hor_window: int # Number of model evalations along the optimization window
+    n_evals_mod_in_opt_step: int # Number of model evaluations in one optimization step
+    episode_samples: int # Number of samples in one episode
+    optim_window_samples: int # Number of samples in the optimization window
+    max_opt_steps: int # Max number of steps for the optimization scheme
+    span: int # Number of previous samples to keep track of
+    default_n_dec_var_updates: int # Default number of decision variable updates in the optimization window (depends on sample_time_opt)
+    max_dec_var_updates: int # Maximum number of decision variable updates in the optimization window (depends on sample_time_mod)
+    min_dec_var_updates: int  = 1 # Minimum number of decision variable updates in the optimization window
+    
+
+@dataclass
+class ProblemParameters:
+    sample_time_mod: int = 400 # Model sample time, seconds
+    sample_time_opt: int = 3600 * 0.8 # Optimization evaluations period, seconds
+    sample_time_ts: int = 3600 # Thermal storage sample time, seconds (used in nNLP alternative)
+    optim_window_time: int = 3600 * 8 # Optimization window size, seconds
+    episode_duration: int = None # By default use len(df)
+    idx_start: int = None # By default estimate from sf fixed_mod_params.delay_span
+    env_params: EnvironmentParameters = field(default_factory=lambda: EnvironmentParameters())
+    fixed_model_params: FixedModelParameters = field(default_factory=lambda: FixedModelParameters())
+    model_params: ModelParameters = field(default_factory=lambda: ModelParameters())
+    fsm_params: FsmParameters = field(default_factory=lambda: FsmParameters(
+        med=MedFsmParams(
+            vacuum_duration_time = 1*3600, # 1 hour
+            brine_emptying_time = 30*60,   # 30 minutes
+            startup_duration_time = 20*60, # 20 minutes
+            off_cooldown_time = 12*3600,   # 12 hours
+            active_cooldown_time = 4*3600, # 3 hours
+        ),
+        sf_ts=SftsFsmParams(
+            recirculating_ts_enabled = False,
+            idle_cooldown_time = 1*3600,   # 1 hour
+        )
+    ))
+    fsm_internal_states: FsmInternalState = field(default_factory=lambda: FsmInternalState())
+    fsm_valid_sequences: dict[ str, list[list[int]] ] = field(default_factory=lambda: {
+        'MED': [
+            [MedState.IDLE.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
+            [MedState.GENERATING_VACUUM.value, MedState.STARTING_UP.value, MedState.ACTIVE.value],
+        ],
+        'SFTS': [
+            [SfTsState.HEATING_UP_SF.value, SfTsState.SF_HEATING_TS.value],
+        ]
+    })
+    dec_var_updates: DecisionVariablesUpdates = None # Set automatically in utils.initialization.problem_initialization if not manually defined
+    optim_window_days: int = None # Automatically computed from optim_window_time
+    initial_states: InitialStates = None # Optional, if specified model will be initialized with these states
+    operation_actions: dict[str, list[tuple[str, int]]] = None # Optional for MINLP, required in nNLP alternative. Defines the operation actions/updates for each subsystem
+    real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = field(default_factory=lambda: RealDecisionVariablesUpdatePeriod()) # nNLP
+    initial_dec_vars_values: InitialDecVarsValues = field(default_factory=lambda: InitialDecVarsValues())  # nNLP
+    
+    def __post_init__(self):
+        """ Make convenient to initialize this dataclass from dumped instances """
+        for fld in fields(self):
+            if is_dataclass(fld.type):
+                value = getattr(self, fld.name)
+                if isinstance(value, dict):
+                # if not isinstance(value, fld.type) and value is not None:
+                    setattr(self, fld.name, fld.type(**value))
+                    
+        self.optim_window_days = math.ceil(self.optim_window_time / (24*3600))
+        
+    @classmethod
+    def initialize(cls, problem_type: Literal["MINLP", "nNLP"], **kwargs) -> "ProblemParameters":
+        
+        if problem_type == "nNLP":
+            assert kwargs.get("operation_actions", None) is not None, "operation_actions must be specified for nNLP problem type"
+        
+        return cls(**kwargs)    
+
+@dataclass
+class ProblemData:
+    df: pd.DataFrame
+    problem_params: ProblemParameters
+    problem_samples: ProblemSamples 
+    model: SolarMED
+
+@dataclass
+class AlgorithmParameters:
+    pop_size: int = 32
+    n_gen: int = 80
+    seed_num: int = 23
+    
+@dataclass
+class PopulationResults:
+    pop_per_gen: list[list[float|int]] # (gen, individual, dec.variable)
+    fitness_per_gen: list[list[float]] # (gen, individual)
+    time_per_gen: list[float] # (gen, )
+    time_total: float
+    best_idx_per_gen: list[int] # (gen, )
+    worst_idx_per_gen: list[int] # (gen, )
+    
+    # def __post_init__(self, ):
+    #     # Check type of attributes, if they are numpy arrays, make them into lists
+
+    @classmethod
+    def initialize(cls, problem, pop_size: int, n_gen: int, elapsed_time: int) -> 'PopulationResults':
+    
+        x_evaluated = problem.x_evaluated
+        fitness_record = problem.fitness_history
+        x_history: list[list[list[int | float]]] = []
+        fitness_history: list[list[float]] = []
+        best_idx: list[int] = []
+        worst_idx: list[int] = []
+        for idx in range(0, len(x_evaluated)-1, pop_size):
+            x_history.append( x_evaluated[idx:idx+pop_size] )
+            fitness_history.append( fitness_record[idx:idx+pop_size] )
+            best_idx.append( int(np.argmin(fitness_history[-1])) )
+            worst_idx.append( int(np.argmax(fitness_history[-1])) )
+                
+        return cls(
+            pop_per_gen=x_history,
+            fitness_per_gen=fitness_history,
+            best_idx_per_gen=best_idx,
+            worst_idx_per_gen=worst_idx,
+            time_per_gen=elapsed_time/n_gen,
+            time_total=elapsed_time
+        )
+        
