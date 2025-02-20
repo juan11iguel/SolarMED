@@ -45,6 +45,7 @@ with a number of obj. function evaluations expected to be suficcient to yield go
 What changes from previous evaluations is that now the SolarMED model internally modifies
 solar field flows to attempt avoiding outlet temperature saturations, and this should affect
 the fitness valued obtained, producing valid operation without affecting the problem complexity.
+Added a penalization in the fitness function when the limits are reached.
 """
 
 # Parameters
@@ -59,7 +60,8 @@ problem_params: ProblemParameters = ProblemParameters(
         "sfts": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
         "med": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
     },
-    initial_states = InitialStates(Tts_h=[90, 80, 70], Tts_c=[70, 60, 50])
+    initial_states = InitialStates(Tts_h=[90, 80, 70], Tts_c=[70, 60, 50]),
+    on_limits_violation_policy="penalize",
 )
 
 # optim_params: AlgorithmParameters = AlgorithmParameters(

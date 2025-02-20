@@ -149,6 +149,7 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
         fixed_model_params=pp.fixed_model_params,
         model_params=pp.model_params,
         fsms_params=pp.fsm_params,
+        on_limits_violation_policy=pp.on_limits_violation_policy,
         
         # Initial states
         ## FSMs

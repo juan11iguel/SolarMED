@@ -422,6 +422,7 @@ class ProblemParameters:
     env_params: EnvironmentParameters = field(default_factory=lambda: EnvironmentParameters())
     fixed_model_params: FixedModelParameters = field(default_factory=lambda: FixedModelParameters())
     model_params: ModelParameters = field(default_factory=lambda: ModelParameters())
+    on_limits_violation_policy: Literal['raise_error', 'clip', 'penalize'] = "clip" # Policy to apply when inputs result in outputs outside their operating limits (model.evaluate_fitness_function)
     fsm_params: FsmParameters = field(default_factory=lambda: FsmParameters(
         med=MedFsmParams(
             vacuum_duration_time = 1*3600, # 1 hour

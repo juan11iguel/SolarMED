@@ -1397,7 +1397,7 @@ class SolarMED(BaseModel):
         self.total_cost = self.Jtotal * cost_e # kWhe * u.m./kWhe -> u.m./h
         self.total_income = self.qmed_d * cost_w # m³/h * u.m./m³ -> u.m./h
         
-        if penalize_invalid:
+        if penalize_invalid or self.on_limits_violation_policy == "penalize":
             invalid_operation: bool = False
             
             # Checks
