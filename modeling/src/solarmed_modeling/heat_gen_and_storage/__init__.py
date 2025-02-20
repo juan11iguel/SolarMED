@@ -8,7 +8,7 @@ from iapws import IAPWS97 as w_props
 
 # from solarmed_modeling.data_validation import conHotTemperatureType_upper_limit as Tmax
 # from solarmed_modeling.data_validation import conHotTemperatureType_lower_limit as Tmin
-from solarmed_modeling.solar_field import (solar_field_model, 
+from solarmed_modeling.solar_field import (solar_field_with_q_validation_model, 
                                            ModelParameters as SfModParams, 
                                            FixedModelParameters as SfFixedModParams)
 from solarmed_modeling.heat_exchanger import (heat_exchanger_model,
@@ -37,7 +37,7 @@ class FixedModelParameters:
 
 
 def heat_generation_and_storage_subproblem(
-    qsf: np.ndarray[float], Tsf_in_ant: np.ndarray[float], Tsf_out_ant: float,
+    qsf: float, qsf_ant: np.ndarray[float], Tsf_in_ant: np.ndarray[float], Tsf_out_ant: float,
     qts_src: float, qts_dis: float,
     Tts_b_in: float, Tts_h: np.ndarray[float], Tts_c: np.ndarray[float], 
     Tamb: float, I: float,  
@@ -94,24 +94,26 @@ def heat_generation_and_storage_subproblem(
         thermal storage tank inlet temperature, hot tank temperatures, and cold tank temperatures.
     """    
 
-    def inner_function(x, return_states: bool = False) ->  np.ndarray | tuple[float, float, float, np.ndarray[float], np.ndarray[float]]:
+    def inner_function(x, return_states: bool = False, enforce_limits_sf: bool = False) ->  np.ndarray | tuple[float, float, float, np.ndarray[float], np.ndarray[float]]:
         """
         Variables that end with an underscore are the ones calculated in the 
         inner function, to avoid overwriting the outer scope variables.
         """
         
-        if len(x) == 2:
+        if len(x) == 3:
             Tsf_out = x[0]
             Tts_c_b = x[1]
+            qsf_ = x[2]
         elif len(x) == 1:
             # Bottom tank temperature is not considered to change
             Tsf_out = x[0]
+            qsf_ = qsf
             Tts_c_b = Tts_c_b_orig
         else:
             raise ValueError("Invalid number of decision variables")
 
         # Heat exchanger of solar field - thermal storage
-        qhx_p = qsf[-1]
+        qhx_p = qsf_
         qhx_s = qts_src
         if qhx_p < 0.1 or qhx_s < 0.1:
             # HEX not exchanging heat
@@ -138,11 +140,10 @@ def heat_generation_and_storage_subproblem(
             )
 
         # Solar field
-        Tsf_in_ = np.append(Tsf_in_ant, Tsf_in_)
-
-        Tsf_out_ = solar_field_model(
-            Tin=Tsf_in_,
-            q=qsf,
+        Tsf_out_, qsf_ = solar_field_with_q_validation_model(
+            Tin=np.append(Tsf_in_ant, Tsf_in_),
+            q=qsf_,
+            q_ant=qsf_ant,
             I=I,
             Tamb=Tamb,
             Tout_ant=Tsf_out_ant,
@@ -152,6 +153,7 @@ def heat_generation_and_storage_subproblem(
             water_props = water_props[0],
             sample_time=sample_time,
             consider_transport_delay=True,
+            enforce_final_limits=enforce_limits_sf,
         )
 
         # Thermal storage
@@ -172,9 +174,9 @@ def heat_generation_and_storage_subproblem(
         Tts_c_b_ = Tts_c_[-1]
 
         if return_states:
-            return Tsf_in_[-1], Tsf_out_, Tts_t_in_, Tts_h_, Tts_c_
-        elif len(x) == 2:
-            return np.array( [abs(Tsf_out - Tsf_out_), abs(Tts_c_b - Tts_c_b_) ])
+            return Tsf_in_, Tsf_out_, Tts_t_in_, Tts_h_, Tts_c_, qsf_
+        elif len(x) == 3:
+            return np.array([ abs(Tsf_out - Tsf_out_), abs(Tts_c_b - Tts_c_b_), abs(qsf-qsf_) ])
         elif len(x) == 1:
             return [abs(Tsf_out - Tsf_out_)]
         else:
@@ -183,6 +185,7 @@ def heat_generation_and_storage_subproblem(
            
     Tmin: float = fixed_model_params.sf.Tmin
     Tmax: float = fixed_model_params.sf.Tmax
+    qsf_max: float = fixed_model_params.sf.qsf_max
 
     if problem_type != "1p2x":
         raise NotImplementedError("Currently, only `1p2x` alternative is implemented")
@@ -203,13 +206,9 @@ def heat_generation_and_storage_subproblem(
         raise ValueError("Invalid problem type")
     
     # Cap solar field outlet temperature
-    if Tsf_out_ant > Tmax:
-        Tsf_out_ant = Tmax
-    if Tsf_out_ant < Tmin:
-        Tsf_out_ant = Tmin
-        
-    initial_guess = [Tsf_out_ant, Tts_c[-1]]
-    bounds = ((Tmin, Tmin), (Tmax, Tmax)) if solver_method != "lm" else None 
+    Tsf_out_ant = max(min(Tsf_out_ant, Tmax), Tmin)
+    initial_guess = [Tsf_out_ant, Tts_c[-1], qsf]
+    bounds = ((Tmin, Tmin, qsf*0.9), (Tmax, Tmax, qsf_max)) if solver_method != "lm" else None 
 
     if solver == "scipy":
         outputs = scipy.optimize.least_squares(fun=inner_function, x0=initial_guess, bounds=bounds, xtol=1e-1, ftol=1e-1, method=solver_method)
@@ -219,8 +218,7 @@ def heat_generation_and_storage_subproblem(
         raise ValueError(f"Invalid solver {solver}, options are: 'scipy', 'optimparallel'")
     
     # Cap solar field outlet temperature
-    if outputs.x[0] > Tmax:
-        outputs.x[0] = Tmax
+    outputs.x[1] = min(Tmax, outputs.x[1])
     
     # With the system of equations solved, calculate the outputs
-    return inner_function(outputs.x, return_states=True)
+    return inner_function(outputs.x, return_states=True, enforce_limits_sf=True)

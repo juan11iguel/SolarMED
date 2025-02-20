@@ -22,7 +22,7 @@ from solarmed_modeling.data_validation import (within_range_or_zero_or_max,
                                                within_range_or_min_or_max,
                                                conHotTemperatureType, 
                                                check_value_single)
-from solarmed_modeling.solar_field import (solar_field_model, 
+from solarmed_modeling.solar_field import (solar_field_with_q_validation_model, 
                                            ModelParameters as SfModParams, 
                                            FixedModelParameters as SfFixedModParams)
 from solarmed_modeling.heat_exchanger import (heat_exchanger_model,
@@ -772,7 +772,7 @@ class SolarMED(BaseModel):
         or the use_models logical variable to return its outputs. If any is false they are not evaluated
         but return either their values, or the values defined by the finite state machine. 
         """
-        
+                
         if self.resolution_mode != "constant-water-props":
             self._water_props: tuple[w_props, w_props] = (
                 w_props(P=0.2, T=self.Tts_h[0] + 273.15), # P=2 bar  -> 0.2MPa, T in K, temperature of hot tank
@@ -804,8 +804,6 @@ class SolarMED(BaseModel):
             # Solve thermal storage
             # self.Tts_h_in = self.Tts_c[-1] # Hot tank inlet temperature is the bottom temperature of the cold tank
             self.solve_thermal_storage()
-
-            
 
             # Since they are decoupled, necessarily the outlet of the solar field becomes its inlet
             # self.Tsf_in = self.Tsf_out + 3  # Tener en cuenta de que esto no tiene sentido físico, pero se observa en los datos experimentales
@@ -1142,7 +1140,7 @@ class SolarMED(BaseModel):
         Solve the solar field model
         Make sure to set `Tsf_out_ant` to the prior `Tsf_out` value before calling this method
         """
-
+        
         if not self.use_models:
             Tsf_out = np.nan
             qsf = self.qsf_sp
@@ -1162,12 +1160,10 @@ class SolarMED(BaseModel):
                 # qsf = self.qsf_sp
             
         # Else
-        qsf = np.append(self.qsf_ant, self.qsf_sp)
-        Tsf_in = np.append(self.Tsf_in_ant, self.Tsf_in)
-
-        Tsf_out = solar_field_model(
-            Tin=Tsf_in, # From current value, up to array start
-            q=qsf, # From current value, up to array start
+        Tsf_out, qsf = solar_field_with_q_validation_model(
+            Tin=np.append(self.Tsf_in_ant, self.Tsf_in), # From current value, up to array start
+            q=self.qsf_sp,
+            q_ant=self.qsf_ant,
             I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant,
 
             model_params=self.model_params.sf,
@@ -1178,11 +1174,11 @@ class SolarMED(BaseModel):
         
         if update_attrs:
             self.Tsf_out = Tsf_out
-            self.qsf = qsf[-1]
+            self.qsf = qsf
         
-        return Tsf_out, qsf[-1]
+        return Tsf_out, qsf
 
-    def solve_coupled_subproblem(self, update_attrs: bool = True) -> tuple[float, float, float, np.ndarray, np.ndarray, float, float]:
+    def solve_coupled_subproblem(self, update_attrs: bool = True) -> tuple[float, float, float, float, np.ndarray, np.ndarray, float, float]:
         """
         Solve the coupled subproblem of the solar MED system
         """
@@ -1207,11 +1203,10 @@ class SolarMED(BaseModel):
             
             return Tsf_in, Tsf_out, Tts_h_in, Tts_h, Tts_c, qsf, qts_src
         
-        qsf = np.append(self.qsf_ant, self.qsf_sp)
-
-        Tsf_in, Tsf_out, Tts_h_in, Tts_h, Tts_c = heat_generation_and_storage_subproblem(
+        Tsf_in, Tsf_out, Tts_h_in, Tts_h, Tts_c, qsf = heat_generation_and_storage_subproblem(
             # Solar field
-            qsf=qsf,
+            qsf=self.qsf_sp,
+            qsf_ant=self.qsf_ant,
             Tsf_in_ant = self.Tsf_in_ant,
             Tsf_out_ant= self.Tsf_out_ant,
             
@@ -1241,10 +1236,10 @@ class SolarMED(BaseModel):
             self.Tts_h_in = Tts_h_in
             self.Tts_h = Tts_h
             self.Tts_c = Tts_c
-            self.qsf = self.qsf_sp
+            self.qsf = qsf
             self.qts_src = self.qts_src_sp
 
-        return Tsf_in, Tsf_out, Tts_h_in, Tts_h, Tts_c, self.qsf_sp, self.qts_src_sp
+        return Tsf_in, Tsf_out, Tts_h_in, Tts_h, Tts_c, qsf, self.qts_src_sp
 
     def calculate_ts_aux_outputs(self) -> None:
         
@@ -1388,7 +1383,7 @@ class SolarMED(BaseModel):
                                   cost_w: float = None, cost_e: float = None,
                                   cost_type: Literal['economic', 'exergy'] = 'economic',
                                   objective_type: Literal['maximize', 'minimize'] = 'maximize',
-                                  ) -> float:
+                                  penalize_invalid: bool = False) -> float:
 
         if cost_type == 'exergy':
             raise NotImplementedError("Exergy cost evaluation is not yet implemented")
@@ -1401,6 +1396,16 @@ class SolarMED(BaseModel):
         # Economic cost
         self.total_cost = self.Jtotal * cost_e # kWhe * u.m./kWhe -> u.m./h
         self.total_income = self.qmed_d * cost_w # m³/h * u.m./m³ -> u.m./h
+        
+        if penalize_invalid:
+            invalid_operation: bool = False
+            
+            # Checks
+            if abs( self.Tsf_out - self.fixed_model_params.sf.Tmax) < 1e-3:
+                invalid_operation = True    
+                
+            if invalid_operation:
+                self.total_income = 0 # Penalize income when produced by invalid operation
 
         self.net_profit = (self.total_income - self.total_cost) * self.sample_time/3600 # u.m.
         self.net_loss = -self.net_profit # u.m.

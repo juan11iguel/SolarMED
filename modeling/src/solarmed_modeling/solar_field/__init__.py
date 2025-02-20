@@ -5,8 +5,7 @@ from iapws import IAPWS97 as w_props # Librería propiedades del agua, cuidado, 
 import scipy
 import warnings
 
-# TODO: Refactor models to make use of ModelParameter dataclass directly
-# TODO: Refactor models to replace fixed parameters with FixedModelParameters dataclass
+
 # TODO: Deprecate older models
 
 b, a = scipy.signal.butter(3, 0.005)
@@ -32,7 +31,7 @@ class FixedModelParameters:
     ns: int = 2 # Number of loops in series
     Lt: float = 1.15 * 20 # Collector individual tube length [m]
     Acs: float = 7.85e-5 # Flat plate collector tube cross-section area [m²]. Defaults to 7.85e-5
-    Tmax: float = 110  # Maximum temperature of the solar field [ºC]
+    Tmax: float = 120  # Maximum temperature of the solar field [ºC]
     Tmin: float = 10 # Minimum temperature of the solar field [ºC]
     qsf_min: float = 0.372 # Minimum (operating) flow rate [m³/h]. Taken from [20240925-20240927 aquasol-librescada]
     qsf_max: float = 8.928 # Maximum flow rate [m³/h]. Taken from [20240925-20240927 aquasol-librescada]
@@ -55,12 +54,12 @@ def calculate_total_pipe_length(q: float, n: int, sample_time:int = 10, equivale
     l = q_avg * sample_time * n / equivalent_pipe_area
     return l
 
-def find_delay_samples(q: float, sample_time: int = 1, total_pipe_length: float = 5e7, equivalent_pipe_area: float = 7.85e-5, log: bool = True) -> int:
+def find_delay_samples(q: np.ndarray[float], sample_time: int = 1, total_pipe_length: float = 5e7, equivalent_pipe_area: float = 7.85e-5, log: bool = True) -> int:
     """
     Find the number of samples that a flow takes to travel a certain distance in a pipe.
     Args:
         q: Array of flow rates. If less samples than the delay are provided, then the delay will be under-estimated.
-        IMPORTANT!The order should be from oldest (first element) to newest (last element) [m³/h]
+        Order is from most recent to oldest [m³/h]
         sample_time: Time between samples [s]
         total_pipe_length: Total representative length of the pipe (simplification to not consider each different pipe section) [m]
         equivalent_pipe_area: Cross-sectional area representative of the pipe (simplification to not consider each different pipe section) [m²] #NOTE: Probably the current value is way to small for the actual equivalent pipe area since it's just the cross section of the collector tubes, while the connecting pipes are quite large and with a much larger cross-section.
@@ -70,33 +69,32 @@ def find_delay_samples(q: float, sample_time: int = 1, total_pipe_length: float 
             - 1. Manually setting the `n` value in the model until visually the delay was close to the actual delay
             - 2. Calculating the `l` for each sample using that `n` value with `calculate_total_pipe_length`
             - 3. Taking the average of the `l` values
-
-    Returns:
-        n_samples: Number of samples that the flow takes to travel the distance
-
+            
         References:
             [1] J. E. Normey-Rico, C. Bordons, M. Berenguel, and E. F. Camacho, “A Robust Adaptive Dead-Time Compensator with Application to A Solar Collector Field1,” IFAC Proceedings Volumes, vol. 31, no. 19, pp. 93–98, Jul. 1998, doi: 10.1016/S1474-6670(17)41134-7.
-
             [2] G. Ampuño, L. Roca, M. Berenguel, J. D. Gil, M. Pérez, and J. E. Normey-Rico, “Modeling and simulation of a solar field based on flat-plate collectors,” Solar Energy, vol. 170, pp. 369–378, Aug. 2018, doi: 10.1016/j.solener.2018.05.076.
-
 
     Returns:
         n: Number of samples that the flow takes to travel the distance
 
     """
     sum_q = 0
-    n_samples = 0
-    n = len(q) - 1
-    while sum_q < total_pipe_length and n >= 0:
-        sum_q += q[n] * sample_time / equivalent_pipe_area
-        n -= 1
-        n_samples += 1
+    i = 0
+    # n = len(q) - 1
+    while sum_q < total_pipe_length and i < len(q):
+        sum_q += q[i] * sample_time / equivalent_pipe_area
+        i += 1
+    # while sum_q < total_pipe_length and n >= 0:
+    #     sum_q += q[n] * sample_time / equivalent_pipe_area
+    #     n -= 1
+    #     i += 1
 
-    if n < 0 and log:
+    # if n < 0 and log:
+    if i == len(q):
         logger.warning(
-            f'Flow rate array is not long enough to estimate delay, or the total pipe length is too big. Returning {n_samples} samples == len(q) == {n_samples * sample_time} s')
+            f'Flow rate array is not long enough to estimate delay, or the total pipe length is too big. Returning {i} samples == len(q) == {i * sample_time} s')
 
-    return n_samples
+    return i
 
 def solar_field_inverse_model2(
     Tout: float,
@@ -264,6 +262,7 @@ def solar_field_model(
     consider_transport_delay: bool = False,
     water_props: w_props = None,
     log: bool = False,
+    enforce_limits: bool = True,
 ) -> float:
     """
 
@@ -338,7 +337,83 @@ def solar_field_model(
         #     logger.warning(f'Solar field cant cooldown below inlet temperature. New {deltaTout:.4f}ºC')
 
     out = Tout_ant + deltaTout * sample_time
-    out = np.min([out, fmp.Tmax]) # Upper limit
-    out = np.max([out, fmp.Tmin]) # Lower limit
+    if enforce_limits:
+        out = np.min([out, fmp.Tmax]) # Upper limit
+        out = np.max([out, fmp.Tmin]) # Lower limit
 
     return out
+
+
+def solar_field_with_q_validation_model(
+    Tout_ant: float,
+    Tin: float | np.ndarray[float],
+    q: float | np.ndarray[float],
+    q_ant: np.ndarray[float],
+    I: float,
+    Tamb: float,
+    model_params: ModelParameters = ModelParameters(),
+    fixed_model_params: FixedModelParameters = FixedModelParameters(),
+    sample_time: int = 1,
+    consider_transport_delay: bool = False,
+    water_props: w_props = None,
+    log: bool = False,
+    enforce_final_limits: bool = False,
+) -> tuple[float, float]:
+    """ Solar field model that ensures that can manipulate the input flow rate
+    to ensure that the output temperature is within the limits."""
+    
+    def solar_field_model_wrapper(q_: float) -> float:
+        return solar_field_model(
+            Tin=Tin,
+            q=np.append(q_ant, q_),
+            I=I,
+            Tamb=Tamb,
+            Tout_ant=Tout_ant,
+            model_params=model_params,
+            fixed_model_params=fixed_model_params,
+            sample_time=sample_time,
+            consider_transport_delay=consider_transport_delay,
+            water_props=water_props,
+            enforce_limits=False,
+        )
+
+    def find_minimum_valid_q(q_: float, Tout_target: float):
+        """Finds the minimum required flow rate to keep Tout below the max limit"""
+
+        # def residual(q_guess):
+        #     """Returns the difference between calculated and target Tout"""
+        #     Tout = solar_field_model_wrapper(q_guess)
+        #     return Tout - Tout_target  # Want this to be zero
+
+        # return scipy.optimize.fminbound(residual, q0, fixed_model_params.qsf_max, maxfun=30)
+        Tout_ = Tout
+        while Tout_ > Tout_target and q_+qstep <= qmax:
+            q_ += qstep
+            Tout_ = solar_field_model_wrapper(q_)
+            
+        return q_ if Tout_ < Tout_target else qmax
+    
+    qmin, qmax = fixed_model_params.qsf_min, fixed_model_params.qsf_max
+    qstep = 0.1*(qmax - qmin)
+    Tout = solar_field_model_wrapper(q)
+    q_val = q
+    if Tout - fixed_model_params.Tmax > 0:
+        q_val = find_minimum_valid_q(q, Tout_target=fixed_model_params.Tmax-0.5)
+        
+        # Recalculate Tout with the new flow rate
+        Tout = solar_field_model(
+            Tin=Tin,
+            q=np.append(q_ant, q_val),
+            I=I,
+            Tamb=Tamb,
+            Tout_ant=Tout_ant,
+            model_params=model_params,
+            fixed_model_params=fixed_model_params,
+            sample_time=sample_time,
+            consider_transport_delay=consider_transport_delay,
+            water_props=water_props,
+            enforce_limits=enforce_final_limits,
+        )
+        # print(f'q: {q}, q_val: {q_val} | {Tout}')
+
+    return Tout, q_val

@@ -21,7 +21,7 @@ class FixedModelParameters:
     """
     Tmed_s_min: float = 60  # Minimum operating heat source temperature [ºC]
     Tmed_s_max: float = 75  # Maximum operating heat source temperature [ºC]
-    qmed_c_min: float = 8   # Minimum cooling flow rate [m³/h]
+    qmed_c_min: float = 3   # Minimum cooling flow rate [m³/h]
     qmed_c_max: float = 21  # Maximum cooling flow rate [m³/h]
     qmed_s_min: float = 30  # Minimum heat source flow rate [m³/h]
     qmed_s_max: float = 48  # Maximum heat source flow rate [m³/h]
