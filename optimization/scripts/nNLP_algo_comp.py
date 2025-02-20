@@ -40,8 +40,8 @@ data_path: Path = Path("../data")
 date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
 
 # Parameters
-max_n_obj_fun_evals: int = 10
-pop_sizes: list[int] = [10]#, 20, 50] #, 150]
+max_n_obj_fun_evals: int = 5_000
+pop_sizes: list[int] = [1] # [10, 20, 50] #, 150]
 
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=36 * 3600,  # 1d12h
@@ -70,13 +70,13 @@ if not base_output_path.exists():
     base_output_path.mkdir()
 
 algorithms_to_eval: dict[str, dict[str, int]] = {
-    "sade": {}, # at least 7 individuals # Checked
-    "gaco": {}, # requires pop_size > len(x) # Checked
-    "cmaes": {"force_bounds": True}, # Checked
-    "pso_gen": {}, # Checked
+    # "sade": {}, # at least 7 individuals # Checked
+    # "gaco": {}, # requires pop_size > len(x) # Checked
+    # "cmaes": {"force_bounds": True}, # Checked
+    # "pso_gen": {}, # Checked
     "sea": {}, # Checked
-    "de": {}, # Checked
-    # "simulated_annealing": {},
+    # "de": {}, # Checked
+    # "simulated_annealing": {"Ts": 10, "Tf": 0.01},
 }
     
 def main() -> None:
@@ -184,28 +184,42 @@ def main() -> None:
             if algo_id in ["sea"]:
                 if pop_idx > 0:
                     continue
-                pop_size = 1
+                pop_size_ = 1
                 
                 # Only one individual, so as many generations as obj fun evals available
                 n_gen_ = max_n_obj_fun_evals
+                algo_params["gen"] = n_gen_
+                
+            elif algo_id == "simulated_annealing":
+                n_gen_ = n_gen
+                pop_size_ = pop_size
+                algo_params.update({
+                    "bin_size": pop_size_,
+                    "n_T_adj": n_gen_,   
+                })
                 
             else:
+                # Defaults
                 n_gen_ = n_gen
+                pop_size_ = pop_size
+                algo_params["gen"] = n_gen_
                 
-            results_dict[f"{algo_id}_pop_{pop_size}_gen_{n_gen_}"] = {
+            results_dict[f"{algo_id}_pop_{pop_size_}_gen_{n_gen_}"] = {
                 "x0": pop0.champion_x,
                 "fitness0": pop0.champion_f,
-                "pop_size": pop_size,
+                "pop_size": pop_size_,
                 "n_gen": n_gen_,
             }
             
-            algo = pg.algorithm(getattr(pg, algo_id)(**algo_params, gen=n_gen_))
+            algo = pg.algorithm(getattr(pg, algo_id)(**algo_params))
             # Does this make the memory footprint grow too much?
             # No, it also grows when deactivated
             algo.set_verbosity(1) 
             
             archi.push_back(
-                pg.island(algo=algo, pop=copy.deepcopy(pop0))
+                # Setting use_pool=True results in ever-growing memory footprint for the sub-processes
+                # https://github.com/esa/pygmo2/discussions/168#discussioncomment-10269386
+                pg.island(udi=pg.mp_island(use_pool=False), algo=algo, pop=copy.deepcopy(pop0), )
             )
             
     # 6. Evaluate the archipielago
@@ -218,7 +232,7 @@ def main() -> None:
         print(f"Elapsed time: {time.time() - start_time:.0f}")
         # print(f"Current evolution results | Best fitness: {pop_current.champion_f[0]}, \nbest decision vector: {pop_current.champion_x}")
     metadata["evaluation_time"] = int(time.time() - start_time)
-    print(f"Completed evolution! Took {metadata["evaluation_time"] - start_time:.0f} seconds") 
+    print(f"Completed evolution! Took {metadata['evaluation_time'] - start_time:.0f} seconds") 
 
     # 7. Generate results
     # For now just extract evolved populations
