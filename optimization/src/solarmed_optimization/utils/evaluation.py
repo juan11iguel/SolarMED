@@ -118,9 +118,10 @@ def evaluate_model(model: SolarMED,
                    env_vars: EnvironmentVariables,
                    n_evals_mod: int,
                    mode: Literal["optimization", "evaluation"] = "optimization",
-                   model_dec_var_ids: list[str] = None,
+                #    model_dec_var_ids: list[str] = None,
                    df_mod: pd.DataFrame = None,
                    df_start_idx: int = None,
+                   use_inequality_contraints: bool = False,
                    debug_mode: bool = False) -> pd.DataFrame | float:
     """ Evaluate the model for a given decision vector and environment variables
         n_evals_mod is the number of model evaluations, whose value depends on what
@@ -140,11 +141,13 @@ def evaluate_model(model: SolarMED,
 
     # if df_mod is None and mode == "evaluation":
     #     df_mod = model.to_dataframe()
+    if use_inequality_contraints:
+        raise NotImplementedError("Inequality constraints not yet implemented")
 
     if mode == "optimization":
         fitness: np.ndarray[float] = np.zeros((n_evals_mod, ))
-        if model_dec_var_ids is not None:
-            ics: np.ndarray[float] = np.zeros((n_evals_mod, len(model_dec_var_ids)))
+        if use_inequality_contraints:
+            ics: np.ndarray[float] = np.zeros((n_evals_mod, ))
         else:
             ics = None
 
@@ -250,6 +253,7 @@ def evaluate_model_multi_day(model: SolarMED,
     
     operation_end0: datetime = evaluation_range[0]
     fitness_total = 0
+    ics_list: list[list[float]] = []
     n_days = (evaluation_range[1] - evaluation_range[0]).days +1
     env_vars_index = list(asdict(env_vars).values())[0].index
     df_mod = None

@@ -207,6 +207,15 @@ class Problem(BaseNlpProblem):
 	def __post_init__(self, ) -> None:
 		logger.info(f"""{self.get_name()} initialized.
 					{self.get_extra_info()}""")
+  
+		# 4 MED real decision varibales
+		if self.initial_state == SolarMedState.sf_IDLE_ts_IDLE_med_OFF:
+			logger.warning(
+				f"Some updates in the decision vector are unnecessary since once the \
+				MED is started, it takes some time (mainly to generate vacuum). In practice \
+				this is limited to {self.model_dict['fsms_params']['med']['vacuum_duration_time']//3600 * 4 }\
+        		out of {self.size_dec_vector} updates."
+			)
 
 	def get_name(self) -> str:
 		""" Get problem’s name """
