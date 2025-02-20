@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y \
     xclip \
     micro \
     wget \
-    unzip
+    unzip \
+    btop
 
 # Install zsh, oh-my-zsh with customized theme and plugins (git, ssh-agent, zsh-autosuggestions, zsh-syntax-highlighting)
 RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.2.0/zsh-in-docker.sh)" -- \

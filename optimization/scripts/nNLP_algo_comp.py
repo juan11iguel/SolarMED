@@ -1,3 +1,5 @@
+# Compare different algorithms on the same problem
+
 import copy
 from pathlib import Path
 import time
@@ -38,9 +40,15 @@ logger.disable("phd_visualizations")
 base_output_path: Path = Path("../results") / "nNLP_algo_comp"
 data_path: Path = Path("../data")
 date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
+description: str = """Evaluation inteded to re-evaluated best candidate so far: SAE,
+with a number of obj. function evaluations expected to be suficcient to yield good results.
+What changes from previous evaluations is that now the SolarMED model internally modifies
+solar field flows to attempt avoiding outlet temperature saturations, and this should affect
+the fitness valued obtained, producing valid operation without affecting the problem complexity.
+"""
 
 # Parameters
-max_n_obj_fun_evals: int = 5_000
+max_n_obj_fun_evals: int = 3_500
 pop_sizes: list[int] = [1] # [10, 20, 50] #, 150]
 
 problem_params: ProblemParameters = ProblemParameters(
@@ -64,6 +72,7 @@ metadata: dict = {
     "date_str": date_str,
     "max_n_obj_fun_evals": max_n_obj_fun_evals,
     "pop_sizes": pop_sizes,
+    "description": description
 }
 
 if not base_output_path.exists():
@@ -113,12 +122,11 @@ def main() -> None:
     )
     # For operation plan, environment variables are only available with a one hour resolution
     env_vars_opt = env_vars.resample(f"{pp.sample_time_opt}s", origin="start")
-
-    print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
+    logger.info(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
 
     # 3. Build operation plan
     operation_planner = OperationPlanner.initialize(pp.operation_actions)
-    print(operation_planner)
+    logger.info(operation_planner)
 
     I = [
         env_vars_opt.I.loc[
