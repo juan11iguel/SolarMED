@@ -1,6 +1,7 @@
 # Evaluate operation plan - startup / shutdown
 
 import copy
+from dataclasses import asdict
 from pathlib import Path
 import time
 import numpy as np
@@ -8,7 +9,7 @@ import pandas as pd
 from loguru import logger
 import pygmo as pg
 
-from phd_visualizations import save_figure
+# from phd_visualizations import save_figure
 
 from solarmed_optimization import (
     EnvironmentVariables,
@@ -24,27 +25,24 @@ from solarmed_optimization.utils.initialization import (
     InitialStates,
 )
 from solarmed_optimization.utils.operation_plan import OperationPlanner
-from solarmed_optimization.utils.serialization import export_algo_comparison
+from solarmed_optimization.utils.serialization import export_evaluation_results
 # from solarmed_optimization.visualization.nlp import plot_op_mode_change_candidates
-from solarmed_optimization.utils import extract_prefix
 
 logger.disable("phd_visualizations")
 
 # TODOs:
-# - [ ] Verify all visualizations can be generated
-# - [ ] Verify outputs are correctly stored in OptimizationResults
 
 # 1. Define parameters
 # %% Constants
 # Paths definition
-base_output_path: Path = Path("../results") / "nNLP_algo_comp"
+base_output_path: Path = Path("../results") / "nNLP_op_plan"
 data_path: Path = Path("../data")
-date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
 
 # Parameters
-max_n_obj_fun_evals: int = 4_000
+date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
+max_n_obj_fun_evals: int = 1000
+max_n_problems: int = 48
 pop_size: int = 1
-
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=36 * 3600,  # 1d12h
     sample_time_opt=3600,  # 1h, In NLP-operation plan just used to resample environment variables
@@ -62,29 +60,24 @@ problem_params: ProblemParameters = ProblemParameters(
     # },
     initial_states = InitialStates(Tts_h=[90, 80, 70], Tts_c=[70, 60, 50]),
     real_dec_vars_update_period=RealDecisionVariablesUpdatePeriod(),
-    initial_dec_vars_values=InitialDecVarsValues() # Defaults valid for startup, not shutdown
-    
+    initial_dec_vars_values=InitialDecVarsValues(), # Defaults valid for startup, not shutdown
+    on_limits_violation_policy="penalize",
 )
+algo_id: str = "sea"
+algo_params: dict = {}
+
 
 metadata: dict = {
     "date_str": date_str,
     "max_n_obj_fun_evals": max_n_obj_fun_evals,
     "pop_size": pop_size,
+    "algo_id": algo_id,
+    "max_n_problems": max_n_problems,
 }
-
 if not base_output_path.exists():
     base_output_path.mkdir()
 
-algorithms_to_eval: dict[str, dict[str, int]] = {
-    # "sade": {}, # at least 7 individuals # Checked
-    # "gaco": {}, # requires pop_size > len(x) # Checked
-    # "cmaes": {"force_bounds": True}, # Checked
-    # "pso_gen": {}, # Checked
-    "sea": {}, # Checked
-    # "de": {}, # Checked
-    # "simulated_annealing": {"Ts": 10, "Tf": 0.01},
-}
-    
+
 def main() -> None:
     
     # 2. Setup environment
@@ -135,6 +128,8 @@ def main() -> None:
         for n_day in range(pp.optim_window_days)
     ]
     int_dec_vars_list = operation_planner.generate_decision_series(I)
+    # Temp to test script
+    # int_dec_vars_list = int_dec_vars_list[:4]
 
     # Generate and save visualization of operation mode change candidates
     # save_figure(
@@ -143,11 +138,18 @@ def main() -> None:
     #     figure_path=base_output_path,
     #     formats=["html", "png", "svg"],
     # )
-    
+        
     archi = pg.archipelago()
     results_dict: dict = {}
 
     for problem_idx, int_dec_vars in enumerate(int_dec_vars_list):
+        # TODO: Properly handle a queue where results are processed as soon as 
+        # they complete, and add elements waiting in the queue
+        if problem_idx <= max_n_problems-1:
+            continue
+        
+        problem_id: str = f"{problem_idx:03d}"
+        
         # 5. Initialize problem instance for one candidate
         problem = Problem(
             int_dec_vars=int_dec_vars,
@@ -165,62 +167,63 @@ def main() -> None:
 
         n_gen = max_n_obj_fun_evals // pop_size
         # Generate the same intial population for all algorithms
-        logger.info(f"Problem {problem_idx:03d} | Started generating initial population {pop_size=}")
+        logger.info(f"Problem {problem_id} | Started generating initial population {pop_size=}")
         pop0 = pg.population(prob, size=pop_size)
-        logger.info("Problem {problem_idx:03d} | Initial population generated")
+        logger.info(f"Problem {problem_id} | Initial population generated")
         
-        for algo_id, algo_params in algorithms_to_eval.items():
-            if algo_id == "gaco":
-                if pop_size <= problem.size_dec_vector:
-                    logger.warning(f"Skipping {algo_id} with pop_size={pop_size} <= {problem.size_dec_vector}")
-                    continue
-                
-            if algo_id == "sade":
-                if pop_size < 7:
-                    logger.warning(f"Skipping {algo_id} with pop_size={pop_size} < 7")
-                    continue
+        # for algo_id, algo_params in algorithms_to_eval.items():
+        if algo_id == "gaco":
+            if pop_size <= problem.size_dec_vector:
+                raise ValueError(f"Skipping {algo_id} with pop_size={pop_size} <= {problem.size_dec_vector}")
             
-            if algo_id in ["sea"]:
-                if pop_idx > 0:
-                    continue
-                pop_size_ = 1
-                
-                # Only one individual, so as many generations as obj fun evals available
-                n_gen_ = max_n_obj_fun_evals
-                algo_params["gen"] = n_gen_
-                
-            elif algo_id == "simulated_annealing":
-                n_gen_ = n_gen
-                pop_size_ = pop_size
-                algo_params.update({
-                    "bin_size": pop_size_,
-                    "n_T_adj": n_gen_,   
-                })
-                
-            else:
-                # Defaults
-                n_gen_ = n_gen
-                pop_size_ = pop_size
-                algo_params["gen"] = n_gen_
-                
-            results_dict[f"{algo_id}_pop_{pop_size_}_gen_{n_gen_}"] = {
-                "x0": pop0.champion_x,
-                "fitness0": pop0.champion_f,
-                "pop_size": pop_size_,
-                "n_gen": n_gen_,
-            }
+        if algo_id == "sade":
+            if pop_size < 7:
+                raise ValueError(f"Skipping {algo_id} with pop_size={pop_size} < 7")
+        
+        if algo_id in ["sea"]:
+            # if pop_idx > 0:
+            #     continue
+            pop_size_ = 1
             
-            algo = pg.algorithm(getattr(pg, algo_id)(**algo_params))
-            # Does this make the memory footprint grow too much?
-            # No, it also grows when deactivated
-            algo.set_verbosity(1) 
+            # Only one individual, so as many generations as obj fun evals available
+            n_gen_ = max_n_obj_fun_evals
+            algo_params["gen"] = n_gen_
             
-            # 6. Build up archipielago
-            archi.push_back(
-                # Setting use_pool=True results in ever-growing memory footprint for the sub-processes
-                # https://github.com/esa/pygmo2/discussions/168#discussioncomment-10269386
-                pg.island(udi=pg.mp_island(use_pool=False), algo=algo, pop=copy.deepcopy(pop0), )
-            )
+        elif algo_id == "simulated_annealing":
+            n_gen_ = n_gen
+            pop_size_ = pop_size
+            algo_params.update({
+                "bin_size": pop_size_,
+                "n_T_adj": n_gen_,   
+            })
+            
+        else:
+            # Defaults
+            n_gen_ = n_gen
+            pop_size_ = pop_size
+            algo_params["gen"] = n_gen_
+            
+        results_dict[f"problem_{problem_id}"] = {
+            # "int_dec_vars": asdict(int_dec_vars),
+            "x0": pop0.champion_x,
+            "fitness0": pop0.champion_f,
+            # "pop_size": pop_size_,
+            # "n_gen": n_gen_,
+            "problem_idx": problem_idx
+        }
+        metadata["algo_params"] = algo_params
+        
+        algo = pg.algorithm(getattr(pg, algo_id)(**algo_params))
+        # Does this make the memory footprint grow too much?
+        # No, it also grows when deactivated
+        algo.set_verbosity(1) 
+        
+        # 6. Build up archipielago
+        archi.push_back(
+            # Setting use_pool=True results in ever-growing memory footprint for the sub-processes
+            # https://github.com/esa/pygmo2/discussions/168#discussioncomment-10269386
+            pg.island(udi=pg.mp_island(use_pool=False), algo=algo, pop=copy.deepcopy(pop0), )
+        )
             
     # 6. Evaluate the archipielago
     archi.evolve()
@@ -241,22 +244,17 @@ def main() -> None:
     for isl, result_key in zip(archi, results_dict.keys()):
         results_dict[result_key]["x"] = isl.get_population().champion_x
         results_dict[result_key]["fitness"] = isl.get_population().champion_f
-        algo_id = extract_prefix(result_key)
-        
+
         algo_ids.append(algo_id)
         algo_logs.append( isl.get_algorithm().extract( getattr(pg, algo_id) ).get_log() )
                 
     # 8. Save results
-    # TODO: Does it need to be tied to algo_comparison?
-    # Or could it be something along the lines "evaluation_results"?
-    export_algo_comparison(
+    export_evaluation_results(
         results_dict=results_dict, output_path=base_output_path,
         metadata=metadata, problem_params=problem_params,
         algo_logs=algo_logs, algo_ids=algo_ids, table_ids=list(results_dict.keys())
     )
     
-    
-    
-    
+
 if __name__ == "__main__":
     main()

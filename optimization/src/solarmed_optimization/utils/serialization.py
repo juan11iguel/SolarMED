@@ -49,11 +49,12 @@ class FilenamesMapping(Enum):
 def step_idx_to_step_id(step_idx: int) -> str:
     return f"step_{step_idx:03d}"
 
-def export_algo_comparison(results_dict: dict, metadata:dict, problem_params: ProblemParameters,
-                           algo_logs: list[ pd.DataFrame ] | list[ list[tuple[int|float]] ], algo_ids: list[str], table_ids: list[str],
-                           output_path: Path, ) -> None:
+def export_evaluation_results(results_dict: dict, metadata:dict, problem_params: ProblemParameters,
+                              algo_logs: list[ pd.DataFrame ] | list[ list[tuple[int|float]] ], 
+                              algo_ids: list[str], table_ids: list[str],
+                              output_path: Path, ) -> None:
     """
-    Exports algorithm comparison results to an HDF5 file and a JSON file.
+    Exports evaluation results to an HDF5 file and a JSON file.
     Args:
         results_dict (dict): Dictionary containing the results of the algorithm comparison.
         metadata (dict): Metadata information related to the algorithm comparison.
@@ -99,9 +100,9 @@ def export_algo_comparison(results_dict: dict, metadata:dict, problem_params: Pr
         "results": results_dict,
     }
         
-    with open(output_path / f"algo_comp_{file_id}.json", "w") as f:
+    with open(output_path / f"eval_results_{file_id}.json", "w") as f:
         json.dump(output_dict, f, indent=4, cls=CustomEncoder)
-    logger.info(f"Exported algorithm comparison results to {output_path / f'algo_comp_{file_id}.json'}")
+    logger.info(f"Exported evaluation results to {output_path / f'eval_results_{file_id}.json'}")
 
 def export_optimization_results(output_path: Path, 
                                 step_idx: int,

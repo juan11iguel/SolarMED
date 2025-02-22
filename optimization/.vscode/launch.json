@@ -29,6 +29,15 @@
             "program": "${workspaceFolder}/scripts/nNLP_algo_comp.py",
             "console": "integratedTerminal",
             "justMyCode": false,
+        },
+        {
+            "name": "nNLP - operation plan",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/scripts",
+            "program": "${workspaceFolder}/scripts/nNLP_op_plan.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
         }
     ]
 }

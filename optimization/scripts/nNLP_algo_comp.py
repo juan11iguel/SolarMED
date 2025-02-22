@@ -24,15 +24,13 @@ from solarmed_optimization.utils.initialization import (
     InitialStates,
 )
 from solarmed_optimization.utils.operation_plan import OperationPlanner
-from solarmed_optimization.utils.serialization import export_algo_comparison
+from solarmed_optimization.utils.serialization import export_evaluation_results
 from solarmed_optimization.visualization.nlp import plot_op_mode_change_candidates
 from solarmed_optimization.utils import extract_prefix
 
 logger.disable("phd_visualizations")
 
 # TODOs:
-# - [ ] Verify all visualizations can be generated
-# - [ ] Verify outputs are correctly stored in OptimizationResults
 
 # 1. Define parameters
 # %% Constants
@@ -49,7 +47,7 @@ Added a penalization in the fitness function when the limits are reached.
 """
 
 # Parameters
-max_n_obj_fun_evals: int = 3_500
+max_n_obj_fun_evals: int = 3500
 pop_sizes: list[int] = [1] # [10, 20, 50] #, 150]
 
 problem_params: ProblemParameters = ProblemParameters(
@@ -242,7 +240,7 @@ def main() -> None:
         print(f"Elapsed time: {time.time() - start_time:.0f}")
         # print(f"Current evolution results | Best fitness: {pop_current.champion_f[0]}, \nbest decision vector: {pop_current.champion_x}")
     metadata["evaluation_time"] = int(time.time() - start_time)
-    print(f"Completed evolution! Took {metadata['evaluation_time'] - start_time:.0f} seconds") 
+    print(f"Completed evolution! Took {metadata['evaluation_time']} seconds") 
 
     # 7. Generate results
     # For now just extract evolved populations
@@ -257,7 +255,7 @@ def main() -> None:
         algo_logs.append( isl.get_algorithm().extract( getattr(pg, algo_id) ).get_log() )
                 
     # 8. Save results
-    export_algo_comparison(
+    export_evaluation_results(
         results_dict=results_dict, output_path=base_output_path,
         metadata=metadata, problem_params=problem_params,
         algo_logs=algo_logs, algo_ids=algo_ids, table_ids=list(results_dict.keys())
