@@ -173,7 +173,10 @@ def initialize_problem_instance_nNLP(problem_data: ProblemData,
                                      #operation_actions: dict[str, list[tuple[str, int]]] = None,
                                      #real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = RealDecisionVariablesUpdatePeriod(),
                                      #initial_dec_vars_values: InitialDecVarsValues = InitialDecVarsValues(),
-                                     idx_mod: int = 0) -> list[NlpProblem]:
+                                     idx_mod: int = 0,
+                                     store_x=False,
+                                     store_fitness=False,
+                                    ) -> list[NlpProblem]:
     
     # if operation_actions is None:
     #     operation_actions: dict = {
@@ -238,8 +241,8 @@ def initialize_problem_instance_nNLP(problem_data: ProblemData,
             initial_dec_vars_values=pp.initial_dec_vars_values,
             sample_time_ts=pp.sample_time_ts,
             
-            store_x=False,
-            store_fitness=False,
+            store_x=store_x,
+            store_fitness=store_fitness,
         ) for int_dec_vars in int_dec_vars_list
     ]
 

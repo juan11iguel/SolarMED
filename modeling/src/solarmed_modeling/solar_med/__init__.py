@@ -469,6 +469,15 @@ class SolarMED(BaseModel):
                         fields.append(fld)
 
         return fields
+    
+    @computed_field(title="Export fields dtypes df", description="Field data types to export into a dataframe", json_schema_extra={"var_type": None})
+    @property
+    def export_field_dtypes_df(self) -> dict[str, type]:
+        return {
+            field_id: int if issubclass(self.model_fields[field_id].annotation, Enum) 
+            else self.model_fields[field_id].annotation
+            for field_id in self.export_fields_df
+        }
 
     @computed_field(title="Export fields model config", description="Fields to export into model parameters dict", json_schema_extra={"var_type": None})
     @property
@@ -1442,7 +1451,9 @@ class SolarMED(BaseModel):
 
 
         # Create a dataframe from the dictionary
-        data = pd.DataFrame(self.model_dump(include=self.export_fields_df, by_alias=True), index=[0] if index is None else [index])
+        data = pd.DataFrame(
+            self.model_dump(include=self.export_fields_df, by_alias=True), index=[0] if index is None else [index]
+        ).astype(self.export_field_dtypes_df) #, errors='ignore') # Better not to ignore and fix them as needed
 
         # Add the thermal storage temperatures
         data["Tts_h_t"], data["Tts_h_m"], data["Tts_h_b"] = self.Tts_h
@@ -1464,7 +1475,10 @@ class SolarMED(BaseModel):
         if rename_flows:
             data.rename(columns=lambda x: re.sub('^m(?!ed)', 'q', x), inplace=True) # Peligroso
 
-        return pd.concat([df, data], ignore_index=True if index is None else False) if df is not None else data
+        if df is None:
+            return data
+        else:
+            return pd.concat([df, data], ignore_index=True if index is None else False)
 
     def model_dump_configuration(self) -> dict:
         """

@@ -279,7 +279,7 @@
             mode: "lines",
             color: "plotly_yellow",
             width: 3,
-            fill_between: "Pth_hx_s", # Traces to plot fill between need to be defined next to each other
+            fill_between: "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
             },
             {
             var_id: "Pth_ts_dis",

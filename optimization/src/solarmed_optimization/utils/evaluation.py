@@ -99,9 +99,12 @@ def evaluate_idle_thermal_storage(env_vars: EnvironmentVariables, dt_span: tuple
                     f"Tts_{key}_{pos}": list(val)
                     for key, vals in zip(["h", "c"], [zip(*Tts_h), zip(*Tts_c)])  
                     for pos, val in zip(["t", "m", "b"], vals)
-                }
+                },
+                # Add integer variables with last value so no errors are raised when concatenating
+                **{name: df[name].iloc[-1] for name, dtype in zip(df.columns, df.dtypes) if dtype == int}
+                
             }
-        df_ = pd.DataFrame(data, index=index, columns=df.columns)
+        df_ = pd.DataFrame(data, index=index, columns=df.columns).astype(df.dtypes)
         # Remove the last row since it's added when evaluting the complete model
         df_ = df_.iloc[:-1]
         
