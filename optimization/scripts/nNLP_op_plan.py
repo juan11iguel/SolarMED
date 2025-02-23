@@ -40,8 +40,8 @@ data_path: Path = Path("../data")
 
 # Parameters
 date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
-max_n_obj_fun_evals: int = 1000
-max_n_problems: int = 48
+max_n_obj_fun_evals: int = 10
+max_n_problems: int = 2
 pop_size: int = 1
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=36 * 3600,  # 1d12h
@@ -142,10 +142,14 @@ def main() -> None:
     archi = pg.archipelago()
     results_dict: dict = {}
 
+    num_problems = 0
     for problem_idx, int_dec_vars in enumerate(int_dec_vars_list):
         # TODO: Properly handle a queue where results are processed as soon as 
         # they complete, and add elements waiting in the queue
-        if problem_idx <= max_n_problems-1:
+        if problem_idx <= max_n_problems:
+            continue
+        num_problems += 1
+        if not num_problems < max_n_problems: # Continue from max_n_problems max_n_problems times
             continue
         
         problem_id: str = f"{problem_idx:03d}"
