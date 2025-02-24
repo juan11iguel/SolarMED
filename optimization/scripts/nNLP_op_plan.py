@@ -42,7 +42,8 @@ data_path: Path = Path("../data")
 # Parameters
 date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
 max_n_obj_fun_evals: int = 10
-max_n_problems: int = 2
+max_n_problems: int = 55
+start_from_problem_idx: int = 48
 pop_size: int = 1
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=36 * 3600,  # 1d12h
@@ -82,11 +83,9 @@ if not base_output_path.exists():
 def main() -> None:
     
     # 2. Setup environment
+    problem_data = problem_initialization(problem_params=problem_params, date_str=date_str,  data_path=data_path,)
     problems = initialize_problem_instance_nNLP(
-        problem_params=problem_params,
-        date_str=date_str,
-        data_path=data_path,
-        
+        problem_data=problem_data,        
         store_x=False,
         store_fitness=False,
     )
@@ -95,13 +94,13 @@ def main() -> None:
     results_dict: dict = {}
 
     num_problems = 0
-    for problem_idx, int_dec_vars in enumerate(int_dec_vars_list):
+    for problem_idx, problem in enumerate(problems):
         # TODO: Properly handle a queue where results are processed as soon as 
         # they complete, and add elements waiting in the queue
-        if problem_idx <= max_n_problems:
+        if problem_idx < start_from_problem_idx:
             continue
         num_problems += 1
-        if not num_problems < max_n_problems: # Continue from max_n_problems max_n_problems times
+        if not num_problems < max_n_problems: # Continue from start_from_problem_idx, max_n_problems times
             continue
         
         problem_id: str = f"{problem_idx:03d}"
