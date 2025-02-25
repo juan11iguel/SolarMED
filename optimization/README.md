@@ -39,6 +39,22 @@ And then activate it using the name specified in the `environment.yml` file:
 conda activate conda-env
 ```
 
+## Running long tasks in the background
+
+1. Run the script in the devcontainer:
+```bash
+docker exec -d zealous_grothendieck bash -c "source /workspaces/solarmed/miniconda3/bin/activate conda-env && python /workspaces/SolarMED/optimization/scripts/nNLP_op_plan.py > /workspaces/SolarMED/optimization/results/output.log 2>&1"
+```
+Note: `zealous_grothendieck` is the automatically name assigned to the container so it will likely be different.
+
+This command runs the script from within the devcontainer by first activating the conda environment and redirecting the logs to a file that can then be monitored to track progress:
+
+2. Track progress:
+```bash
+docker exec -it zealous_grothendieck tail -f /workspaces/SolarMED/optimization/results/output.log
+```
+
+
 
 ## Files structure
 

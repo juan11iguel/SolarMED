@@ -36,14 +36,15 @@ logger.disable("phd_visualizations")
 # 1. Define parameters
 # %% Constants
 # Paths definition
-base_output_path: Path = Path("../results") / "nNLP_op_plan"
-data_path: Path = Path("../data")
+# base_output_path: Path = Path("../results") / "nNLP_op_plan"
+base_output_path: Path = Path("/workspaces/SolarMED/optimization/results/nNLP_op_plan")
+data_path: Path = Path("/workspaces/SolarMED/optimization/data")
 
 # Parameters
 date_str: str = "20180921_20180928"  # "20230707_20230710" # '20230630' '20230703'
-max_n_obj_fun_evals: int = 10
-max_n_problems: int = 55
-start_from_problem_idx: int = 48
+max_n_obj_fun_evals: int = 1_000
+max_n_problems: int = 49
+start_from_problem_idx: int = 0
 pop_size: int = 1
 problem_params: ProblemParameters = ProblemParameters(
     optim_window_time=36 * 3600,  # 1d12h
@@ -176,7 +177,7 @@ def main() -> None:
         print(f"Elapsed time: {time.time() - start_time:.0f}")
         # print(f"Current evolution results | Best fitness: {pop_current.champion_f[0]}, \nbest decision vector: {pop_current.champion_x}")
     metadata["evaluation_time"] = int(time.time() - start_time)
-    print(f"Completed evolution! Took {metadata['evaluation_time'] - start_time:.0f} seconds") 
+    print(f"Completed evolution! Took {metadata['evaluation_time']:.0f} seconds") 
 
     # 7. Generate results
     # For now just extract evolved populations
