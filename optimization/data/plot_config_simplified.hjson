@@ -5,7 +5,7 @@
   # General plot attributes
   title: "Solar MED optimal coupling",
   subtitle: "Evaluation results", // Model validation?
-  height: 1400,
+  height: 1000,
   width: 1200,
   margin: {
     l:20,
@@ -15,8 +15,11 @@
     pad:5
   },
   vertical_spacing: 0.035,
+  subplot_titles_x: 0.0,
   xdomain: [0, 0.85],
   arrow_xrel_pos: 60, # seconds
+  legend_fontsize: 12,
+  legend_delta_y: 0.01,
 
   # Individual plot attributes
   # First specify the plot attributes
@@ -131,7 +134,7 @@
       bg_color: "bg_gray",
       # ylabels_left: ["C (u.m.)"],
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
-      ylabels_left: ["Cumulative<br>fitness (u.m.)"],
+      ylabels_left: ["Cumulative<br>fitness<br>(u.m.)"],
       ylims_left: 'manual',
       showlegend: true,
       legend_position: "top"
@@ -157,6 +160,7 @@
       title: <b>Operational states</b>
       bg_color: "steelblue",
       row_height: 0.5,
+      title_delta_y: 0.01,
       ylabels_left: ["sf-ts<br>state"],
       // showlegend: true,
       // legend_position: "side",
@@ -226,11 +230,11 @@
         title: "<b>Energy source-load</b>",
         bg_color: "bg_gray",
         row_height: 1,
-        ylabels_left: ["Power balance <br>(kW<sub>th</sub>)"],
+        ylabels_left: ["Power<br>balance<br>(kW<sub>th</sub>)"],
         ylims_left: 'manual',
         tight_vertical_spacing: true,
         showlegend: true,
-        legend_position: "side",
+        legend_position: "top",
     
         traces_left: [
             {
@@ -264,7 +268,7 @@
       # ylabels_left: ["T<sub>dc</sub> (ºC)"],
       ylims_left: 'manual',
       showlegend: true,
-      legend_position: "side",
+      legend_position: "top",
 
       traces_left: [
         {
@@ -296,7 +300,7 @@
       ylims_left: "manual",
       ylims_left: [50, 100],
       showlegend: true,
-      legend_position: "side",
+      legend_position: "top",
 
       "traces_left": [
           # Hot tank
@@ -358,7 +362,6 @@
       bg_color: "bg_gray",
       ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
       ylabels_right: ["m<sup>3</sup>/h"],
-      tigth_vertical_spacing: true,
       ylims_left: 'manual',
       showlegend: true,
       legend_position: "top",
@@ -416,7 +419,7 @@
       ylabels_left: ["Temperatures<br>(⁰C)"],
       ylims_left: 'manual',
       showlegend: true,
-      legend_position: "side",
+      legend_position: "top",
 
       traces_left: [
         {

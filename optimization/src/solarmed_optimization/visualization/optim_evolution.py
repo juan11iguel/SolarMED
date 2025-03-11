@@ -10,12 +10,13 @@ from plotly.colors import hex_to_rgb
 
 from phd_visualizations import save_figure
 
-from solarmed_optimization.utils import flatten_list
+from solarmed_optimization.utils import flatten_list, find_n_best_values_in_list
+
 from solarmed_optimization.problems.minlp import OptimToFsmsVarIdsMapping
 from solarmed_optimization.problems.minlp import BaseProblem
 
 # Constants
-plt_colors = plotly.colors.qualitative.Plotly
+plt_colors = plotly.colors.qualitative.Plotly * 5
 gray_colors = plotly.colors.sequential.Greys[2:][::-1]
 green_colors = plotly.colors.sequential.Greens[2:][::-1]
 
@@ -432,27 +433,37 @@ def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: p
                     figure_path=output_path, formats=["png"])#, "html"])
         
         
-def plot_obj_scape_comp_1d(fitness_history_list: list[np.ndarray[float]], algo_ids: list[str], highlight_best: int = 1, **kwargs) -> go.Figure:
+def plot_obj_scape_comp_1d(fitness_history_list: list[np.ndarray[float]], algo_ids: list[str], highlight_best: int = 0, **kwargs) -> go.Figure:
     
     assert len(fitness_history_list) == len(algo_ids), "fitness_history_list and algo_ids should have the same length"
     
+    best_fit_idxs, _ = find_n_best_values_in_list(fitness_history_list, n=highlight_best, objective="minimize")
+
     # First create the base plot calling plot_obj_space_1d_no_animation
-    fig = plot_obj_space_1d_no_animation(fitness_history_list[0], algo_id=algo_ids[0])
-    
-    # And then add the other fitness histories
-    best_fit_idxs = []
-    for algo_id, fitness_history in zip(algo_ids[1:], fitness_history_list[1:]):
+    fig = plot_obj_space_1d_no_animation(fitness_history_list[0], algo_id=algo_ids[0], 
+                                         showlegend=True,
+                                         line_color=plt_colors[0] if highlight_best == 0 else gray_colors[-1],)
+        
+    for idx, (algo_id, fitness_history) in enumerate( zip(algo_ids[1:], fitness_history_list[1:]) ):
         avg_fitness = [np.mean(x) for x in fitness_history]
         generation = np.arange(len(fitness_history))
         
-        fig.add_trace(go.Scatter(x=generation, y=avg_fitness, mode="lines", name=algo_id))
+        if highlight_best > 0:
+            showlegend = False
+            line_color = gray_colors[-1]
+        else:
+            showlegend = True
+            line_color = plt_colors[idx+1]
         
-        # Store the best highlight_best avg_fitness indexes
-        best_fit_idxs.extend(np.argsort(avg_fitness)[:highlight_best])
+        fig.add_trace(go.Scatter(x=generation, y=avg_fitness, mode="lines", name=algo_id.replace("_", " "), showlegend=showlegend, line=dict(color=line_color)))
         
-    # Increase the line width for the best fitness values
-    for idx in best_fit_idxs:
-        fig.data[idx].line.width = 2
+    # Add best traces at the end
+    if highlight_best > 0:
+        for idx, best_fit_idx in enumerate(best_fit_idxs):
+            avg_fitness = [np.mean(x) for x in fitness_history_list[best_fit_idx]]
+            generation = np.arange(len(fitness_history_list[best_fit_idx]))
+            
+            fig.add_trace(go.Scatter(x=generation, y=avg_fitness, mode="lines", name=f"{algo_ids[best_fit_idx].replace('_', ' ')}", line=dict(color=plt_colors[idx], width=3)))
         
     fig.update_layout(**kwargs)
     
@@ -470,7 +481,7 @@ def plot_obj_space_1d(fitness_history: list[np.ndarray[float]], animation: bool 
         return plot_obj_space_1d_no_animation(fitness_history, **kwargs)
 
 
-def plot_obj_space_1d_no_animation(fitness_history: list[np.ndarray[float]], algo_id: str = None, **kwargs) -> go.Figure:
+def plot_obj_space_1d_no_animation(fitness_history: list[np.ndarray[float]], algo_id: str = None, line_color=plt_colors[0],**kwargs) -> go.Figure:
 
     avg_fitness = [np.mean(x) for x in fitness_history]
     generation = np.arange(len(fitness_history))
@@ -491,14 +502,16 @@ def plot_obj_space_1d_no_animation(fitness_history: list[np.ndarray[float]], alg
     kwargs.setdefault("yaxis_title", "Fitness")
     kwargs.setdefault("xaxis_title", "Number of objective function evaluations")
     kwargs.setdefault("title_text", "<b>Fitness evolution</b><br>comparison between different algorithms")
+    kwargs.setdefault("showlegend", True)
+    
         
     fig = go.Figure(
         [
             *additional_scatters,
-            go.Scatter(x=generation, y=avg_fitness, mode="lines", name="Average" if algo_id is None else algo_id),
+            go.Scatter(x=generation, y=avg_fitness, mode="lines", name="Average" if algo_id is None else algo_id.replace("_", " "),
+                       line=dict(color=line_color)),
         ],
         layout=go.Layout(
-            showlegend=True,
             # legend={
             #     "x": 1,
             #     "y": 1,
