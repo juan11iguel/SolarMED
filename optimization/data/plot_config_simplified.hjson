@@ -1,0 +1,461 @@
+{
+  // INFO:
+  // Available dash types: ['dash', 'dashdot', 'dot', 'longdash', 'longdashdot', 'solid (default)'] 
+
+  # General plot attributes
+  title: "Solar MED optimal coupling",
+  subtitle: "Evaluation results", // Model validation?
+  height: 1400,
+  width: 1200,
+  margin: {
+    l:20,
+    r:50,
+    t:150,
+    b:20,
+    pad:5
+  },
+  vertical_spacing: 0.035,
+  xdomain: [0, 0.85],
+  arrow_xrel_pos: 60, # seconds
+
+  # Individual plot attributes
+  # First specify the plot attributes
+  # In traces, specify the variables to be plotted, the definition order controls the order of the traces in the plot
+  plots: {
+    environment: {
+      title: "<b>Environment</b>",
+      row_height: 1,
+      bg_color: "steelblue",
+      ylabels_left: ["ºC"],
+      ylabels_right: ["W/m<sup>2</sup>"], # As many as n_yaxis-1
+      ylims_left: 'manual',
+      showlegend: true,
+      legend_position: "top"
+
+      traces_left: [
+        // {
+        //   var_id: "Tamb_opt",
+        //   name: "model value", # "T<sub>amb,opt</sub>",
+        //   mode: "lines",
+        //   color: "plotly_blue",
+        //   width: 0.5,
+        //   dash: "dashdot", # "dot", "dash", "dashdot"
+        //   showlegend: true,
+        //   legend_id: 'global_legend'
+        // },
+        {
+          var_id: "Tamb",
+          name: "T<sub>amb</sub> ❮", # "T<sub>amb,ts</sub>",
+          mode: "lines",
+          color: "plotly_green",
+          // showlegend: true,
+          width: 3,
+          showlegend: true,
+        },
+        {
+          var_id: "Tmed_c_in",
+          name: "T<sub>med,c,in</sub> ❮", # "T<sub>med,c,in</sub> ❮",
+          mode: "lines",
+          color: "plotly_blue",
+          width: 3,
+          showlegend: true,
+        },
+      ],
+
+      traces_right: [
+        {
+          var_id: "I",
+          name: "I ❯",
+          mode: "lines",
+          color: "plotly_yellow", # plotly green
+          width: 3,
+          // axis_arrow: true,
+          // arrow_yrel_pos: 1.1,
+          showlegend: true,
+        },
+      ]
+    },
+
+    fitness: {
+      title: "<b>Fitness</b>",
+      row_height: 1,
+      bg_color: "bg_gray",
+      # ylabels_left: ["C (u.m.)"],
+      # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
+      ylabels_left: ["u.m."],
+      ylabels_right: ["m<sup>3</sup>", "kW<sub>e</sub>"],
+      ylims_left: 'manual',
+      showlegend: true,
+      legend_position: "top"
+
+      traces_left: [
+          {
+            var_id: "net_profit",
+            name: "B ❮",
+            mode: "lines",
+            color: "dc_green", # gray
+            showlegend: true,
+            width: 3,
+          },
+        ],
+
+      traces_right: [
+        [ # First yaxis - qd
+          // Experimental
+          {
+            var_id: "qmed_d",
+            name: "q<sub>med,d</sub> ❯",
+            mode: "lines",
+            color: "dc_green", # green DC
+            dash: "dash",
+            showlegend: true,
+          },
+        ],
+        [  # Second yaxis
+          
+          // Experimental
+          {
+            var_id: "Jtotal",
+            name: "J<sub>e</sub> ❯❯",
+            mode: "lines",
+            width: 3,
+            color: "wct_purple", # gray
+            showlegend: true,
+          },
+        ]
+      ]
+    },
+
+    fitness_cumulative: {
+      row_height: 0.5,
+      bg_color: "bg_gray",
+      # ylabels_left: ["C (u.m.)"],
+      # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
+      ylabels_left: ["Cumulative<br>fitness (u.m.)"],
+      ylims_left: 'manual',
+      showlegend: true,
+      legend_position: "top"
+      
+      # Plotted between this plot and the next one
+      show_active: true,
+      active_var_id: "dec_var_sfts_mode",
+      active_color: "plotly_yellow",
+
+      traces_left: [
+          {
+            var_id: "cumulative_net_profit",
+            name: "B cum. (u.m.)",
+            mode: "lines",
+            color: "dc_green", # gray
+            showlegend: false,
+            fill: "tozeroy",
+          },
+        ],
+    },
+
+    operational_states_sfts: {
+      title: <b>Operational states</b>
+      bg_color: "steelblue",
+      row_height: 0.5,
+      ylabels_left: ["sf-ts<br>state"],
+      // showlegend: true,
+      // legend_position: "side",
+
+      # Plotted between this plot and the next one
+      show_active: true,
+      active_var_id: "dec_var_med_mode",
+      active_color: "wct_purple",
+
+      traces_left: [
+        {
+          var_id: "sf_ts_state",
+          name: "sfts state",
+          fill: "tozeroy",
+          color: "plotly_yellow",
+          // stackgroup: "one",
+          // showlegend: true,
+        },
+        // {
+        //   var_id: "med_state",
+        //   name: "med state",
+        //   fill: "tozeroy",
+        //   color: "wct_purple",
+        //   // stackgroup: "one",
+        // }
+      ],
+
+      // traces_right: [
+      //   {
+      //     var_id: "dec_var_sfts_mode",
+      //     name: "sfts mode",
+      //     // fill: "tonexty",
+      //     color: "plotly_yellow",
+      //     dash: "dash"
+      //   },
+      //   {
+      //     var_id: "dec_var_med_mode",
+      //     name: "med mode",
+      //     // fill: true,
+      //     color: "wct_purple",
+      //     dash: "dash"
+      //   }
+      // ]
+
+    },
+    operational_states_med: {
+        bg_color: "steelblue",
+        row_height: 0.5,
+        ylabels_left: ["MED<br>state"],
+        ylims_left: 'manual',
+        // showlegend: true,
+        // legend_position: "side",
+
+        traces_left: [
+          {
+            var_id: "med_state",
+            name: "med state",
+            fill: "tozeroy",
+            color: "wct_purple",
+            // stackgroup: "one",
+            // showlegend: true,
+          }
+        ],
+    },
+
+    power_balance: {
+        title: "<b>Energy source-load</b>",
+        bg_color: "bg_gray",
+        row_height: 1,
+        ylabels_left: ["Power balance <br>(kW<sub>th</sub>)"],
+        ylims_left: 'manual',
+        tight_vertical_spacing: true,
+        showlegend: true,
+        legend_position: "side",
+    
+        traces_left: [
+            {
+            var_id: "Pth_hx_p",
+            name: "P<sub>th,sf</sub>",
+            mode: "lines",
+            color: "plotly_yellow",
+            width: 3,
+            fill_between: "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
+            showlegend: true,
+            },
+            {
+            var_id: "Pth_ts_dis",
+            name: "P<sub>th,med</sub>",
+            mode: "lines",
+            color: "wct_purple", # Should never be greater than Phx_p, but define a color anyway
+            width: 3,
+            fill_between: "Pth_hx_p", # Traces to plot fill between need to be defined next to each other
+            showlegend: true,
+            },
+        ]
+    },
+    
+    solar_field_temperatures: {
+      title: "<b>Subsystems</b>. Solar field",
+      // TODO: Include other temperatures that exist in the real system if it does not clog,
+      // probably better to move to its ows visualization
+      row_height: 1,
+      bg_color: "bg_gray", # bg gray
+      ylabels_left: ["Temperatures<br>(⁰C)"],
+      # ylabels_left: ["T<sub>dc</sub> (ºC)"],
+      ylims_left: 'manual',
+      showlegend: true,
+      legend_position: "side",
+
+      traces_left: [
+        {
+          var_id: "Tsf_in",
+          name: "T<sub>sf,in</sub>",
+          mode: "lines",
+          color: "plotly_orange", # gray
+          width: 3,
+          showlegend: true,
+        },
+        {
+          var_id: "Tsf_out",
+          name: "T<sub>sf,out</sub>",
+          mode: "lines",
+          color: "plotly_red",
+          width: 3,
+          dash: "dash", # "dot", "dash", "dashdot"
+          showlegend: true,
+        },
+      ]
+    },
+
+    thermal_storage_temperatures_hot: {
+      row_height: 1,
+      title: "Thermal storage",
+      bg_color: "bg_blue", # bg gray
+      # ylabels_left: ["T<sub>wct</sub> (ºC)"],
+      ylabels_left: ["Hot tank<br>temp.(⁰C)"],
+      ylims_left: "manual",
+      ylims_left: [50, 100],
+      showlegend: true,
+      legend_position: "side",
+
+      "traces_left": [
+          # Hot tank
+          {
+            "var_id": "Tts_h_t",
+            "name": "T<sub>ts,h,t</sub>",
+            "mode": "lines",
+            "color": "plotly_red", # gray
+            "width": 3,
+            "showlegend": true,
+          },
+          {
+            "var_id": "Tts_h_m",
+            "name": "T<sub>ts,h,m</sub>",
+            "mode": "lines",
+            "dash": "dash",
+            "color": "plotly_red", # gray
+            "width": 3,
+            "showlegend": true,
+          },
+          {
+            "var_id": "Tts_h_b",
+            "name": "T<sub>ts,h,b</sub>",
+            "mode": "lines",
+            "color": "plotly_red", # gray
+            "dash": "dot",
+            "width": 3,
+            "showlegend": true,
+          },
+  
+          # To MED
+          {
+            "var_id": "Tts_h_out",
+            "name": "T<sub>ts,h,out</sub>",
+            "mode": "markers",
+            "color": "wct_purple",
+            "width": 3,
+            "conditional":{
+                "var_id": "qts_dis",
+                "operator": ">",
+                "threshold_value": 1,
+            },
+            "showlegend": true,
+          },
+  
+          # From solar field
+          {"var_id": "Tts_h_in", "mode": "markers", "color": "plotly_yellow", "width": 3, "opacity": 0.5,
+            "conditional":{ "var_id": "qts_src", "operator": ">", "threshold_value": 1,}
+          },
+      ]
+
+      # TODO: Estaría guay añadir una traza a la derecha con la evolución de 
+      # la energía disponible (línea con área), calculada relativa a la Ts_in de la MED
+    },
+
+    med_flows: {
+      title: "Desalination unit",
+      row_height: 0.7,
+      bg_color: "bg_gray",
+      ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
+      ylabels_right: ["m<sup>3</sup>/h"],
+      tigth_vertical_spacing: true,
+      ylims_left: 'manual',
+      showlegend: true,
+      legend_position: "top",
+
+      # Plotted between this plot and the next one
+      // show_active: true,
+      // active_var_id: "med_active",
+      // active_color: "dc_green", # Needs to end with 
+
+      traces_left: [
+        {
+          var_id: "qmed_f",
+          name: "q<sub>med,f</sub> ❮",
+          color: "c_blue",
+          mode: "lines",
+          dash: "dot"
+          width: 3,
+          showlegend: true,
+        },
+        {
+          var_id: "qmed_d",
+          name: "q<sub>med,d</sub> ❮",
+          color: "plotly_green",
+          mode: "lines",
+          dash: "dashdot"
+          width: 3,
+          showlegend: true,
+        },
+        {
+          var_id: "qmed_c",
+          name: "q<sub>med,c</sub> ❯",
+          color: "plotly_cyan",
+          mode: "lines"
+          dash: "dash"
+          width: 3,
+          showlegend: true,
+        }
+      ],
+
+      traces_right: [
+        {
+          var_id: "qmed_s",
+          name: "q<sub>med,s</sub> ❮",
+          mode: "lines",
+          color: "wct_purple",
+          width: 3,
+          showlegend: true,
+        },
+      ]
+    }
+
+    med_temperatures: {
+      row_height: 1,
+      bg_color: "bg_gray", # bg gray
+      ylabels_left: ["Temperatures<br>(⁰C)"],
+      ylims_left: 'manual',
+      showlegend: true,
+      legend_position: "side",
+
+      traces_left: [
+        {
+          var_id: "Tmed_s_in",
+          name: "T<sub>med,s,in</sub>",
+          mode: "lines",
+          color: "wct_purple",
+          width: 3,
+          showlegend: true,
+        },
+        {
+          var_id: "Tmed_s_out",
+          name: "T<sub>med,s,out</sub>",
+          mode: "lines",
+          color: "plotly_red",
+          dash: "dash",
+          width: 3,
+          showlegend: true,
+        },
+        {
+          var_id: "Tmed_c_in",
+          name: "T<sub>med,c,in</sub>",
+          mode: "lines",
+          color: "c_blue",
+          width: 3,
+          showlegend: true,
+        },
+        {
+          var_id: "Tmed_c_out",
+          name: "T<sub>med,c,out</sub>",
+          mode: "lines",
+          color: "c_blue",
+          dash: "dash"
+          width: 3,
+          showlegend: true,
+        },
+
+      ],
+    },
+
+  }
+}

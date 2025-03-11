@@ -432,7 +432,7 @@ def generate_animation(output_path: Path, df_hors: list[pd.DataFrame], df_sim: p
                     figure_path=output_path, formats=["png"])#, "html"])
         
         
-def plot_obj_scape_comp_1d(fitness_history_list: list[np.ndarray[float]], algo_ids: list[str], **kwargs) -> go.Figure:
+def plot_obj_scape_comp_1d(fitness_history_list: list[np.ndarray[float]], algo_ids: list[str], highlight_best: int = 1, **kwargs) -> go.Figure:
     
     assert len(fitness_history_list) == len(algo_ids), "fitness_history_list and algo_ids should have the same length"
     
@@ -440,11 +440,19 @@ def plot_obj_scape_comp_1d(fitness_history_list: list[np.ndarray[float]], algo_i
     fig = plot_obj_space_1d_no_animation(fitness_history_list[0], algo_id=algo_ids[0])
     
     # And then add the other fitness histories
+    best_fit_idxs = []
     for algo_id, fitness_history in zip(algo_ids[1:], fitness_history_list[1:]):
         avg_fitness = [np.mean(x) for x in fitness_history]
         generation = np.arange(len(fitness_history))
         
         fig.add_trace(go.Scatter(x=generation, y=avg_fitness, mode="lines", name=algo_id))
+        
+        # Store the best highlight_best avg_fitness indexes
+        best_fit_idxs.extend(np.argsort(avg_fitness)[:highlight_best])
+        
+    # Increase the line width for the best fitness values
+    for idx in best_fit_idxs:
+        fig.data[idx].line.width = 2
         
     fig.update_layout(**kwargs)
     
