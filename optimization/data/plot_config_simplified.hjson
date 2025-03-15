@@ -5,7 +5,7 @@
   # General plot attributes
   title: "Solar MED optimal coupling",
   subtitle: "Evaluation results", // Model validation?
-  height: 1000,
+  height: 1300,
   width: 1200,
   margin: {
     l:20,
@@ -80,7 +80,7 @@
     },
 
     fitness: {
-      title: "<b>Fitness</b>",
+      title: "<b>Benefit</b>",
       row_height: 1,
       bg_color: "bg_gray",
       # ylabels_left: ["C (u.m.)"],
@@ -119,7 +119,7 @@
           // Experimental
           {
             var_id: "Jtotal",
-            name: "J<sub>e</sub> ❯❯",
+            name: "C<sub>e</sub> ❯❯",
             mode: "lines",
             width: 3,
             color: "wct_purple", # gray
@@ -134,7 +134,7 @@
       bg_color: "bg_gray",
       # ylabels_left: ["C (u.m.)"],
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
-      ylabels_left: ["Cumulative<br>fitness<br>(u.m.)"],
+      ylabels_left: ["Cumulative<br>benefit<br>(u.m.)"],
       ylims_left: 'manual',
       showlegend: true,
       legend_position: "top"
