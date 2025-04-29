@@ -19,7 +19,6 @@ from solarmed_modeling.fsms.med import (FsmParameters as MedFsmParams,
 from solarmed_modeling.fsms.sfts import (FsmParameters as SftsFsmParams,
                                          FsmInputs as SfTsFsmInputs)
 
-
 class MedMode(Enum):
     """ Possible decisions for MED operation modes.
     Given this, the FSM inputs are deterministic """
@@ -143,6 +142,30 @@ class EnvironmentVariables:
     #         len(getattr(self, var_id)) == len(self.Tmed_c_in) 
     #         for var_id in ["Tamb", "I", "cost_w", "cost_e"]
     #     ), "All variables must have the same length (optim_window_size // sample_time_mod)"
+    @classmethod
+    def initialize_from_dataframe(cls, df: pd.DataFrame, cost_w: float = None, cost_e: float = None) -> "EnvironmentVariables":
+        if "cost_w" not in df.columns:
+            cost_w=pd.Series(
+                data=np.ones((len(df.index),)) * cost_w,
+                index=df.index,
+            )
+        else:
+            cost_w = df["cost_w"]
+        if "cost_e" not in df.columns:
+            cost_e=pd.Series(
+                data=np.ones((len(df.index),)) * cost_e,
+                index=df.index,
+            )
+        else:
+            cost_e = df["cost_e"]
+            
+        return cls(
+            I=df["I"],
+            Tamb=df["Tamb"],
+            Tmed_c_in=df["Tmed_c_in"],
+            cost_w=cost_w,
+            cost_e=cost_e
+        )
 
     def dump_at_index(self, idx: int, return_dict: bool = False) -> "EnvironmentVariables":
         """
@@ -185,6 +208,18 @@ class EnvironmentVariables:
             output[name] = value
             
         return EnvironmentVariables(**output)
+    
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Convert environment variables into a pandas DataFrame.
+        """
+        data = {
+            name: pd.Series(value) if not isinstance(value, pd.Series) else value
+            for name, value in asdict(self).items()
+        }
+        return pd.DataFrame(data)
+    
+        
     
 @dataclass
 class DecisionVariables:
@@ -238,6 +273,17 @@ class DecisionVariables:
         
         vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
         return DecisionVariables(**vars_dict)
+    
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Convert decision variables into a pandas DataFrame.
+        """
+        data = {
+            name: pd.Series(value) if not isinstance(value, pd.Series) else value
+            for name, value in asdict(self).items()
+        }
+        return pd.DataFrame(data)
+        
         
                 
 def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: bool = False) -> DecisionVariables | dict:
@@ -258,6 +304,16 @@ def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: b
 class IntegerDecisionVariables:
     sfts_mode: SfTsMode | pd.Series
     med_mode: MedMode | pd.Series
+    
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Convert integer decision variables into a pandas DataFrame.
+        """
+        data = {
+            name: pd.Series(value) if not isinstance(value, pd.Series) else value
+            for name, value in asdict(self).items()
+        }
+        return pd.DataFrame(data)
     
 @dataclass
 class DecisionVariablesUpdates:
@@ -520,4 +576,3 @@ class PopulationResults:
             time_per_gen=elapsed_time/n_gen,
             time_total=elapsed_time
         )
-        

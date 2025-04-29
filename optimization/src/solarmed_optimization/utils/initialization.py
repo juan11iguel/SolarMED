@@ -50,7 +50,7 @@ renames_dict: dict[str, str] = {
 }
 
 def problem_initialization(problem_params: ProblemParameters, date_str: str, data_path: Path = Path("./data"),
-                           set_dec_var_updates: bool = True) -> ProblemData:
+                           set_dec_var_updates: bool = True, selected_date_span: tuple[str, str] = None) -> ProblemData:
     
     pp: ProblemParameters = problem_params
 
@@ -109,6 +109,10 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
         df["wmed_f"] = df_env["wmed_f"].loc[date_span[0]:date_span[1]].values
         df["latitude"] = df_env["latitude"].loc[date_span[0]:date_span[1]].values
         df["longitude"] = df_env["longitude"].loc[date_span[0]:date_span[1]].values
+        
+    if selected_date_span is not None:
+        df = df.loc[selected_date_span[0]: selected_date_span[1]]
+        logger.info(f"Selected date span: {selected_date_span[0]} - {selected_date_span[1]} from {df.index.min()} - {df.index.max()}")
 
     problem_params.episode_duration = problem_params.episode_duration if problem_params.episode_duration is not None else len(df) * pp.sample_time_mod
 
@@ -168,7 +172,7 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
                        model=model)
     
 
-def initialize_problem_instance_nNLP(problem_data: ProblemData,
+def initialize_problem_instances_nNLP(problem_data: ProblemData,
                                      # Integrated in ProblemData.ProblemParameters
                                      #operation_actions: dict[str, list[tuple[str, int]]] = None,
                                      #real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = RealDecisionVariablesUpdatePeriod(),
@@ -197,23 +201,12 @@ def initialize_problem_instance_nNLP(problem_data: ProblemData,
     hor_span = (idx_mod + 1, idx_mod + 1 + ps.n_evals_mod_in_hor_window)
     ds = df.iloc[hor_span[0] : hor_span[1]]
 
-    env_vars: EnvironmentVariables = EnvironmentVariables(
-        I=ds["I"],
-        Tamb=ds["Tamb"],
-        Tmed_c_in=ds["Tmed_c_in"],
-        cost_w=pd.Series(
-            data=np.ones((ps.n_evals_mod_in_hor_window,)) * pp.env_params.cost_w,
-            index=ds.index,
-        ),
-        cost_e=pd.Series(
-            data=np.ones((ps.n_evals_mod_in_hor_window,)) * pp.env_params.cost_e,
-            index=ds.index,
-        ),
-    )
+    env_vars: EnvironmentVariables = EnvironmentVariables.initialize_from_dataframe(ds, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e)
+    
     # For operation plan, environment variables are only available with a one hour resolution
     env_vars_opt = env_vars.resample(f"{pp.sample_time_opt}s", origin="start")
 
-    print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
+    # print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
 
     # 3. Build operation plan
     operation_planner = OperationPlanner.initialize(pp.operation_actions)

@@ -1,31 +1,310 @@
-from dataclasses import fields
-from typing import get_args
+from dataclasses import fields, dataclass, is_dataclass
+from typing import get_args, Literal, Optional
 from dataclasses import asdict
+import math
 from datetime import datetime
 import numpy as np
 import pandas as pd
 from loguru import logger
 import pygmo as pg
+import tempfile
+from pathlib import PurePosixPath, Path
+import gzip
+import shutil
 
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import SolarMedState
 
 from solarmed_optimization.problems import BaseNlpProblem
 from solarmed_optimization import (RealDecVarsBoxBounds, 
-                                   DecisionVariablesUpdates,
-                                   EnvironmentVariables,
-                                   InitialDecVarsValues,
-                                   DecisionVariables,
-                                   IntegerDecisionVariables,
-                                   RealDecisionVariablesUpdatePeriod,
-                                   RealDecisionVariablesUpdateTimes,
-                                   RealLogicalDecVarDependence)
-from solarmed_optimization.utils.evaluation import evaluate_model_multi_day
+								   DecisionVariablesUpdates,
+								   EnvironmentVariables,
+								   InitialDecVarsValues,
+								   DecisionVariables,
+								   IntegerDecisionVariables,
+								   RealDecisionVariablesUpdatePeriod,
+								   RealDecisionVariablesUpdateTimes,
+								   RealLogicalDecVarDependence,
+								   ProblemParameters)
+from solarmed_optimization.utils import resolve_dataclass_type
+from solarmed_optimization.utils.evaluation import (evaluate_model_multi_day,
+													evaluate_optimization_nlp)
 # from solarmed_optimization.utils.evaluation import evaluate_idle_thermal_storage
 # from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
 
+OpPlanActionType = Literal["startup", "shutdown"]
+
+def get_scenario_id(scenario_idx: int) -> str:
+	return f"scenario_{scenario_idx:02d}"
+
+@dataclass
+class ProblemsEvaluationParameters:
+	"""
+	Parameters for the problems evaluation process.
+	"""
+	drop_fraction: float = 0.3 # Fraction of problems to drop per update (0 to 1)
+	max_n_obj_fun_evals: int = 1_000 # Total maximum number of objective function evaluations
+	max_n_parallel_problems: int = 50 # Maximum number of problems to evaluate in parallel
+	n_updates: Optional[int] = None # Number of (problem drop) updates to perform
+	n_obj_fun_evals_per_update: Optional[int] = None # Number of objective function evaluations between updates
+	
+	def __post_init__(self):
+		assert self.n_updates is not None or self.n_obj_fun_evals_per_update is not None, "Either n_updates or n_obj_fun_evals_per_update must be provided"
+		assert self.drop_fraction >= 0 and self.drop_fraction <= 1, "Fraction of problems to drop per update must be between 0 and 1"
+		
+		if self.n_obj_fun_evals_per_update is None:
+			self.n_obj_fun_evals_per_update = self.max_n_obj_fun_evals // self.n_updates
+		elif self.n_updates is None:
+			self.n_updates = self.max_n_obj_fun_evals // self.n_obj_fun_evals_per_update
+			
+	def update_problems(self, problems_fitness: list[float]) -> tuple[list[int], list[int]]:
+		"""
+		Drop the worst performing problems based on the drop_fraction.
+		Returns the indices of the problems to keep and to drop.
+		NaN values in problems_fitness are ignored in the decision process,
+		but their positions are preserved in index calculations.
+		"""
+				
+		# Get the indices of non-NaN entries
+		valid_indices = [i for i, val in enumerate(problems_fitness) if not math.isnan(val)]
+		# Get the fitness values of non-NaN entries
+		valid_fitness = [(i, problems_fitness[i]) for i in valid_indices]
+		# Sort valid fitness values by value (descending = worst first)
+		valid_fitness_sorted = sorted(valid_fitness, key=lambda x: x[1], reverse=True)
+		
+		# Determine number to drop
+		n_to_drop = int(len(valid_fitness_sorted) * self.drop_fraction)
+		# Extract the global indices to drop
+		drop_indices = [i for i, _ in valid_fitness_sorted[:n_to_drop]]
+		# Extract the global indices to keep (remaining non-NaNs not in drop)
+		keep_indices = [i for i in valid_indices if i not in drop_indices]
+		
+		return keep_indices, drop_indices
+			  
+@dataclass
+class AlgoParams:
+	algo_id: str = "sea"
+	max_n_obj_fun_evals: int = 1_000 # When debugging, change to a lower value
+	max_n_logs: int = 300
+	pop_size: int = 1
+	
+	params_dict: Optional[dict] = None
+	log_verbosity: Optional[int] = None
+	gen: Optional[int] = None
+
+	def __post_init__(self, ):
+
+		if self.algo_id in ["gaco", "sga", "pso_gen"]:
+			self.gen = self.max_n_obj_fun_evals // self.pop_size
+			self.params_dict = {
+				"gen": self.gen,
+			}
+		elif self.algo_id == "simulated_annealing":
+			self.gen = self.max_n_obj_fun_evals // self.pop_size
+			self.params_dict = {
+				"bin_size": self.pop_size,
+				"n_T_adj": self.gen
+			}
+		else:
+			self.pop_size = 1
+			self.gen = self.max_n_obj_fun_evals
+			self.params_dict = { "gen": self.max_n_obj_fun_evals // self.pop_size }
+		
+		if self.log_verbosity is None:
+			self.log_verbosity = math.ceil( self.gen / self.max_n_logs)
+
+@dataclass
+class OperationPlanResults:
+	date_str: str # Date in YYYYMMDD format
+	action: OpPlanActionType # Operation plan action identifier
+	x: pd.DataFrame # Decision vector (columns) for each problem (rows)
+	# int_dec_vars: list[pd.DataFrame] # Integer decision variables for each problem
+	fitness: pd.Series # Fitness values for each problem
+	fitness_history: pd.DataFrame # Optimization algorithm evolution fitness history (rows) for each problem (columns)
+	# environment_df: pd.DataFrame # Environment data
+	scenario_idx: int = 0 # Uncertainty scenario index, zero by default
+	metadata_flds: tuple[str, ...] = ("date_str", "action", "scenario_idx", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params")
+	best_problem_idx: Optional[int] = None # Index of the best performing problem
+	results_df: Optional[pd.DataFrame] = None # Simulation timeseries results for the best performing problem
+	evaluation_time: Optional[float] = None # Time, in seconds, taken to evaluate layer
+	algo_params: Optional[AlgoParams] = None # Algorithm parameters
+	problems_eval_params: Optional[ProblemsEvaluationParameters] = None
+	problem_params: Optional[ProblemParameters] = None # Problem parameters
+	
+	def __post_init__(self):
+		if self.best_problem_idx is None:
+			self.best_problem_idx = int(self.fitness.idxmin())
+		
+	def evaluate_best_problem(self, problems: list[BaseNlpProblem] | BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
+		
+		self.results_df = evaluate_optimization_nlp(
+			x=self.x.iloc[self.best_problem_idx].values, 
+			problem=problems[self.best_problem_idx] if isinstance(problems, list) else problems,
+			model=SolarMED(**model.dump_instance())
+		)
+		return self.results_df
+	
+	
+	def get_hdf_base_path(self, date_str: str = None, action: OpPlanActionType = None, scenario_idx: int = None) -> str:
+		date_str = self.date_str if date_str is None else date_str
+		action = self.action if action is None else action
+		scenario_idx = self.scenario_idx if scenario_idx is None else scenario_idx
+		
+		return f'/{date_str}/{action}/{get_scenario_id(scenario_idx)}'
+	
+	def export(self, output_path: Path, compress: bool = True, reduced: bool = False) -> None:
+		""" Export results to a file. """
+		if not output_path.exists():
+			output_path.parent.mkdir(parents=True, exist_ok=True)
+		
+		if not output_path.exists():
+			output_path.parent.mkdir(parents=True, exist_ok=True)
+		
+		if output_path.suffix == ".gz":
+			# Uncompress the gzip file into a temporary .h5 file
+			with gzip.open(output_path, 'rb') as f_in:
+				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
+					shutil.copyfileobj(f_in, f_out)
+					temp_path = Path(f_out.name)
+		else:
+			temp_path = output_path.with_suffix(".h5")
+
+		# if reduced:
+		#     self = copy.deepcopy(self)  # To avoid modifying the original object
+		#     self.results_df = None
+
+		with pd.HDFStore(temp_path, mode='a') as store:
+			path_str = self.get_hdf_base_path()
+
+			# Add the results dataframes to the file
+			store.put(f'{path_str}/x', self.x)
+			store.put(f'{path_str}/fitness', self.fitness)
+			store.put(f'{path_str}/fitness_history', self.fitness_history)
+			store.put(f'{path_str}/results', self.results_df)
+
+			# Add metadata attributes to the file
+			storer = store.get_storer(f"{path_str}/results")
+			storer.attrs.description = (
+				f"Evaluation results for the SolarMED optimal coupling. "
+				f"Operation plan layer - {self.action} for day {self.date_str}"
+			)
+			for fld_id in self.metadata_flds:
+				fld_val = getattr(self, fld_id)
+				if is_dataclass(fld_val):
+					fld_val = asdict(fld_val)
+				setattr(storer.attrs, fld_id, fld_val)
+
+		# Compress the .h5 file using gzip
+		if compress:
+			with open(temp_path, 'rb') as f_in, gzip.open(output_path.with_suffix(".gz"), 'wb') as f_out:
+				shutil.copyfileobj(f_in, f_out)
+			temp_path.unlink()  # Remove uncompressed .h5 file
+			suffix = ".gz"
+		else:
+			suffix = ".h5"
+
+		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
+
+	@classmethod
+	def initialize(cls, input_path: Path, date_str: str, action: OpPlanActionType, scenario_idx: int = 0, log: bool = True) -> "OperationPlanResults":
+		""" Initialize an OperationPlanResults object from a file. """
+		
+		if not isinstance(input_path, Path):
+			input_path = Path(input_path)
+  
+		if input_path.suffix == ".gz":
+			# Uncompress the gzip file into a temporary .h5 file
+			with gzip.open(input_path, 'rb') as f_in:
+				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
+					shutil.copyfileobj(f_in, f_out)
+					temp_path = Path(f_out.name)
+		else:
+			temp_path = input_path
+
+		try:
+			base_path_str = cls.get_hdf_base_path(None, date_str=date_str, action=action, scenario_idx=scenario_idx)
+		
+			with pd.HDFStore(temp_path, mode='r') as store:
+				# Load dataframes
+				try:
+					results_df = store.get(f'{base_path_str}/results')
+				except KeyError:
+					# results_df = None  # In case results_df was not saved (reduced export)
+					all_keys = store.keys()
+					# Find unique base paths (/date_str/action/scenario_idx)
+					unique_base_paths = {
+						str(PurePosixPath(k).parents[0]) for k in all_keys
+					}
+					unique_base_paths = sorted(unique_base_paths)
+					
+					raise KeyError(f"Could not find {base_path_str}. Available evaluation results {len(unique_base_paths)}:" + "\n".join(unique_base_paths))
+
+					
+				x = store.get(f'{base_path_str}/x')
+				fitness = store.get(f'{base_path_str}/fitness')
+				fitness_history = store.get(f'{base_path_str}/fitness_history')
+
+				# Load metadata attributes
+				storer = store.get_storer(f'{base_path_str}/results')
+				# for attr_name in storer.attrs._v_attrnames:
+				# 	value = getattr(storer.attrs, attr_name)
+				# 	print(f"{attr_name} = {value}")
+
+				metadata_flds_dict = {}
+				for fld_id in cls.metadata_flds:
+					# print(f"{fld_id=}")
+					fld_def = cls.__dataclass_fields__[fld_id]
+					fld_type = fld_def.type
+					value = getattr(storer.attrs, fld_id, None)
+
+					dataclass_type = resolve_dataclass_type(fld_type)
+					if dataclass_type and value is not None:
+						value = dataclass_type(**value)
+
+					metadata_flds_dict[fld_id] = value
+				# action = getattr(storer.attrs, 'action', None)
+				# evaluation_time = getattr(storer.attrs, 'evaluation_time', None)
+				# best_problem_idx = getattr(storer.attrs, 'best_problem_idx', None)
+
+		finally:
+			if input_path.suffix == ".gz":
+				temp_path.unlink()  # Clean up temp .h5 file
+
+		# Create the OperationPlanResults object
+		op_plan_results = OperationPlanResults(
+			x=x,
+			fitness=fitness,
+			fitness_history=fitness_history,
+			results_df=results_df,
+
+			**metadata_flds_dict
+		)
+
+		if log:
+			logger.info(f"Initialized OperationPlanResults from {input_path} / {base_path_str}")
+
+		return op_plan_results
+
+
+def batch_export(output_path: Path, op_plan_results_list: list[OperationPlanResults]) -> None:
+	""" Export multiple OperationPlanResults objects to a single file. """
+
+	if not isinstance(output_path, Path):
+		output_path = Path(output_path)
+
+	# First export to .h5
+	temp_h5_path = output_path.with_suffix(".h5")
+
+	for op_plan_results_ in op_plan_results_list:
+		op_plan_results_.export(output_path=temp_h5_path, compress=False)
+
+	# Compress once after all are written
+	with open(temp_h5_path, 'rb') as f_in, gzip.open(output_path.with_suffix(".gz"), 'wb') as f_out:
+		shutil.copyfileobj(f_in, f_out)
+	temp_h5_path.unlink()  # Remove uncompressed .h5 file
+
 def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod, 
-                                 int_dec_vars_list: list[IntegerDecisionVariables]) -> RealDecisionVariablesUpdateTimes:
+								 int_dec_vars_list: list[IntegerDecisionVariables]) -> RealDecisionVariablesUpdateTimes:
 	"""Generate the real decision variables times for each integer decision variables element in the list.
 
 	Args:
@@ -117,17 +396,17 @@ class Problem(BaseNlpProblem):
 	box_bounds_upper: list[np.ndarray[float]] # Upper bounds for the decision variables (in list of arrays format).
 	x_evaluated: list[list[float]] # Decision variables vector evaluated (i.e. sent to the fitness function)
 	fitness_history: list[float] # Fitness record of decision variables sent to the fitness function
-    
+	
 	def __init__(self, int_dec_vars: IntegerDecisionVariables, 
-              	 initial_dec_vars_values: InitialDecVarsValues, 
-                 env_vars: EnvironmentVariables, 
-                 real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod,
-                 model: SolarMED,
-                 sample_time_ts: int,
-                 store_x: bool = False,
-                 store_fitness: bool = True,
-                ) -> None:
-     
+			  	 initial_dec_vars_values: InitialDecVarsValues, 
+				 env_vars: EnvironmentVariables, 
+				 real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod,
+				 model: SolarMED,
+				 sample_time_ts: int,
+				 store_x: bool = False,
+				 store_fitness: bool = True,
+				) -> None:
+	 
 		int_dec_vars = IntegerDecisionVariables(**asdict(int_dec_vars)) # Avoid modifying the original instance
 
 		self.sample_time_mod = model.sample_time
@@ -143,8 +422,8 @@ class Problem(BaseNlpProblem):
 		self.dec_var_ids, self.dec_var_dtypes = zip(*[(field.name, get_args(field.type)[0]) for field in fields(DecisionVariables)])
 		self.dec_var_int_ids: list[str] = [var_id for var_id, var_type in zip(self.dec_var_ids, self.dec_var_dtypes) if var_type in [bool, int]]
 		self.dec_var_real_ids: list[str] = [var_id for var_id, var_type in zip(self.dec_var_ids, self.dec_var_dtypes) if var_type is float]
-        
-        # Store the model instance
+		
+		# Store the model instance
 		self.model_dict = model.dump_instance()
 		# Add fields not included in the dump_instance method
 		self.model_dict.update(dict(
@@ -165,7 +444,7 @@ class Problem(BaseNlpProblem):
 		self.dec_var_updates = DecisionVariablesUpdates(
 			**{name: values.size for name, values in asdict(int_dec_vars).items()},
 			**{name: len(values) for name, values in asdict(self.real_dec_vars_times).items()},
-        )
+		)
   
   		# Get real variables limits
 		self.real_dec_vars_box_bounds = RealDecVarsBoxBounds.initialize(
@@ -192,9 +471,9 @@ class Problem(BaseNlpProblem):
 			# 	int_dec_vars, 
 			# 	int_dec_var_id, 
 			# 	pd.concat([
-           	# 		int_dec_var_values.iloc[-1],
-        	# 		pd.Series(index=[int_dec_var_values.index[-1]], data=getattr(initial_dec_vars_values, int_dec_var_id)), 
-            #   	])
+		   	# 		int_dec_var_values.iloc[-1],
+			# 		pd.Series(index=[int_dec_var_values.index[-1]], data=getattr(initial_dec_vars_values, int_dec_var_id)), 
+			#   	])
 			# )
 			# Resample integer decision variables to model sample time. Do it here to avoid doing it every time in the fitness function
 			setattr(
@@ -214,7 +493,7 @@ class Problem(BaseNlpProblem):
 				f"Some updates in the decision vector are unnecessary since once the \
 				MED is started, it takes some time (mainly to generate vacuum). In practice \
 				this is limited to {self.model_dict['fsms_params']['med']['vacuum_duration_time']//3600 * 4 }\
-        		out of {self.size_dec_vector} updates."
+				out of {self.size_dec_vector} updates."
 			)
 
 	def get_name(self) -> str:
@@ -260,7 +539,7 @@ class Problem(BaseNlpProblem):
 
 			if resample:
 				decision_dict[var_id] = decision_dict[var_id].resample(f"{self.sample_time_mod}s", origin="start").ffill()
-    
+	
 			cnt += num_updates
 			
 		int_dec_var_index = list(asdict(self.int_dec_vars).values())[0].index # precioso
@@ -268,8 +547,6 @@ class Problem(BaseNlpProblem):
 			f"Initial integer decision variable time should be the same as the episode start: {int_dec_var_index[0]=}, {self.episode_range[0]=}"
 		# assert int_dec_var_index[-1] >= self.episode_range[-1] - pd.Timedelta(seconds=self.sample_time_mod), \
 		# 	f"Last integer decision variable time should span until the episode end: {int_dec_var_index[-1]=}, {self.episode_range[-1]=}"
-   
-	
    
 		return DecisionVariables(
 			**decision_dict,
@@ -280,7 +557,7 @@ class Problem(BaseNlpProblem):
 		return np.concatenate(self.box_bounds_lower), np.concatenate(self.box_bounds_upper)
 		
 	def fitness(self, x: np.ndarray[float], debug_mode: bool = False) -> list[float]:
-            
+			
 		# Model initialization logic after external evaluation of thermal storage
 		model: SolarMED = SolarMED(**self.model_dict)
 
@@ -300,7 +577,7 @@ class Problem(BaseNlpProblem):
 			sample_time_ts=self.sample_time_ts,
    			debug_mode=debug_mode
 		)
-    
+	
 		# Store decision vector and fitness value
 		if self.store_x:
 			self.x_evaluated.append(x.tolist())
@@ -342,7 +619,7 @@ def generate_bounds(problem_instance: Problem, int_dec_vars: IntegerDecisionVari
 				op_start = update_times_index[update_times_index.normalize() == day][0]
 				op_end = update_times_index[update_times_index.normalize() == day][-1]				
 				
-    			# Resample integer decision variable to real decision variable sample time
+				# Resample integer decision variable to real decision variable sample time
 				int_var_day_data_resampled = (
 					int_var_values
 					.resample(f"{update_period}s", origin=op_start)

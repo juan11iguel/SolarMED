@@ -1,10 +1,10 @@
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, is_dataclass
+from typing import get_origin, get_args, Union, Any, Type, Literal
 from datetime import datetime
 from enum import Enum
 import json
 import math
 from collections.abc import Iterable
-from typing import Any, Type, Literal
 import time
 import warnings
 from loguru import logger
@@ -79,6 +79,20 @@ class CustomEncoder(json.JSONEncoder):
         elif isinstance(obj, Enum):  # Handle Enums
             return obj.value
         return super().default(obj)
+
+def resolve_dataclass_type(fld_type: Type) -> Type | None:
+    """Extract the actual dataclass type from optional/union/wrapped types."""
+    origin = get_origin(fld_type)
+    args = get_args(fld_type)
+
+    if origin is Union:
+        # Filter out NoneType (for Optional[...] support)
+        for arg in args:
+            if isinstance(arg, type) and is_dataclass(arg):
+                return arg
+    elif isinstance(fld_type, type) and is_dataclass(fld_type):
+        return fld_type
+    return None
     
 def get_valid_modes(fsm_inputs: MedFsmInputs, 
                     lookup_table: dict[tuple[MedMode, MedState], MedFsmInputs] = med_fsm_inputs_table,

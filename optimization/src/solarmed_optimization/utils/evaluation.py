@@ -22,7 +22,7 @@ from solarmed_optimization.problems import BaseNlpProblem, BaseMinlpProblem
 
 
 def evaluate_idle_thermal_storage(env_vars: EnvironmentVariables, dt_span: tuple[datetime, datetime], model: SolarMED,
-								  sample_time: int = 3600, df: pd.DataFrame = None) -> tuple[np.ndarray[float], np.ndarray[float]]:
+								  sample_time: int = 3600, df: pd.DataFrame = None) -> tuple[np.ndarray[float], np.ndarray[float], None|pd.DataFrame]:
     """Evaluate the thermal storage when the only factor are the thermal losses
     to the environment (idle operation). This function evaluates the thermal 
     storage with the given sample time, but only returns the temperature profile
