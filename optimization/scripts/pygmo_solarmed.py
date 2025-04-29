@@ -16,7 +16,7 @@ from solarmed_optimization.utils.initialization import (problem_initialization,
                                                         generate_population,
                                                         initialize_problem_instance_minlp)
 from solarmed_optimization.utils.evaluation import evaluate_optimization
-from solarmed_optimization.utils.serialization import OptimizationResults
+from solarmed_optimization.utils.serialization import MinlpOptimizationResults
 from solarmed_optimization.utils.visualization import generate_visualizations
 # from solarmed_optimization.problems.minlp import Problem
 
@@ -218,7 +218,7 @@ def simulate_episode(algo_id: str, algo_params: dict[str, int], date_str: str,  
         )
         
         # Export results
-        OptimizationResults(
+        MinlpOptimizationResults(
             metadata=metadata,
             problem_params=problem_params,
             initial_states=initial_states,

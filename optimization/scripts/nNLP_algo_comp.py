@@ -22,7 +22,7 @@ from solarmed_optimization.problems.nlp import Problem
 from solarmed_optimization.utils.initialization import (
     problem_initialization,
     InitialStates,
-    initialize_problem_instance_nNLP
+    initialize_problem_instances_nNLP
 )
 from solarmed_optimization.utils.operation_plan import OperationPlanner
 from solarmed_optimization.utils.serialization import export_evaluation_results
@@ -104,7 +104,7 @@ def main() -> None:
     # 4. Initialize problem instance for one candidate
     candidate_idx: int = 0
     
-    problem = initialize_problem_instance_nNLP(
+    problem = initialize_problem_instances_nNLP(
         problem_params=problem_params,
         date_str=date_str,
         data_path=data_path,
