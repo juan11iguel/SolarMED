@@ -31,7 +31,10 @@
 				"ms-python.python",
 				"ms-python.debugpy",
 				"ms-toolsai.datawrangler",
-				"mechatroner.rainbow-csv"
+				"mechatroner.rainbow-csv",
+				"cyberBabushkin.filesize-hover-explorer",
+				"trietho.file-size-explorer",
+				"mutantdino.resourcemonitor"
 			],
 			"containerEnv": {
 				"ENVIRONMENT": "container",

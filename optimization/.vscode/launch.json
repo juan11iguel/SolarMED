@@ -38,6 +38,11 @@
             "program": "${workspaceFolder}/scripts/nNLP_op_plan.py",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "args": [
+                "--debug",
+                "--date_span", "20180921", "20180922",
+                "--evaluation_id", "debug",
+            ]
         }
     ]
 }
