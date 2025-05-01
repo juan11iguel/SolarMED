@@ -1,5 +1,5 @@
 import math
-from typing import get_args, NamedTuple, Literal
+from typing import get_args, NamedTuple, Literal, Optional
 from dataclasses import dataclass, fields, field, is_dataclass, asdict
 from enum import Enum
 from datetime import datetime
@@ -78,9 +78,14 @@ class SubsystemId(Enum):
 class SubsystemDecVarId(Enum):
     SFTS = SfTsMode
     MED = MedMode
+    
+@dataclass
+class IrradianceThresholds:
+    """ Irradiance thresholds (W/m²)"""
+    min: float = 300.
+    max: float = 600.
 
-
-def dump_in_span(vars_dict: dict, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> dict:
+def dump_in_span(vars_dict: dict, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> dict:
         """
         Dump variables within a given span.
         
@@ -100,6 +105,7 @@ def dump_in_span(vars_dict: dict, span: tuple[int, int] | tuple[datetime, dateti
             
             # Extract the range
             dt_start, dt_end = span
+            dt_end = dt_end if dt_end is not None else value.index[-1]
             span_vars_dict = {
                 name: value[(value.index >= dt_start) & (value.index < dt_end)]
                 for name, value in vars_dict.items() if value is not None
@@ -107,6 +113,8 @@ def dump_in_span(vars_dict: dict, span: tuple[int, int] | tuple[datetime, dateti
         else:
             # Assume numeric indices
             idx_start, idx_end = span
+            idx_end = -1 if idx_end is None else idx_end
+            
             span_vars_dict = {
                 name: value[idx_start:idx_end]
                 if isinstance(value, (pd.Series, np.ndarray)) else value
@@ -181,7 +189,7 @@ class EnvironmentVariables:
         
         return dump if return_dict else EnvironmentVariables(**dump)
     
-    def dump_in_span(self, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> 'EnvironmentVariables':
+    def dump_in_span(self, span: tuple[int, int] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'EnvironmentVariables':
         """ Dump environment variables within a given span """
         
         vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
@@ -508,6 +516,7 @@ class ProblemParameters:
     operation_actions: dict[str, list[tuple[str, int]]] = None # Optional for MINLP, required in nNLP alternative. Defines the operation actions/updates for each subsystem
     real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = field(default_factory=lambda: RealDecisionVariablesUpdatePeriod()) # nNLP
     initial_dec_vars_values: InitialDecVarsValues = field(default_factory=lambda: InitialDecVarsValues())  # nNLP
+    irradiance_thresholds: IrradianceThresholds = field(default_factory=lambda: IrradianceThresholds()) # nNLP
     
     def __post_init__(self):
         """ Make convenient to initialize this dataclass from dumped instances """

@@ -28,7 +28,8 @@ from solarmed_optimization import (RealDecVarsBoxBounds,
 								   ProblemParameters)
 from solarmed_optimization.utils import resolve_dataclass_type
 from solarmed_optimization.utils.evaluation import (evaluate_model_multi_day,
-													evaluate_optimization_nlp)
+													evaluate_optimization_nlp,
+             										get_start_and_end_datetimes)
 # from solarmed_optimization.utils.evaluation import evaluate_idle_thermal_storage
 # from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
 
@@ -396,6 +397,7 @@ class Problem(BaseNlpProblem):
 	box_bounds_upper: list[np.ndarray[float]] # Upper bounds for the decision variables (in list of arrays format).
 	x_evaluated: list[list[float]] # Decision variables vector evaluated (i.e. sent to the fitness function)
 	fitness_history: list[float] # Fitness record of decision variables sent to the fitness function
+	operation_span: tuple[datetime, datetime] # Operation start and end datetimes
 	
 	def __init__(self, int_dec_vars: IntegerDecisionVariables, 
 			  	 initial_dec_vars_values: InitialDecVarsValues, 
@@ -456,6 +458,17 @@ class Problem(BaseNlpProblem):
 		# Initialize decision vector history
 		self.x_evaluated = []
 		self.fitness_history = []
+  
+		# Compute operation span
+		day = self.episode_range[0].day
+		daily_data = []
+		for var_id in self.dec_var_int_ids:
+			var_values = getattr(int_dec_vars, var_id)
+			daily_data.append(
+				var_values[(var_values.index.day >= day) & (var_values.index.day < day+1)]
+			)
+		operation_start, operation_end = get_start_and_end_datetimes(series=daily_data)
+		self.operation_span = (operation_start, operation_end)
 
 		# Setup integer decision variables
 		for int_dec_var_id, int_dec_var_values in asdict(int_dec_vars).items():

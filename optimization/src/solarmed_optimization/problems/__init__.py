@@ -41,6 +41,7 @@ class BaseNlpProblem(ABC):
     box_bounds_upper: list[np.ndarray[float]] # Upper bounds for the decision variables (in list of arrays format).
     x_evaluated: list[list[float]] # Decision variables vector evaluated (i.e. sent to the fitness function)
     fitness_history: list[float] # Fitness record of decision variables sent to the fitness function
+    operation_span: tuple[datetime, datetime] # Operation start and end datetimes
     
     
     @abstractmethod

@@ -21,8 +21,13 @@ from solarmed_optimization.utils.operation_plan import get_start_and_end_datetim
 from solarmed_optimization.problems import BaseNlpProblem, BaseMinlpProblem
 
 
-def evaluate_idle_thermal_storage(env_vars: EnvironmentVariables, dt_span: tuple[datetime, datetime], model: SolarMED,
-								  sample_time: int = 3600, df: pd.DataFrame = None) -> tuple[np.ndarray[float], np.ndarray[float], None|pd.DataFrame]:
+def evaluate_idle_thermal_storage(
+    env_vars: EnvironmentVariables, 
+    dt_span: tuple[datetime, datetime], 
+    model: SolarMED,
+    sample_time: int = 3600, 
+    df: pd.DataFrame = None
+) -> tuple[np.ndarray[float], np.ndarray[float], None|pd.DataFrame]:
     """Evaluate the thermal storage when the only factor are the thermal losses
     to the environment (idle operation). This function evaluates the thermal 
     storage with the given sample time, but only returns the temperature profile
@@ -237,7 +242,6 @@ def evaluate_model(model: SolarMED,
             df_mod.index = pd.RangeIndex(start=df_start_idx, stop=len(df_mod)+df_start_idx)
         return df_mod#, ics # ic temporary to validate
 
-
 def evaluate_model_multi_day(model: SolarMED,
                              dec_vars: DecisionVariables,
                              env_vars: EnvironmentVariables,
@@ -422,7 +426,6 @@ def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int
     df_sim = add_dec_vars_to_dataframe(df_sim, dec_vars, df_idx=idx_mod)
     
     return df_hor, df_sim, model # model is already updated, but return it anyway
-
 
 def evaluate_optimization_nlp(x: np.ndarray[float], # env_vars: EnvironmentVariables, 
                               problem: BaseNlpProblem, model: SolarMED) -> pd.DataFrame:

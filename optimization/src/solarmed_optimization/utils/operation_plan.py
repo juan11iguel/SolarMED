@@ -1,5 +1,5 @@
-from dataclasses import fields
-from typing import Any
+from dataclasses import fields, field
+from typing import Any, Optional
 from itertools import product
 from enum import Enum, auto
 from dataclasses import dataclass
@@ -8,14 +8,8 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from solarmed_optimization import IntegerDecisionVariables, SubsystemId, SubsystemDecVarId 
+from solarmed_optimization import IntegerDecisionVariables, SubsystemId, SubsystemDecVarId, IrradianceThresholds
 from solarmed_optimization.utils import infer_attribute_name
-
-
-class IrradianceThresholds(Enum):
-    """ Irradiance thresholds (W/m²)"""
-    min = 300
-    max = 600
     
 class ActionType(Enum):
     STARTUP = auto()
@@ -28,7 +22,7 @@ def generate_pause_update_datetimes(I: pd.Series, t_min: int) -> list[datetime]:
 	"""
 	...
 
-def generate_startup_update_datetimes(I: pd.Series, n: int) -> list[datetime]:
+def generate_startup_update_datetimes(I: pd.Series, n: int, irradiance_thresholds: IrradianceThresholds = IrradianceThresholds()) -> list[datetime]:
     """ Function that given a timeseries of irradiance returns n candidates 
         for operation startup within the given data span
 
@@ -40,13 +34,13 @@ def generate_startup_update_datetimes(I: pd.Series, n: int) -> list[datetime]:
         list[datetime]: list of n datetimes candidates for operation startup
     """
     if n==1:
-        irradiance_levels = np.array( [(IrradianceThresholds.min.value + IrradianceThresholds.max.value)/2] ) 
+        irradiance_levels = np.array( [(irradiance_thresholds.min + irradiance_thresholds.max)/2] ) 
     else:
-        irradiance_levels = np.linspace(IrradianceThresholds.min.value, IrradianceThresholds.max.value, n)
+        irradiance_levels = np.linspace(irradiance_thresholds.min, irradiance_thresholds.max, n)
 
     return [I[I > level].index[0] for level in irradiance_levels]
 
-def generate_shutdown_update_datetimes(I: pd.Series, n: int) -> list[datetime]:
+def generate_shutdown_update_datetimes(I: pd.Series, n: int, irradiance_thresholds: IrradianceThresholds = IrradianceThresholds()) -> list[datetime]:
     """ Function that given a timeseries of irradiance returns n candidates 
     for operation shutdown within the given data span
 
@@ -58,13 +52,14 @@ def generate_shutdown_update_datetimes(I: pd.Series, n: int) -> list[datetime]:
         list[datetime]: list of n datetimes candidates for operation shutdown
     """
     if n==1:
-        irradiance_levels = np.array( [(IrradianceThresholds.min.value + IrradianceThresholds.max.value)/2] ) 
+        irradiance_levels = np.array( [(irradiance_thresholds.min + irradiance_thresholds.max)/2] ) 
     else:
-        irradiance_levels = np.linspace(IrradianceThresholds.min.value, IrradianceThresholds.max.value, n)
+        irradiance_levels = np.linspace(irradiance_thresholds.min, irradiance_thresholds.max, n)
         
     I_reversed = I[::-1]
-    shutdown_candidates = [I_reversed[I_reversed > level].index[0] for level in irradiance_levels]
-    return sorted(shutdown_candidates)
+    shutdown_candidates = sorted([I_reversed[I_reversed > level].index[0] for level in irradiance_levels])
+
+    return shutdown_candidates
 	
     
 # Base generators
@@ -108,13 +103,13 @@ def generate_plans(subsystem_inputs_cls: Enum, n:int, action_type: ActionType | 
     
     raise ValueError(f"Unknown option {action_type}, should be one of {[name for name in action_type.__members__.names()]}")
     
-def generate_update_datetimes(I: pd.Series, n: int, action_type: ActionType | str) -> list[datetime]:
+def generate_update_datetimes(I: pd.Series, n: int, action_type: ActionType | str, irradiance_thresholds: IrradianceThresholds) -> list[datetime]:
     """ Wrapper function to call specific update time location generators """
     
     if action_type == ActionType.STARTUP or action_type.lower() == ActionType.STARTUP.name.lower():
-        return generate_startup_update_datetimes(I, n)
+        return generate_startup_update_datetimes(I, n, irradiance_thresholds)
     if action_type == ActionType.SHUTDOWN or action_type.lower() == ActionType.SHUTDOWN.name.lower():
-        return generate_shutdown_update_datetimes(I, n)
+        return generate_shutdown_update_datetimes(I, n, irradiance_thresholds)
     
     raise ValueError(f"Unknown option {action_type}, should be one of {[name for name in action_type.__members__.names()]}")
 
@@ -230,7 +225,8 @@ class OperationPlanner:
         ...    
         """
     plans: list[tuple[tuple[int], ...]]
-    operation_actions: dict[str, list[tuple[str, int]]] = None
+    operation_actions: Optional[dict[str, list[tuple[str, int]]]] = None
+    irradiance_thresholds: IrradianceThresholds = field(default_factory=IrradianceThresholds())
     
     @classmethod
     def initialize(cls, operation_actions: dict[str, list[tuple[str, int]]]) -> "OperationPlanner":
@@ -262,7 +258,8 @@ class OperationPlanner:
                     # Repeated action, use the next entry in I
                     day_cnt += 1
                 dts.append(
-                    generate_update_datetimes(I=I[day_cnt], n=action_tuple[1], action_type=action_tuple[0])
+                    generate_update_datetimes(I=I[day_cnt], n=action_tuple[1], action_type=action_tuple[0],
+                                              irradiance_thresholds=self.irradiance_thresholds)
                 )
             update_datetimes.append(dts)
         
