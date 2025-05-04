@@ -1,6 +1,6 @@
 from dataclasses import asdict, fields, is_dataclass
 from typing import get_origin, get_args, Union, Any, Type, Literal
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import json
 import math
@@ -451,3 +451,19 @@ def find_n_best_values_in_list(source_list: list[list[float]], n: int, objective
 
     logger.info(f"{best_fitness_list=} at {best_idxs=}")
     return best_idxs, best_fitness_list
+
+def get_start_and_end_datetimes(series: pd.Series | list[pd.Series]) -> tuple[datetime, datetime]:
+    """ Get the start and end indexes of the non-zero values in a series.
+        If a list of series is provided, it returns the earliest start and the latest end indexes."""
+    if not isinstance(series, list):
+        series = [series]
+        
+    earliest_start_dt = datetime(9999, 12, 31, tzinfo=timezone.utc)
+    latest_end_dt = datetime(1, 1, 1, tzinfo=timezone.utc)
+    for ser in series:
+        start_idx = np.argmax(ser != 0)
+        end_idx = len(ser) - np.argmax(ser[::-1] != 0) - 1
+        earliest_start_dt = min(earliest_start_dt, ser.index[start_idx])
+        latest_end_dt = max(latest_end_dt, ser.index[end_idx])
+    
+    return earliest_start_dt, latest_end_dt

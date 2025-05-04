@@ -1,6 +1,6 @@
 from dataclasses import asdict
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 from iapws import IAPWS97 as w_props
 import numpy as np
 import pandas as pd
@@ -12,21 +12,30 @@ from solarmed_modeling.fsms.sfts import FsmInputs as SfTsFsmInputs
 from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.thermal_storage import thermal_storage_two_tanks_model
 
-from solarmed_optimization import (DecisionVariables, EnvironmentVariables, MedMode,
-                                   ProblemData, SfTsMode, med_fsm_inputs_table, sfts_fsm_inputs_table,)
+from solarmed_optimization import (
+    DecisionVariables,
+    IntegerDecisionVariables, 
+    EnvironmentVariables, 
+    MedMode,
+    ProblemData, 
+    SfTsMode, 
+    med_fsm_inputs_table, 
+    sfts_fsm_inputs_table,
+)
 from solarmed_optimization.utils import (decision_vector_to_decision_variables,
                                          add_bounds_to_dataframe,
                                          add_dec_vars_to_dataframe, resample_timeseries_range_and_fill)
-from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
 from solarmed_optimization.problems import BaseNlpProblem, BaseMinlpProblem
 
+EvaluationMode = Literal["optimization", "evaluation"]
 
 def evaluate_idle_thermal_storage(
     env_vars: EnvironmentVariables, 
     dt_span: tuple[datetime, datetime], 
     model: SolarMED,
     sample_time: int = 3600, 
-    df: pd.DataFrame = None
+    df: Optional[pd.DataFrame] = None,
+    debug_mode: bool = False,
 ) -> tuple[np.ndarray[float], np.ndarray[float], None|pd.DataFrame]:
     """Evaluate the thermal storage when the only factor are the thermal losses
     to the environment (idle operation). This function evaluates the thermal 
@@ -55,6 +64,9 @@ def evaluate_idle_thermal_storage(
     Tts_c = [model.Tts_c]
     wprops = (w_props(P=1.5, T=Tts_h[-1][1]+273.15),
               w_props(P=1.5, T=Tts_c[-1][1]+273.15))
+    
+    if debug_mode:
+        logger.info(f"Before idle evaluation: {model.Tts_h=}, {model.Tts_c=}")
 
     for idx in range(N):
 
@@ -92,6 +104,9 @@ def evaluate_idle_thermal_storage(
         )
         Tts_h.append(Tts_h_)
         Tts_c.append(Tts_c_)
+        
+    if debug_mode:
+        logger.info(f"After idle evaluation: {Tts_h[-1]=}, {Tts_c[-1]=}")
 
     if df is not None:
         # Monstruoso
@@ -121,16 +136,20 @@ def evaluate_idle_thermal_storage(
             
     return Tts_h[-1], Tts_c[-1], df
 
-def evaluate_model(model: SolarMED,
-                   dec_vars: DecisionVariables,
-                   env_vars: EnvironmentVariables,
-                   n_evals_mod: int,
-                   mode: Literal["optimization", "evaluation"] = "optimization",
-                #    model_dec_var_ids: list[str] = None,
-                   df_mod: pd.DataFrame = None,
-                   df_start_idx: int = None,
-                   use_inequality_contraints: bool = False,
-                   debug_mode: bool = False) -> pd.DataFrame | float:
+def evaluate_model(
+    model: SolarMED,
+    dec_vars: DecisionVariables,
+    env_vars: EnvironmentVariables,
+    n_evals_mod: int,
+    mode: EvaluationMode = "optimization",
+#    model_dec_var_ids: list[str] = None,
+    df_mod: pd.DataFrame = None,
+    df_start_idx: int = None,
+    use_inequality_contraints: bool = False,
+    debug_mode: bool = False,
+    evaluate_shutdown: bool = False
+) -> pd.DataFrame | float:
+    
     """ Evaluate the model for a given decision vector and environment variables
         n_evals_mod is the number of model evaluations, whose value depends on what
         is being evaluated:
@@ -141,6 +160,7 @@ def evaluate_model(model: SolarMED,
         - Though an arbitrary number of evaluations can be performed, make sure that `n_evals_mod` is lower or equal 
         to the number of elements in the decision vector and environment variables.
     """
+    
     if mode not in ["optimization", "evaluation"]:
         raise ValueError(f"Invalid mode: {mode}")
     
@@ -160,6 +180,8 @@ def evaluate_model(model: SolarMED,
             ics = None
 
     # dec_var_ids = list(asdict(dec_vars).keys())
+    
+    # Active evaluation
     current_state = model.current_state
     time_in_state = 0
     for step_idx in range(n_evals_mod):
@@ -204,13 +226,6 @@ def evaluate_model(model: SolarMED,
             compute_fitness=True if mode == "evaluation" else False
         )
         
-        # if model.med_state.value == 2:
-        #     steps_in_idle += 1
-        #     print(f"{steps_in_idle=}")
-        # else:
-        #     steps_in_idle = 0
-            
-        
         time_in_state += model.sample_time
         
         # print(f"{model.current_state=}")
@@ -233,23 +248,90 @@ def evaluate_model(model: SolarMED,
                 objective_type='minimize'
             )
         if mode == "evaluation":
-            df_mod = model.to_dataframe(df_mod, )
-
+            df_mod = model.to_dataframe(df_mod, index=env_vars.I.index[step_idx])
+            
+    if evaluate_shutdown:
+        out = evaluate_model_shutdown(model, env_vars, operation_end_dt=env_vars.I.index[step_idx], 
+                                      mode=mode, df_mod=df_mod, debug_mode=debug_mode)
+        if mode == "evaluation":
+            df_mod = out[0]
+        elif mode == "optimization":
+            fitness += out[0]
+            
     if mode == "optimization":
         return np.sum(fitness), ics.mean(axis=0) if ics is not None else None
     elif mode == "evaluation":
         if df_start_idx is not None:
             df_mod.index = pd.RangeIndex(start=df_start_idx, stop=len(df_mod)+df_start_idx)
         return df_mod#, ics # ic temporary to validate
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
 
-def evaluate_model_multi_day(model: SolarMED,
-                             dec_vars: DecisionVariables,
-                             env_vars: EnvironmentVariables,
-                             evaluation_range: tuple[datetime, datetime],
-                             mode: Literal["optimization", "evaluation"] = "optimization",
-                             dec_var_int_ids: list[str] = None,
-                             sample_time_ts: int = None,
-                             debug_mode: bool = False) -> pd.DataFrame | float:
+def evaluate_model_shutdown(
+    model: SolarMED,
+    env_vars: EnvironmentVariables,
+    operation_end_dt: datetime,
+    mode: EvaluationMode = "evaluation",
+    df_mod: Optional[pd.DataFrame] = None,
+    debug_mode: bool = False,
+) -> tuple[pd.DataFrame, datetime] | tuple[float, datetime]:
+    """ Evaluate the model shutdown. This function evaluates the model until
+        the system is completely shut down. The function returns the fitness
+        value and the time it took to shut down the system. The function also
+        updates the model instance with the final state of the system.
+    """
+    
+    time_delta = pd.Timedelta(seconds=model.sample_time)
+    stop_time = pd.Timedelta(seconds=model.sample_time)
+    fitness = 0
+    while model.med_state != MedState.OFF or model.sf_ts_state != SfTsState.IDLE:
+        time_idx = min(env_vars.I.index[-1], operation_end_dt + stop_time)
+        
+        model.step(
+            # SfTs
+            qts_src=0,
+            qsf=0,
+            
+            # MED
+            qmed_s=0,
+            qmed_f=0,
+            Tmed_s_in=0,
+            Tmed_c_out=0,
+            med_vacuum_state=0,
+            
+            # Environment
+            I=env_vars.I.loc[time_idx],
+            Tamb=env_vars.Tamb.loc[time_idx],
+            Tmed_c_in=env_vars.Tmed_c_in.loc[time_idx],
+            compute_fitness=True
+        )
+        fitness += model.evaluate_fitness_function(cost_e=env_vars.cost_e[time_idx], 
+                                                   cost_w=env_vars.cost_w[time_idx], 
+                                                   objective_type='minimize')
+        stop_time += time_delta.round('ns')
+        
+        if mode == "evaluation":
+            df_mod = model.to_dataframe(df_mod, index=df_mod.index[-1] + time_delta)
+    
+    operation_end_dt += stop_time
+    if debug_mode:
+        logger.info(f"Took {stop_time//60} to shutdown the system. Finished operation at {operation_end_dt}")
+        
+    if mode == "optimization":
+        return fitness, operation_end_dt
+    elif mode == "evaluation":
+        return df_mod, operation_end_dt
+
+def evaluate_model_multi_day(
+    model: SolarMED,
+    dec_vars: DecisionVariables,
+    env_vars: EnvironmentVariables,
+    evaluation_range: tuple[datetime, datetime],
+    mode: EvaluationMode = "optimization",
+    dec_var_int_ids: Optional[list[str]] = None,
+    sample_time_ts: Optional[int] = None,
+    debug_mode: bool = False,
+) -> pd.DataFrame | float:
     # TODO: Tener a esta función llamando a evaluate_model es un poco chapuza, 
     # la idea sería modificar evaluate_model para que sea válida tanto como para 
     # días individuales como para múltiples días
@@ -272,28 +354,20 @@ def evaluate_model_multi_day(model: SolarMED,
         # Compute operation start and end datetimes for the current day using integer decision variables
 		# day_idx = 0
         day = env_vars_index[0].day + day_idx
-        daily_data = []
-        for var_id in dec_var_int_ids:
-            var_values = getattr(dec_vars, var_id)
-            daily_data.append(
-                var_values[(var_values.index.day >= day) & (var_values.index.day < day+1)]
-            )
-        operation_start, operation_end = get_start_and_end_datetimes(series=daily_data)
+        operation_start, operation_end = IntegerDecisionVariables.initialize_from_dec_vars(dec_vars).get_start_and_end_datetimes(day)
+        
         if debug_mode:
             logger.info(f"{day_idx=} | {operation_start=}, {operation_end=}")
 
         # Evaluate thermal storage until start of operation
-        if debug_mode:
-            logger.info(f"{day_idx=} | Before idle evaluation: {model.Tts_h=}, {model.Tts_c=}")
         Tts_h, Tts_c, df_mod = evaluate_idle_thermal_storage( 
             sample_time=sample_time_ts,
             env_vars=env_vars,
             dt_span=(operation_end0, operation_start),
             model=model,
             df=df_mod if mode == "evaluation" else None,
+            debug_mode=debug_mode
         )
-        if debug_mode:
-            logger.info(f"{day_idx=} | After idle evaluation: {Tts_h=}, {Tts_c=}")
         model.Tts_h = Tts_h
         model.Tts_c = Tts_c
 
@@ -323,41 +397,14 @@ def evaluate_model_multi_day(model: SolarMED,
             ]).resample(env_vars_index.freq, origin="start").ffill()
         
         # Complete sub-systems shutdown/suspend
-        time_delta = pd.Timedelta(seconds=model.sample_time)
-        stop_time = pd.Timedelta(seconds=model.sample_time)
-        while model.med_state != MedState.OFF or model.sf_ts_state != SfTsState.IDLE:
-            time_idx = min(env_vars_index[-1], operation_end + stop_time)
-            
-            model.step(
-                # SfTs
-                qts_src=0,
-                qsf=0,
-                
-                # MED
-                qmed_s=0,
-                qmed_f=0,
-                Tmed_s_in=0,
-                Tmed_c_out=0,
-                med_vacuum_state=0,
-                
-                # Environment
-                I=env_vars.I.loc[time_idx],
-                Tamb=env_vars.Tamb.loc[time_idx],
-                Tmed_c_in=env_vars.Tmed_c_in.loc[time_idx],
-                compute_fitness=True
-            )
-            fitness_total += model.evaluate_fitness_function(cost_e=env_vars.cost_e[time_idx], 
-                                                             cost_w=env_vars.cost_w[time_idx], 
-                                                             objective_type='minimize')
-            stop_time += time_delta.round('ns')
-            
-            if mode == "evaluation":
-                df_mod = model.to_dataframe(df_mod, index=df_mod.index[-1] + time_delta)
-        
-        if debug_mode:
-            logger.info(f"{day_idx=} | Took {stop_time//60} minutes to shutdown the system")
-        
-        operation_end0 = operation_end + stop_time
+        out = evaluate_model_shutdown(model, env_vars, operation_end, mode=mode, 
+                                      df_mod=df_mod, debug_mode=debug_mode)
+        if mode == "evaluation":
+            df_mod = out[0]
+            operation_end0 = out[1]
+        elif mode == "optimization":
+            fitness_total += out[0]
+            operation_end0 = out[1]
         
         # Assuming that the next day means a fresh start
         # All cooldowns should be done by then, reset them
@@ -367,7 +414,6 @@ def evaluate_model_multi_day(model: SolarMED,
         return fitness_total
     elif mode == "evaluation":
         return df_mod
-
 
 def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int]], 
                           env_vars: EnvironmentVariables, problem: BaseMinlpProblem,
@@ -428,7 +474,8 @@ def evaluate_optimization(df_sim: pd.DataFrame, pop: list[np.ndarray[float | int
     return df_hor, df_sim, model # model is already updated, but return it anyway
 
 def evaluate_optimization_nlp(x: np.ndarray[float], # env_vars: EnvironmentVariables, 
-                              problem: BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
+                              problem: BaseNlpProblem, model: SolarMED,
+                              debug_mode: bool = False) -> pd.DataFrame:
     
     # Sanitize decision vector, sometimes float values are negative even though they are basically zero (float precision?)
     x[np.abs(x) < 1e-6] = 0
@@ -442,6 +489,7 @@ def evaluate_optimization_nlp(x: np.ndarray[float], # env_vars: EnvironmentVaria
         mode="evaluation",
         dec_var_int_ids=problem.dec_var_int_ids,
         sample_time_ts=problem.sample_time_ts,   
+        debug_mode=debug_mode
     )
     df_hor = add_dec_vars_to_dataframe(df_hor, dec_vars, df_idx=df_hor.index[0])
     

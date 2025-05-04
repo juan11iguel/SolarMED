@@ -19,17 +19,18 @@ def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, u
 
     index_start = I_series.index[0]
     while index_start < I_series.index[-1]:
-        index_end = index_start + pd.Timedelta(days=1)
+        index_end = index_start + pd.Timedelta(seconds=pp.optim_window_time)
 
         I_exp = I_series.loc[index_start:index_end]
+        I_exp = I_exp[I_exp.index.day == index_start.day] # Only consider current day
         I_opt = (
             I_exp.resample(f"{pp.sample_time_opt}s", origin="start")
             .interpolate()
             .resample(f"{10}min", origin="start")
             .interpolate()
         )
-        startup_candidates = generate_update_datetimes(I_opt, updates_per_action, "startup")
-        shutdown_candidates = generate_update_datetimes(I_opt, updates_per_action, "shutdown")
+        startup_candidates = generate_update_datetimes(I_opt, updates_per_action, "startup", pp.irradiance_thresholds)
+        shutdown_candidates = generate_update_datetimes(I_opt, updates_per_action, "shutdown", pp.irradiance_thresholds)
         showlegend = True if index_start == I_series.index[0] else False
 
         fig.add_trace(
@@ -75,6 +76,8 @@ def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, u
 
         index_start = index_end
 
+        # print(f"{index_start} - {index_end} | {startup_candidates=}\n{shutdown_candidates=}")
+    
     fig.update_layout(
         title="Irradiance and operation start/stop candidates",
         xaxis_title="Time",

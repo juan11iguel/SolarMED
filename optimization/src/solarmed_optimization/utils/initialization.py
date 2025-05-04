@@ -1,6 +1,7 @@
 from pathlib import Path
 import math
 from enum import Enum
+from typing import Optional
 from dataclasses import fields, asdict
 import numpy as np
 from loguru import logger
@@ -50,7 +51,7 @@ renames_dict: dict[str, str] = {
 }
 
 def problem_initialization(problem_params: ProblemParameters, date_str: str, data_path: Path = Path("./data"),
-                           set_dec_var_updates: bool = True, selected_date_span: tuple[str, str] = None) -> ProblemData:
+                           set_dec_var_updates: bool = True, selected_date_span: Optional[tuple[datetime.date, datetime.date|None]] = None) -> ProblemData:
     
     pp: ProblemParameters = problem_params
 
@@ -111,7 +112,10 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
         df["longitude"] = df_env["longitude"].loc[date_span[0]:date_span[1]].values
         
     if selected_date_span is not None:
-        df = df.loc[selected_date_span[0]: selected_date_span[1]]
+        if selected_date_span[1] is None:
+            df = df.loc[selected_date_span[0]:]
+        else:
+            df = df.loc[selected_date_span[0]:selected_date_span[1]]
         logger.info(f"Selected date span: {selected_date_span[0]} - {selected_date_span[1]} from {df.index.min()} - {df.index.max()}")
 
     problem_params.episode_duration = problem_params.episode_duration if problem_params.episode_duration is not None else len(df) * pp.sample_time_mod
@@ -172,15 +176,17 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
                        model=model)
     
 
-def initialize_problem_instances_nNLP(problem_data: ProblemData,
-                                     # Integrated in ProblemData.ProblemParameters
-                                     #operation_actions: dict[str, list[tuple[str, int]]] = None,
-                                     #real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = RealDecisionVariablesUpdatePeriod(),
-                                     #initial_dec_vars_values: InitialDecVarsValues = InitialDecVarsValues(),
-                                     idx_mod: int = 0,
-                                     store_x=False,
-                                     store_fitness=False,
-                                    ) -> list[NlpProblem]:
+def initialize_problem_instances_nNLP(
+    problem_data: ProblemData,
+    # Integrated in ProblemData.ProblemParameters
+    #operation_actions: dict[str, list[tuple[str, int]]] = None,
+    #real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = RealDecisionVariablesUpdatePeriod(),
+    #initial_dec_vars_values: InitialDecVarsValues = InitialDecVarsValues(),
+    idx_mod: int = 0,
+    store_x=False,
+    store_fitness=False,
+    log: bool = False
+) -> list[NlpProblem]:
     
     # if operation_actions is None:
     #     operation_actions: dict = {
@@ -209,19 +215,34 @@ def initialize_problem_instances_nNLP(problem_data: ProblemData,
     # print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
 
     # 3. Build operation plan
-    operation_planner = OperationPlanner.initialize(pp.operation_actions)
-    print(operation_planner)
+    operation_planner = OperationPlanner.initialize(pp.operation_actions, pp.irradiance_thresholds)
+    
+    if log:
+        print(operation_planner)
 
     I = [
         env_vars_opt.I.loc[
-            df.index[0] + pd.Timedelta(days=n_day) : df.index[0]
-            + pd.Timedelta(days=n_day + 1)
+            df.index[0] + pd.Timedelta(days=n_day) : df.index[0] + pd.Timedelta(days=n_day + 1)
         ]
         .resample(f"{10}min", origin="start")
         .interpolate()
         for n_day in range(pp.optim_window_days)
     ]
+    # Only current day in each series
+    I = [I_[I_.index.day == I_.index[0].day] for I_ in I] 
+    # print(I)
+    
+    duplicated = I[0].index[I[0].index.duplicated()]
+    if len(duplicated) > 0 and log:
+        print(f"Duplicated indexes in irradiance: {duplicated}")
+    
     int_dec_vars_list = operation_planner.generate_decision_series(I)
+    
+    for int_idx, int_dec_vars in enumerate(int_dec_vars_list):
+        duplicated = int_dec_vars.med_mode.index[ int_dec_vars.med_mode.index.duplicated() ] 
+        # print(f"{len(duplicated)=} {duplicated}")
+        if len(duplicated) > 0:
+            print(f"duplicated in {int_idx}: {duplicated}")
 
     # 4. Initialize problem instances
     return [

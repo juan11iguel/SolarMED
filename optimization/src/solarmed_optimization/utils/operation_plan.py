@@ -33,12 +33,28 @@ def generate_startup_update_datetimes(I: pd.Series, n: int, irradiance_threshold
         Returns:
         list[datetime]: list of n datetimes candidates for operation startup
     """
+    # If the max threshold is too high, cap the irradiance threshold to the 
+    # available data to make sure we have at least one value
+    irradiance_thresholds.max = min(irradiance_thresholds.max, I.max())
+    
     if n==1:
         irradiance_levels = np.array( [(irradiance_thresholds.min + irradiance_thresholds.max)/2] ) 
     else:
         irradiance_levels = np.linspace(irradiance_thresholds.min, irradiance_thresholds.max, n)
 
-    return [I[I > level].index[0] for level in irradiance_levels]
+    candidates = [
+        I[I >= level].index[0] 
+        # if len(I[I > level]) > 0 else I.idxmax() # If no entry is found, use the maximum
+        for level in irradiance_levels
+    ]
+    
+    # Avoid having the operation change right at the start, messes up
+    # with the problem initialization since some initial value is set
+    # from the initial sample
+    if candidates[0] - I.index[0] < I.index.freq:
+        candidates[0] += I.index.freq
+
+    return candidates
 
 def generate_shutdown_update_datetimes(I: pd.Series, n: int, irradiance_thresholds: IrradianceThresholds = IrradianceThresholds()) -> list[datetime]:
     """ Function that given a timeseries of irradiance returns n candidates 
@@ -51,15 +67,30 @@ def generate_shutdown_update_datetimes(I: pd.Series, n: int, irradiance_threshol
     Returns:
         list[datetime]: list of n datetimes candidates for operation shutdown
     """
+    # If the max threshold is too high, cap the irradiance threshold to the 
+    # available data to make sure we have at least one value
+    irradiance_thresholds.max = min(irradiance_thresholds.max, I.max())
+    
     if n==1:
         irradiance_levels = np.array( [(irradiance_thresholds.min + irradiance_thresholds.max)/2] ) 
     else:
         irradiance_levels = np.linspace(irradiance_thresholds.min, irradiance_thresholds.max, n)
         
     I_reversed = I[::-1]
-    shutdown_candidates = sorted([I_reversed[I_reversed > level].index[0] for level in irradiance_levels])
-
-    return shutdown_candidates
+    candidates = sorted([
+        I_reversed[I_reversed >= level].index[0] 
+        # if len(I_reversed[I_reversed > level]) else I_reversed.idxmax() # If no entry is found, use the maximum
+        for level in irradiance_levels
+    ])
+    
+    # Avoid having the operation change right at the start, messes up
+    # with the problem initialization since some initial value is set
+    # from the initial sample
+    if candidates[0] - I.index[0] < I.index.freq:
+        candidates[0] += I.index.freq
+    
+    # print(candidates)
+    return candidates
 	
     
 # Base generators
@@ -226,20 +257,24 @@ class OperationPlanner:
         """
     plans: list[tuple[tuple[int], ...]]
     operation_actions: Optional[dict[str, list[tuple[str, int]]]] = None
-    irradiance_thresholds: IrradianceThresholds = field(default_factory=IrradianceThresholds())
+    irradiance_thresholds: IrradianceThresholds = field(default_factory=IrradianceThresholds)
     
     @classmethod
-    def initialize(cls, operation_actions: dict[str, list[tuple[str, int]]]) -> "OperationPlanner":
+    def initialize(cls, operation_actions: dict[str, list[tuple[str, int]]], irradiance_thresholds: IrradianceThresholds) -> "OperationPlanner":
         plans = generate_operation_combos(operation_actions)
-        return cls(plans, operation_actions)
+        return cls(plans, operation_actions, irradiance_thresholds)
     
     def __str__(self) -> str:
-        output = [f"Generated {len(self.plans)} operation plans"]
+        output = [
+            f"Generated {len(self.plans)} operation plans",
+            f"Operation actions: {self.operation_actions}",
+            f"Irradiance thresholds: {self.irradiance_thresholds}",
+        ]
         for plan_idx, plan in enumerate(self.plans):
             output_parts = [f"{plan_idx} |"]
             for subsystem_idx, (subsystem_id, _) in enumerate(self.operation_actions.items()):
                 transition_str = " -> ".join(map(str, plan[subsystem_idx]))
-                output_parts.append(f"{subsystem_id}: {transition_str}")
+                output_parts.append(f" {subsystem_id}: {transition_str} |")
             output.append("".join(output_parts))
         return "\n".join(output)
     
@@ -250,17 +285,19 @@ class OperationPlanner:
         # Generate update datetimes
         update_datetimes = []
         for subsystem_actions in self.operation_actions.values():
-            initial_action = subsystem_actions[0]
+            # initial_action = subsystem_actions[0]
             day_cnt = 0
             dts = []
             for action_idx, action_tuple in enumerate(subsystem_actions):
-                if action_idx > 0 and action_tuple[0] == initial_action[0]:
+                # Check if we should move to the next date
+                if action_idx > 0 and action_tuple[0] == "startup": # initial_action[0]:
                     # Repeated action, use the next entry in I
                     day_cnt += 1
                 dts.append(
                     generate_update_datetimes(I=I[day_cnt], n=action_tuple[1], action_type=action_tuple[0],
                                               irradiance_thresholds=self.irradiance_thresholds)
                 )
+                # print(f"day {day_cnt} | action: {action_tuple[0]} | n: {action_tuple[1]} | thresh. {self.irradiance_thresholds} | result: {I[day_cnt].loc[dts[-1]]}")
             update_datetimes.append(dts)
         
         dec_vars_list = []
@@ -276,20 +313,3 @@ class OperationPlanner:
             dec_vars_list.append( IntegerDecisionVariables(**dec_vars) )
             
         return dec_vars_list
-    
-    
-def get_start_and_end_datetimes(series: pd.Series | list[pd.Series]) -> tuple[datetime, datetime]:
-    """ Get the start and end indexes of the non-zero values in a series.
-        If a list of series is provided, it returns the earliest start and the latest end indexes."""
-    if not isinstance(series, list):
-        series = [series]
-        
-    earliest_start_dt = datetime(9999, 12, 31, tzinfo=timezone.utc)
-    latest_end_dt = datetime(1, 1, 1, tzinfo=timezone.utc)
-    for ser in series:
-        start_idx = np.argmax(ser != 0)
-        end_idx = len(ser) - np.argmax(ser[::-1] != 0) - 1
-        earliest_start_dt = min(earliest_start_dt, ser.index[start_idx])
-        latest_end_dt = max(latest_end_dt, ser.index[end_idx])
-    
-    return earliest_start_dt, latest_end_dt

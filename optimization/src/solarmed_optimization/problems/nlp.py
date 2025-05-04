@@ -28,8 +28,7 @@ from solarmed_optimization import (RealDecVarsBoxBounds,
 								   ProblemParameters)
 from solarmed_optimization.utils import resolve_dataclass_type
 from solarmed_optimization.utils.evaluation import (evaluate_model_multi_day,
-													evaluate_optimization_nlp,
-             										get_start_and_end_datetimes)
+													evaluate_optimization_nlp)
 # from solarmed_optimization.utils.evaluation import evaluate_idle_thermal_storage
 # from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
 
@@ -131,10 +130,23 @@ class OperationPlanResults:
 	algo_params: Optional[AlgoParams] = None # Algorithm parameters
 	problems_eval_params: Optional[ProblemsEvaluationParameters] = None
 	problem_params: Optional[ProblemParameters] = None # Problem parameters
+	env_vars: Optional[EnvironmentVariables] = None # Environment variables
 	
 	def __post_init__(self):
 		if self.best_problem_idx is None:
 			self.best_problem_idx = int(self.fitness.idxmin())
+		self.set_environment_variables()
+   
+	def set_environment_variables(self, env_vars: Optional[EnvironmentVariables] = None) -> None:
+		if self.env_vars is not None:
+			return
+		
+		# Else
+		if env_vars is not None:
+			self.env_vars = env_vars
+			
+		elif self.env_vars is None and self.results_df is not None:
+			self.env_vars = EnvironmentVariables.initialize_from_dataframe(self.results_df)
 		
 	def evaluate_best_problem(self, problems: list[BaseNlpProblem] | BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
 		
@@ -143,6 +155,8 @@ class OperationPlanResults:
 			problem=problems[self.best_problem_idx] if isinstance(problems, list) else problems,
 			model=SolarMED(**model.dump_instance())
 		)
+		self.set_environment_variables()
+   
 		return self.results_df
 	
 	
@@ -305,7 +319,7 @@ def batch_export(output_path: Path, op_plan_results_list: list[OperationPlanResu
 	temp_h5_path.unlink()  # Remove uncompressed .h5 file
 
 def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod, 
-								 int_dec_vars_list: list[IntegerDecisionVariables]) -> RealDecisionVariablesUpdateTimes:
+								 int_dec_vars_list: list[IntegerDecisionVariables]) -> list[RealDecisionVariablesUpdateTimes]:
 	"""Generate the real decision variables times for each integer decision variables element in the list.
 
 	Args:
@@ -408,7 +422,8 @@ class Problem(BaseNlpProblem):
 				 store_x: bool = False,
 				 store_fitness: bool = True,
 				) -> None:
-	 
+
+		# print("duplicates in int_dec_vars: ", int_dec_vars.med_mode.index[int_dec_vars.med_mode.index.duplicated()], int_dec_vars.sfts_mode.index[int_dec_vars.sfts_mode.index.duplicated()])
 		int_dec_vars = IntegerDecisionVariables(**asdict(int_dec_vars)) # Avoid modifying the original instance
 
 		self.sample_time_mod = model.sample_time
@@ -436,7 +451,7 @@ class Problem(BaseNlpProblem):
 				sf_ts_state=model.sf_ts_state,
 		))
 		self.initial_state: SolarMedState = model.get_state()
-			
+
 		# Initialize real decision variables times
 		self.real_dec_vars_times = generate_real_dec_vars_times(
 			real_dec_vars_update_period=real_dec_vars_update_period,
@@ -447,7 +462,7 @@ class Problem(BaseNlpProblem):
 			**{name: values.size for name, values in asdict(int_dec_vars).items()},
 			**{name: len(values) for name, values in asdict(self.real_dec_vars_times).items()},
 		)
-  
+
   		# Get real variables limits
 		self.real_dec_vars_box_bounds = RealDecVarsBoxBounds.initialize(
 			fmp=model.fixed_model_params, 
@@ -458,26 +473,21 @@ class Problem(BaseNlpProblem):
 		# Initialize decision vector history
 		self.x_evaluated = []
 		self.fitness_history = []
-  
-		# Compute operation span
-		day = self.episode_range[0].day
-		daily_data = []
-		for var_id in self.dec_var_int_ids:
-			var_values = getattr(int_dec_vars, var_id)
-			daily_data.append(
-				var_values[(var_values.index.day >= day) & (var_values.index.day < day+1)]
-			)
-		operation_start, operation_end = get_start_and_end_datetimes(series=daily_data)
-		self.operation_span = (operation_start, operation_end)
 
+		# Compute operation span
+		self.operation_span = int_dec_vars.get_start_and_end_datetimes(self.episode_range[0].day)
 		# Setup integer decision variables
 		for int_dec_var_id, int_dec_var_values in asdict(int_dec_vars).items():
 			# from env_vars.index[0] to int_dec_var.index[0] -> some initial provided value
-			int_dec_var_values = pd.concat([
-				pd.Series(index=[self.episode_range[0]], 
-						  data=[getattr(initial_dec_vars_values, int_dec_var_id)]), 
-				int_dec_var_values
-			])
+			# print(f"{int_dec_var_id} \t| {self.episode_range[0]} | {int_dec_var_values.index[0]}")
+			if self.episode_range[0] < int_dec_var_values.index[0]:
+				int_dec_var_values = pd.concat([
+					pd.Series(index=[self.episode_range[0]], 
+							data=[getattr(initial_dec_vars_values, int_dec_var_id)]), 
+					int_dec_var_values
+				])
+			else:
+				raise ValueError(f"The first update shouldn't coincide with the operation start, only come some time after: {self.episode_range[0]=}, {int_dec_var_values.index[0]=}")
 			# From int_dec_var.index[-1] to env_vars.index[-1] the last value is kept
 			# Actually, we don't keep simulating after the last integer decision variable value is set to zero
    			# setattr(
@@ -495,6 +505,7 @@ class Problem(BaseNlpProblem):
 				int_dec_var_values.resample(f"{self.sample_time_mod}s").ffill()
 			)
 		self.int_dec_vars = int_dec_vars
+		# print("")
 
 	def __post_init__(self, ) -> None:
 		logger.info(f"""{self.get_name()} initialized.
@@ -624,6 +635,8 @@ def generate_bounds(problem_instance: Problem, int_dec_vars: IntegerDecisionVari
 			int_var_id = RealLogicalDecVarDependence[var_id].value
    			# Either zeros or ones, otherwise some logic should be included to translate the values
 			int_var_values: pd.Series = getattr(int_dec_vars, int_var_id)
+   
+			# print(int_var_values.index[int_var_values.index.duplicated()])
    
 			lb_ = []
 			ub_ = []

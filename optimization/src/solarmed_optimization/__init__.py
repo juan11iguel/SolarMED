@@ -105,7 +105,7 @@ def dump_in_span(vars_dict: dict, span: tuple[int, Optional[int]] | tuple[dateti
             
             # Extract the range
             dt_start, dt_end = span
-            dt_end = dt_end if dt_end is not None else value.index[-1]
+            dt_end = dt_end if dt_end is not None else list(vars_dict.values())[0].index[-1]
             span_vars_dict = {
                 name: value[(value.index >= dt_start) & (value.index < dt_end)]
                 for name, value in vars_dict.items() if value is not None
@@ -292,7 +292,6 @@ class DecisionVariables:
         }
         return pd.DataFrame(data)
         
-        
                 
 def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: bool = False) -> DecisionVariables | dict:
     """ Dump decision variables at a given index """
@@ -313,6 +312,14 @@ class IntegerDecisionVariables:
     sfts_mode: SfTsMode | pd.Series
     med_mode: MedMode | pd.Series
     
+    @classmethod
+    def initialize_from_dec_vars(cls, dec_vars: DecisionVariables) -> "IntegerDecisionVariables":
+        """ Initialize integer decision variables from the DecisionVariables instance """
+        return cls(
+            sfts_mode=dec_vars.sfts_mode,
+            med_mode=dec_vars.med_mode
+        )
+    
     def to_dataframe(self) -> pd.DataFrame:
         """
         Convert integer decision variables into a pandas DataFrame.
@@ -322,6 +329,20 @@ class IntegerDecisionVariables:
             for name, value in asdict(self).items()
         }
         return pd.DataFrame(data)
+    
+    def get_start_and_end_datetimes(self, day: int) -> tuple[datetime, datetime]:
+        """ Get start and end datetimes of the decision variables """
+        
+        # To avoid circular imports
+        from solarmed_optimization.utils import get_start_and_end_datetimes
+        
+        daily_data = [
+            var_values[(var_values.index.day >= day) & (var_values.index.day < day+1)]
+            for var_values in asdict(self).values()
+        ]
+            
+        return get_start_and_end_datetimes(series=daily_data)
+        
     
 @dataclass
 class DecisionVariablesUpdates:
@@ -355,8 +376,14 @@ class DecisionVariablesUpdates:
 #     "Attributes of DecisionVariables should exactly match attributes in DecisionVariableUpdates"
 
 class OptimToFsmsVarIdsMapping(NamedTuple):
-    # sf_active: tuple = ("sf_active", )
-    # ts_active: tuple = ("ts_active", )
+    """
+    Examples:
+    # Convert from optim id to fsm id
+    print(f"optim_id: sfts_mode -> model id: {OptimToFsmsVarIdsMapping.sfts_mode.value}")
+
+    # Convert from fsm id to optim id
+    print(f"fsm id: qts_src -> optim_id: {OptimToFsmsVarIdsMapping('qts_src').name}")
+    """
     sfts_mode: tuple = ("sf_active", "ts_active")
     med_mode: tuple  = ("med_active", "med_vacuum_state")
     

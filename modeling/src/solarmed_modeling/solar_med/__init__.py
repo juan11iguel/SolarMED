@@ -1458,6 +1458,10 @@ class SolarMED(BaseModel):
         # Add the thermal storage temperatures
         data["Tts_h_t"], data["Tts_h_m"], data["Tts_h_b"] = self.Tts_h
         data["Tts_c_t"], data["Tts_c_m"], data["Tts_c_b"] = self.Tts_c
+        
+        # Add costs
+        data["cost_e"] = self.env_params.cost_w
+        data["cost_w"] = self.env_params.cost_w
 
         # Duplicate flow rates to include both m and q options
         if not rename_flows:
