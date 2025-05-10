@@ -17,7 +17,7 @@ from solarmed_optimization import (
     RealDecisionVariablesUpdatePeriod,
     InitialDecVarsValues,
 )
-from solarmed_optimization.problems.nlp import Problem
+from solarmed_optimization.problems.nnlp import Problem
 
 from solarmed_optimization.utils.initialization import (
     problem_initialization,
@@ -26,7 +26,7 @@ from solarmed_optimization.utils.initialization import (
 )
 from solarmed_optimization.utils.operation_plan import OperationPlanner
 from solarmed_optimization.utils.serialization import export_evaluation_results
-from solarmed_optimization.visualization.nlp import plot_op_mode_change_candidates
+from solarmed_optimization.visualization.nnlp import plot_op_mode_change_candidates
 from solarmed_optimization.utils import extract_prefix
 
 logger.disable("phd_visualizations")

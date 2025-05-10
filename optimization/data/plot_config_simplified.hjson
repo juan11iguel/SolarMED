@@ -141,7 +141,7 @@
       
       # Plotted between this plot and the next one
       show_active: true,
-      active_var_id: "dec_var_sfts_mode",
+      active_var_id: "sf_active",
       active_color: "plotly_yellow",
 
       traces_left: [
@@ -167,7 +167,7 @@
 
       # Plotted between this plot and the next one
       show_active: true,
-      active_var_id: "dec_var_med_mode",
+      active_var_id: "med_active",
       active_color: "wct_purple",
 
       traces_left: [

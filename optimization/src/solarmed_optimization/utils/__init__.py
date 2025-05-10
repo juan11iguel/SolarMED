@@ -452,18 +452,43 @@ def find_n_best_values_in_list(source_list: list[list[float]], n: int, objective
     logger.info(f"{best_fitness_list=} at {best_idxs=}")
     return best_idxs, best_fitness_list
 
-def get_start_and_end_datetimes(series: pd.Series | list[pd.Series]) -> tuple[datetime, datetime]:
-    """ Get the start and end indexes of the non-zero values in a series.
-        If a list of series is provided, it returns the earliest start and the latest end indexes."""
+def get_start_and_end_datetimes(series: pd.Series | list[pd.Series]) -> tuple[datetime | None, datetime | None]:
+    """
+    Determine the first active timestamp (start) and the first inactive timestamp after the last active (end).
+    If multiple series are provided, the start is the earliest global active, and the end is the latest global inactive.
+    """
     if not isinstance(series, list):
         series = [series]
-        
-    earliest_start_dt = datetime(9999, 12, 31, tzinfo=timezone.utc)
-    latest_end_dt = datetime(1, 1, 1, tzinfo=timezone.utc)
+
+    start_dt = None
+    end_dt = None
+
     for ser in series:
-        start_idx = np.argmax(ser != 0)
-        end_idx = len(ser) - np.argmax(ser[::-1] != 0) - 1
-        earliest_start_dt = min(earliest_start_dt, ser.index[start_idx])
-        latest_end_dt = max(latest_end_dt, ser.index[end_idx])
-    
-    return earliest_start_dt, latest_end_dt
+        # Identify indices of active and inactive states
+        active_indices = ser[ser > 0].index
+        inactive_indices = ser[ser <= 0].index
+
+        # Determine start: Earliest active across all series
+        if not active_indices.empty:
+            first_active_idx = active_indices[0]
+            start_dt = min(start_dt, first_active_idx) if start_dt else first_active_idx
+
+        # Determine end: First inactive after the last active across all series
+        if not active_indices.empty:
+            last_active_idx = active_indices[-1]
+
+            # Find the first inactive after the last active
+            post_last_active = inactive_indices[inactive_indices > last_active_idx]
+            if not post_last_active.empty:
+                first_inactive_after_last_active = post_last_active[0]
+                end_dt = max(end_dt, first_inactive_after_last_active) if end_dt else first_inactive_after_last_active
+
+    # If no start was found, set it to the first index of the first series
+    if start_dt is None:
+        start_dt = series[0].index[0]
+
+    # If no end was determined, set it to the first index of the first series
+    if end_dt is None:
+        end_dt = start_dt
+
+    return start_dt, end_dt

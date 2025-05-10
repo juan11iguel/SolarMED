@@ -27,7 +27,6 @@
   },
   vertical_spacing: 0.025,
   xdomain: [0, 0.85],
-  arrow_xrel_pos: 60, # seconds
   show_optimization_updates: false,
 
   # Legend(s) attributes
@@ -85,9 +84,6 @@
           color: "plotly_green",
           // showlegend: true,
           width: 3,
-          // legend_id: 'global_legend',
-          axis_arrow: true,
-          arrow_yrel_pos: 1.05,
         },
         {
           var_id: "Tmed_c_in",
@@ -96,9 +92,6 @@
           color: "plotly_blue",
           width: 3,
           // showlegend: true,
-          // legend_id: 'global_legend',
-          axis_arrow: true,
-          arrow_yrel_pos: 1.05,
         },
       ],
 
@@ -119,8 +112,6 @@
           color: "plotly_yellow", # plotly green
           width: 3,
           showlegend: false,
-          axis_arrow: true,
-          arrow_yrel_pos: 1.1,
         },
       ]
     },
@@ -142,8 +133,6 @@
             mode: "lines",
             color: "dc_green", # gray
             showlegend: false,
-            axis_arrow: true,
-            arrow_yrel_pos: 1.05,
           },
         ],
 
@@ -169,8 +158,6 @@
             width: 3,
             color: "wct_purple", # gray
             showlegend: false,
-            axis_arrow: true,
-            arrow_yrel_pos: 1.05,
           },
         ]
       ]
@@ -186,7 +173,7 @@
       
       # Plotted between this plot and the next one
       show_active: true,
-      active_var_id: "dec_var_sfts_mode",
+      active_var_id: "sf_active",
       active_color: "plotly_yellow",
 
       traces_left: [
@@ -209,7 +196,7 @@
 
       # Plotted between this plot and the next one
       show_active: true,
-      active_var_id: "dec_var_med_mode",
+      active_var_id: "med_active",
       active_color: "wct_purple",
 
       traces_left: [
@@ -346,8 +333,6 @@
           var_id: "qmed_s",
           mode: "lines",
           color: "wct_purple",
-          axis_arrow: true,
-          arrow_yrel_pos: 1.05,
           width: 3,
         },
       ]
@@ -566,8 +551,6 @@
           var_id: "qmed_s",
           mode: "lines",
           color: "wct_purple",
-          axis_arrow: true,
-          arrow_yrel_pos: 1.05,
           width: 3,
         },
       ]

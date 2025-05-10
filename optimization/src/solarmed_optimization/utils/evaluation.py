@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 from iapws import IAPWS97 as w_props
 import numpy as np
@@ -59,9 +59,13 @@ def evaluate_idle_thermal_storage(
     elapsed_time_sec = (dt_span[1] - dt_span[0]).total_seconds()
 
     N = int( elapsed_time_sec // sample_time )
-
     Tts_h = [model.Tts_h]
     Tts_c = [model.Tts_c]
+    
+    if N == 0:
+        # No need to evaluate the model if the time span is less than the sample time
+        return Tts_h[-1], Tts_c[-1], df
+    
     wprops = (w_props(P=1.5, T=Tts_h[-1][1]+273.15),
               w_props(P=1.5, T=Tts_c[-1][1]+273.15))
     
@@ -110,9 +114,9 @@ def evaluate_idle_thermal_storage(
 
     if df is not None:
         # Monstruoso
-        index = pd.date_range(start=dt_span[0], end=dt_span[1], freq=f"{sample_time}s")
+        index = pd.date_range(start=dt_span[0], end=dt_span[1], freq=f"{sample_time}s", tz=timezone.utc)
         if remaining_time > 0:
-            index = np.append(index, dt_span[1])
+            index = np.append(index, dt_span[1] + timedelta(seconds=remaining_time))
         data = {
                 **asdict(env_vars), 
                 **{
@@ -121,17 +125,24 @@ def evaluate_idle_thermal_storage(
                     for pos, val in zip(["t", "m", "b"], vals)
                 },
                 # Add integer variables with last value so no errors are raised when concatenating
-                **{name: df[name].iloc[-1] for name, dtype in zip(df.columns, df.dtypes) if dtype == int}
-                
+                **{name: df[name].iloc[-1] for name, dtype in zip(df.columns, df.dtypes) if dtype == int},
+                # Add boolean variables with model values
+                **{name: getattr(model, name)  for name, dtype in zip(df.columns, df.dtypes) if dtype == bool}  
             }
-        df_ = pd.DataFrame(data, index=index, columns=df.columns).astype(df.dtypes)
+        
+        # Initialize with data dict
+        df_ = pd.DataFrame(data, index=index, columns=df.columns)
+        # Fill missing values and enforce types
+        # df_ = df_.fillna(False)
+        df_ = df_.astype(df.dtypes)
         # Remove the last row since it's added when evaluting the complete model
         df_ = df_.iloc[:-1]
         
-        if df.index[-1] == dt_span[0]:
+        if df.index[-1] == dt_span[0] and len(df) == 1:
             # Replace initial dataframe
             df = df_
         else:
+            # Just concatenate
             df = pd.concat([df, df_])
             
     return Tts_h[-1], Tts_c[-1], df
@@ -339,7 +350,8 @@ def evaluate_model_multi_day(
     # TODO: evaluation_range debería poder tener un número de pares de fechas arbitrario
     # Cuando en un mismo día haya múltiples parejas, la primera marca temporal es el arranque
     # la última la parada, y las intermedias son suspensiones / reinicios de la MED 
-    
+    if debug_mode:
+        logger.info(f"Evaluating model for {evaluation_range[0]} to {evaluation_range[1]}")
     operation_end0: datetime = evaluation_range[0]
     fitness_total = 0
     ics_list: list[list[float]] = []
@@ -348,8 +360,11 @@ def evaluate_model_multi_day(
     df_mod = None
     if mode == "evaluation":
         df_mod = model.to_dataframe()
-        df_mod.index = [operation_end0]
-    
+        
+        # dec_vars_start_idx = getattr(dec_vars, dec_var_int_ids[0]).index[0]
+        # if operation_end0 < :
+        df_mod.index = [operation_end0 - env_vars_index.freq]
+            
     for day_idx in range(n_days):
         # Compute operation start and end datetimes for the current day using integer decision variables
 		# day_idx = 0
@@ -491,7 +506,9 @@ def evaluate_optimization_nlp(x: np.ndarray[float], # env_vars: EnvironmentVaria
         sample_time_ts=problem.sample_time_ts,   
         debug_mode=debug_mode
     )
-    df_hor = add_dec_vars_to_dataframe(df_hor, dec_vars, df_idx=df_hor.index[0])
+    df_hor = dec_vars.add_dec_vars_to_dataframe(df_hor)
+    
+    # df_hor = add_dec_vars_to_dataframe(df_hor, dec_vars)
     
     # Change index
     # df_hor.index = list(asdict(dec_vars).values())[0].index

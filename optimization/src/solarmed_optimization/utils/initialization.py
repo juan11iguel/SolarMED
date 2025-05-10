@@ -22,7 +22,7 @@ from solarmed_optimization import (DecisionVariables,
                                    ProblemParameters,
                                    ProblemSamples,)
 # MINLP
-from solarmed_optimization.problems.nlp import Problem as NlpProblem
+from solarmed_optimization.problems.nnlp import Problem as NlpProblem
 from solarmed_optimization.utils import (validate_dec_var_updates, 
                                          times_to_samples,
                                          decision_variables_to_decision_vector,
@@ -178,24 +178,11 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
 
 def initialize_problem_instances_nNLP(
     problem_data: ProblemData,
-    # Integrated in ProblemData.ProblemParameters
-    #operation_actions: dict[str, list[tuple[str, int]]] = None,
-    #real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = RealDecisionVariablesUpdatePeriod(),
-    #initial_dec_vars_values: InitialDecVarsValues = InitialDecVarsValues(),
-    idx_mod: int = 0,
     store_x=False,
     store_fitness=False,
     log: bool = False
 ) -> list[NlpProblem]:
     
-    # if operation_actions is None:
-    #     operation_actions: dict = {
-    #         # Day 1 -----------------------  # Day 2 -----------------------
-    #         "sfts": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
-    #         "med": [("startup", 3), ("shutdown", 3), ("startup", 1), ("shutdown", 1)],
-    #     }
-    
-    ps: ProblemSamples = problem_data.problem_samples
     pp: ProblemParameters = problem_data.problem_params
     model = problem_data.model
     df = problem_data.df
@@ -204,45 +191,31 @@ def initialize_problem_instances_nNLP(
     assert getattr(pp, 'real_dec_vars_update_period', None) is not None, "Real decision variables update period must be defined in the ProblemParameters"
     assert getattr(pp, 'initial_dec_vars_values', None) is not None, "Initial decision variables values must be defined in the ProblemParameters"
     
-    hor_span = (idx_mod + 1, idx_mod + 1 + ps.n_evals_mod_in_hor_window)
-    ds = df.iloc[hor_span[0] : hor_span[1]]
 
-    env_vars: EnvironmentVariables = EnvironmentVariables.initialize_from_dataframe(ds, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e)
-    
+    env_vars: EnvironmentVariables = EnvironmentVariables.initialize_from_dataframe(df, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e)
     # For operation plan, environment variables are only available with a one hour resolution
     env_vars_opt = env_vars.resample(f"{pp.sample_time_opt}s", origin="start")
-
     # print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")
-
-    # 3. Build operation plan
-    operation_planner = OperationPlanner.initialize(pp.operation_actions, pp.irradiance_thresholds)
-    
-    if log:
-        print(operation_planner)
-
-    I = [
-        env_vars_opt.I.loc[
-            df.index[0] + pd.Timedelta(days=n_day) : df.index[0] + pd.Timedelta(days=n_day + 1)
-        ]
-        .resample(f"{10}min", origin="start")
-        .interpolate()
-        for n_day in range(pp.optim_window_days)
-    ]
-    # Only current day in each series
-    I = [I_[I_.index.day == I_.index[0].day] for I_ in I] 
+    I = env_vars_opt.I.resample(f"{pp.sample_time_mod}s", origin="start").interpolate()
     # print(I)
     
-    duplicated = I[0].index[I[0].index.duplicated()]
-    if len(duplicated) > 0 and log:
-        print(f"Duplicated indexes in irradiance: {duplicated}")
+    # 3. Build operation plan
+    operation_planner = OperationPlanner.initialize(pp.operation_actions, pp.irradiance_thresholds)
+    if log:
+        print(operation_planner)
     
-    int_dec_vars_list = operation_planner.generate_decision_series(I)
+    int_dec_vars_list = operation_planner.generate_decision_series(
+        I, 
+        operation_min_duration=pp.operation_min_duration,
+        initial_dec_var_values=pp.initial_dec_vars_values,
+    )
     
     for int_idx, int_dec_vars in enumerate(int_dec_vars_list):
+        # logger.info(f"Problem {int_idx:03d} | {int_dec_vars.get_start_and_end_datetimes()}")
         duplicated = int_dec_vars.med_mode.index[ int_dec_vars.med_mode.index.duplicated() ] 
         # print(f"{len(duplicated)=} {duplicated}")
         if len(duplicated) > 0:
-            print(f"duplicated in {int_idx}: {duplicated}")
+            logger.error(f"duplicated in {int_idx}: {duplicated}")
 
     # 4. Initialize problem instances
     return [
@@ -252,9 +225,8 @@ def initialize_problem_instances_nNLP(
             env_vars=env_vars_opt,
             real_dec_vars_update_period=pp.real_dec_vars_update_period,
             model=model,
-            initial_dec_vars_values=pp.initial_dec_vars_values,
             sample_time_ts=pp.sample_time_ts,
-            
+            initial_values=pp.initial_dec_vars_values,
             store_x=store_x,
             store_fitness=store_fitness,
         ) for int_dec_vars in int_dec_vars_list
@@ -448,8 +420,7 @@ def generate_integer_pop(model: SolarMED, pp: ProblemParameters, pop_size: int,
             Tmed_s_in=np.nan * np.ones((pp.dec_var_updates.Tmed_s_in, )),
         ) 
         for pop_idx in range(pop_size)]
-    
-    
+        
 def generate_population(model: SolarMED, pp: ProblemParameters, 
                         problem: BaseProblem, pop_size: int,
                         paths_from_state_df: pd.DataFrame,

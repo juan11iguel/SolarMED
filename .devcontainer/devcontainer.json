@@ -9,6 +9,7 @@
 				"html.format.templating": true,
 				"terminal.integrated.defaultProfile.linux": "zsh",
 				"editor.tabSize": 4,
+				"editor.insertSpaces": true,
 				"terminal.integrated.profiles.linux": {
 					"bash": {
 						"path": "bash",
@@ -34,7 +35,9 @@
 				"mechatroner.rainbow-csv",
 				"cyberBabushkin.filesize-hover-explorer",
 				"trietho.file-size-explorer",
-				"mutantdino.resourcemonitor"
+				"mutantdino.resourcemonitor",
+				"SimonSiefke.svg-preview",
+				"h5web.vscode-h5web"
 			],
 			"containerEnv": {
 				"ENVIRONMENT": "container",
