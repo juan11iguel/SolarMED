@@ -18,7 +18,7 @@ from phd_visualizations.optimization import plot_obj_scape_comp_1d
 
 from solarmed_optimization import ProblemParameters, IntegerDecisionVariables
 from solarmed_optimization.problems.nnlp import OperationPlanResults
-from solarmed_optimization.utils.visualization import condition_result_dataframe
+from solarmed_optimization.utils import condition_result_dataframe
 from solarmed_optimization.utils.operation_plan import generate_operation_datetimes, OperationPlanner
 
 plt_colors = plt_colors*10

@@ -28,7 +28,9 @@ OperationActionType = dict[str, list[tuple[str, int]]]
 # {'sfts': [('startup', [datetime1, ..., datetimeN]]), ('shutdown', [datetime1, ..., datetimeN]), ('startup', [datetime1, ..., datetimeN]), ('shutdown', [datetime1, ..., datetimeN])],
 #  'med': [('startup', [datetime1, ..., datetimeN]), ('shutdown', [datetime1, ..., datetimeN]), ('startup', [datetime1, ..., datetimeN]), ('shutdown', [datetime1, ..., datetimeN])]}
 OperationUpdateDatetimesType = dict[str, list[tuple[str, list[datetime]]]]
-	
+
+OpPlanActionType = Literal["startup", "shutdown"]	
+ 
 class MedMode(Enum):
 	""" Possible decisions for MED operation modes.
 	Given this, the FSM inputs are deterministic """
@@ -689,3 +691,81 @@ class PopulationResults:
 			time_per_gen=elapsed_time/n_gen,
 			time_total=elapsed_time
 		)
+
+
+@dataclass
+class AlgoParams:
+	algo_id: str = "sea"
+	max_n_obj_fun_evals: int = 1_000 # When debugging, change to a lower value
+	max_n_logs: int = 300
+	pop_size: int = 1
+
+	params_dict: Optional[dict] = None
+	log_verbosity: Optional[int] = None
+	gen: Optional[int] = None
+
+	def __post_init__(self, ):
+
+		if self.algo_id in ["gaco", "sga", "pso_gen"]:
+			self.gen = self.max_n_obj_fun_evals // self.pop_size
+			self.params_dict = {
+				"gen": self.gen,
+			}
+		elif self.algo_id == "simulated_annealing":
+			self.gen = self.max_n_obj_fun_evals // self.pop_size
+			self.params_dict = {
+				"bin_size": self.pop_size,
+				"n_T_adj": self.gen
+			}
+		else:
+			self.pop_size = 1
+			self.gen = self.max_n_obj_fun_evals
+			self.params_dict = { "gen": self.max_n_obj_fun_evals // self.pop_size }
+
+		if self.log_verbosity is None:
+			self.log_verbosity = math.ceil( self.gen / self.max_n_logs)
+
+
+@dataclass
+class ProblemsEvaluationParameters:
+	"""
+	Parameters for the problems evaluation process.
+	"""
+	drop_fraction: float = 0.3 # Fraction of problems to drop per update (0 to 1)
+	max_n_obj_fun_evals: int = 1_000 # Total maximum number of objective function evaluations
+	max_n_parallel_problems: int = 50 # Maximum number of problems to evaluate in parallel
+	n_updates: Optional[int] = None # Number of (problem drop) updates to perform
+	n_obj_fun_evals_per_update: Optional[int] = None # Number of objective function evaluations between updates
+
+	def __post_init__(self):
+		assert self.n_updates is not None or self.n_obj_fun_evals_per_update is not None, "Either n_updates or n_obj_fun_evals_per_update must be provided"
+		assert self.drop_fraction >= 0 and self.drop_fraction <= 1, "Fraction of problems to drop per update must be between 0 and 1"
+
+		if self.n_obj_fun_evals_per_update is None:
+			self.n_obj_fun_evals_per_update = self.max_n_obj_fun_evals // self.n_updates
+		elif self.n_updates is None:
+			self.n_updates = self.max_n_obj_fun_evals // self.n_obj_fun_evals_per_update
+
+	def update_problems(self, problems_fitness: list[float]) -> tuple[list[int], list[int]]:
+		"""
+		Drop the worst performing problems based on the drop_fraction.
+		Returns the indices of the problems to keep and to drop.
+		NaN values in problems_fitness are ignored in the decision process,
+		but their positions are preserved in index calculations.
+		"""
+
+		# Get the indices of non-NaN entries
+		valid_indices = [i for i, val in enumerate(problems_fitness) if not math.isnan(val)]
+		# Get the fitness values of non-NaN entries
+		valid_fitness = [(i, problems_fitness[i]) for i in valid_indices]
+		# Sort valid fitness values by value (descending = worst first)
+		valid_fitness_sorted = sorted(valid_fitness, key=lambda x: x[1], reverse=True)
+
+		# Determine number to drop
+		n_to_drop = int(len(valid_fitness_sorted) * self.drop_fraction)
+		# Extract the global indices to drop
+		drop_indices = [i for i, _ in valid_fitness_sorted[:n_to_drop]]
+		# Extract the global indices to keep (remaining non-NaNs not in drop)
+		keep_indices = [i for i in valid_indices if i not in drop_indices]
+
+		return keep_indices, drop_indices

@@ -40,7 +40,6 @@ logger.disable("phd_visualizations")
 #     samples_data: SampleParams
 #     model: SolarMED
 
-        
 renames_dict: dict[str, str] = {
     # First rename the original columns
     "Tmed_c_in": "Tmed_c_in_orig", "wmed_f": "wmed_f_orig",
@@ -175,7 +174,6 @@ def problem_initialization(problem_params: ProblemParameters, date_str: str, dat
                        problem_samples=problem_samples, 
                        model=model)
     
-
 def initialize_problem_instances_nNLP(
     problem_data: ProblemData,
     store_x=False,
@@ -231,7 +229,6 @@ def initialize_problem_instances_nNLP(
             store_fitness=store_fitness,
         ) for int_dec_vars in int_dec_vars_list
     ]
-
 
 def initialize_problem_instance_minlp(problem_data: ProblemData, idx_mod: int,
                        fsm_data_path: Path, return_env_vars: bool = False) -> MinlpProblem | tuple[MinlpProblem, EnvironmentVariables]:

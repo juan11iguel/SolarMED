@@ -1,5 +1,4 @@
-from dataclasses import fields, field
-from typing import Any, Optional
+from typing import Optional
 from itertools import product
 from enum import Enum, auto
 from dataclasses import dataclass, asdict
@@ -8,15 +7,21 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 import copy
+import pygmo as pg
 
-from solarmed_optimization import (IntegerDecisionVariables, 
-                                   SubsystemId, 
-                                   SubsystemDecVarId, 
-                                   IrradianceThresholds,
-                                   OperationActionType,
-                                   OperationUpdateDatetimesType,
-                                   InitialDecVarsValues)
-from solarmed_optimization.utils import infer_attribute_name, flatten_list
+from solarmed_optimization import (
+    IntegerDecisionVariables, 
+    SubsystemId, 
+    SubsystemDecVarId, 
+    IrradianceThresholds,
+    OperationActionType,
+    OperationUpdateDatetimesType,
+    InitialDecVarsValues,
+    AlgoParams,
+)
+from solarmed_optimization.problems import BaseNlpProblem
+from solarmed_optimization.utils import (infer_attribute_name, 
+                                         flatten_list)
     
 class ActionType(Enum):
     STARTUP = auto()
@@ -439,3 +444,34 @@ class OperationPlanner:
         )
             
         return dec_vars_list
+    
+    
+def build_archipielago(problems: list[BaseNlpProblem], algo_params: AlgoParams, x0: Optional[list[np.ndarray]] = None, fitness0: list[float] = None) -> pg.archipelago:
+    
+    if x0 is not None:
+        assert len(problems) == len(x0), f"Number of initial populations ({len(x0)}) should match number of problems ({len(problems)})"
+        assert fitness0 is not None, "Initial fitness should be provided if initial populations are provided"
+    
+    archi = pg.archipelago()
+    for problem_idx, problem in enumerate(problems):
+
+        # Initialize problem instance
+        prob = pg.problem(problem)
+        
+        # Initialize population
+        pop = pg.population(prob, size=algo_params.pop_size, seed=0)
+        if x0 is not None and x0[problem_idx] is not None:
+            pop.set_xf(0, x0[problem_idx], [fitness0[problem_idx]])
+        
+        algo = pg.algorithm(getattr(pg, algo_params.algo_id)(**algo_params.params_dict))
+        algo.set_verbosity( algo_params.log_verbosity )
+        
+        # 6. Build up archipielago
+        archi.push_back(
+            # Setting use_pool=True results in ever-growing memory footprint for the sub-processes
+            # https://github.com/esa/pygmo2/discussions/168#discussioncomment-10269386
+            pg.island(udi=pg.mp_island(use_pool=False), algo=algo, pop=pop, )
+        )
+        
+    return archi
+

@@ -1,8 +1,7 @@
 from dataclasses import fields, dataclass, is_dataclass
-from typing import get_args, Literal, Optional
+from typing import get_args, Optional
 from dataclasses import asdict
-import math
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -16,102 +15,27 @@ from solarmed_modeling.solar_med import SolarMED
 from solarmed_modeling.fsms import SolarMedState
 
 from solarmed_optimization.problems import BaseNlpProblem
-from solarmed_optimization import (RealDecVarsBoxBounds, 
-								   DecisionVariablesUpdates,
-								   EnvironmentVariables,
-								   InitialDecVarsValues,
-								   DecisionVariables,
-								   IntegerDecisionVariables,
-								   RealDecisionVariablesUpdatePeriod,
-								   RealDecisionVariablesUpdateTimes,
-								   RealLogicalDecVarDependence,
-								   ProblemParameters)
-from solarmed_optimization.utils import resolve_dataclass_type
+from solarmed_optimization import (
+    RealDecVarsBoxBounds, 
+	DecisionVariablesUpdates,
+	EnvironmentVariables,
+	InitialDecVarsValues,
+	DecisionVariables,
+	IntegerDecisionVariables,
+	RealDecisionVariablesUpdatePeriod,
+	RealDecisionVariablesUpdateTimes,
+	RealLogicalDecVarDependence,
+	ProblemParameters,
+	ProblemsEvaluationParameters,
+	AlgoParams,
+	OpPlanActionType
+)
+from solarmed_optimization.utils import resolve_dataclass_type, condition_result_dataframe
 from solarmed_optimization.utils.evaluation import (evaluate_model_multi_day,
 													evaluate_optimization_nlp)
-# from solarmed_optimization.utils.evaluation import evaluate_idle_thermal_storage
-# from solarmed_optimization.utils.operation_plan import get_start_and_end_datetimes
-
-OpPlanActionType = Literal["startup", "shutdown"]
 
 def get_scenario_id(scenario_idx: int) -> str:
 	return f"scenario_{scenario_idx:02d}"
-
-@dataclass
-class ProblemsEvaluationParameters:
-	"""
-	Parameters for the problems evaluation process.
-	"""
-	drop_fraction: float = 0.3 # Fraction of problems to drop per update (0 to 1)
-	max_n_obj_fun_evals: int = 1_000 # Total maximum number of objective function evaluations
-	max_n_parallel_problems: int = 50 # Maximum number of problems to evaluate in parallel
-	n_updates: Optional[int] = None # Number of (problem drop) updates to perform
-	n_obj_fun_evals_per_update: Optional[int] = None # Number of objective function evaluations between updates
-	
-	def __post_init__(self):
-		assert self.n_updates is not None or self.n_obj_fun_evals_per_update is not None, "Either n_updates or n_obj_fun_evals_per_update must be provided"
-		assert self.drop_fraction >= 0 and self.drop_fraction <= 1, "Fraction of problems to drop per update must be between 0 and 1"
-		
-		if self.n_obj_fun_evals_per_update is None:
-			self.n_obj_fun_evals_per_update = self.max_n_obj_fun_evals // self.n_updates
-		elif self.n_updates is None:
-			self.n_updates = self.max_n_obj_fun_evals // self.n_obj_fun_evals_per_update
-			
-	def update_problems(self, problems_fitness: list[float]) -> tuple[list[int], list[int]]:
-		"""
-		Drop the worst performing problems based on the drop_fraction.
-		Returns the indices of the problems to keep and to drop.
-		NaN values in problems_fitness are ignored in the decision process,
-		but their positions are preserved in index calculations.
-		"""
-				
-		# Get the indices of non-NaN entries
-		valid_indices = [i for i, val in enumerate(problems_fitness) if not math.isnan(val)]
-		# Get the fitness values of non-NaN entries
-		valid_fitness = [(i, problems_fitness[i]) for i in valid_indices]
-		# Sort valid fitness values by value (descending = worst first)
-		valid_fitness_sorted = sorted(valid_fitness, key=lambda x: x[1], reverse=True)
-		
-		# Determine number to drop
-		n_to_drop = int(len(valid_fitness_sorted) * self.drop_fraction)
-		# Extract the global indices to drop
-		drop_indices = [i for i, _ in valid_fitness_sorted[:n_to_drop]]
-		# Extract the global indices to keep (remaining non-NaNs not in drop)
-		keep_indices = [i for i in valid_indices if i not in drop_indices]
-		
-		return keep_indices, drop_indices
-			  
-@dataclass
-class AlgoParams:
-	algo_id: str = "sea"
-	max_n_obj_fun_evals: int = 1_000 # When debugging, change to a lower value
-	max_n_logs: int = 300
-	pop_size: int = 1
-	
-	params_dict: Optional[dict] = None
-	log_verbosity: Optional[int] = None
-	gen: Optional[int] = None
-
-	def __post_init__(self, ):
-
-		if self.algo_id in ["gaco", "sga", "pso_gen"]:
-			self.gen = self.max_n_obj_fun_evals // self.pop_size
-			self.params_dict = {
-				"gen": self.gen,
-			}
-		elif self.algo_id == "simulated_annealing":
-			self.gen = self.max_n_obj_fun_evals // self.pop_size
-			self.params_dict = {
-				"bin_size": self.pop_size,
-				"n_T_adj": self.gen
-			}
-		else:
-			self.pop_size = 1
-			self.gen = self.max_n_obj_fun_evals
-			self.params_dict = { "gen": self.max_n_obj_fun_evals // self.pop_size }
-		
-		if self.log_verbosity is None:
-			self.log_verbosity = math.ceil( self.gen / self.max_n_logs)
 
 @dataclass
 class OperationPlanResults:
@@ -171,18 +95,20 @@ class OperationPlanResults:
 		if not output_path.exists():
 			output_path.parent.mkdir(parents=True, exist_ok=True)
 		
+		temp_path = output_path.with_suffix(".h5")
 		if output_path.with_suffix(".gz").exists():
 			# Uncompress the gzip file into a temporary .h5 file
-			with gzip.open(output_path, 'rb') as f_in:
+			with gzip.open(output_path.with_suffix(".gz"), 'rb') as f_in:
 				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
 					shutil.copyfileobj(f_in, f_out)
 					temp_path = Path(f_out.name)
-		else:
-			temp_path = output_path.with_suffix(".h5")
 
 		# if reduced:
 		#     self = copy.deepcopy(self)  # To avoid modifying the original object
 		#     self.results_df = None
+		
+		# Remove NaNs
+		results_df = condition_result_dataframe(self.results_df)
 
 		with pd.HDFStore(temp_path, mode='a') as store:
 			path_str = self.get_hdf_base_path()
@@ -191,7 +117,7 @@ class OperationPlanResults:
 			store.put(f'{path_str}/x', self.x)
 			store.put(f'{path_str}/fitness', self.fitness)
 			store.put(f'{path_str}/fitness_history', self.fitness_history)
-			store.put(f'{path_str}/results', self.results_df)
+			store.put(f'{path_str}/results', results_df)
 
 			# Add metadata attributes to the file
 			storer = store.get_storer(f"{path_str}/results")
@@ -207,13 +133,17 @@ class OperationPlanResults:
 
 		# Compress the .h5 file using gzip
 		if compress:
-			with open(temp_path, 'rb') as f_in, gzip.open(output_path.with_suffix(".gz"), 'wb') as f_out:
-				shutil.copyfileobj(f_in, f_out)
-			temp_path.unlink()  # Remove uncompressed .h5 file
 			suffix = ".gz"
+			with open(temp_path, 'rb') as f_in, gzip.open(output_path.with_suffix(suffix), 'wb') as f_out:
+				shutil.copyfileobj(f_in, f_out)
+			temp_path.unlink()  # Remove temporary file .h5 file
 		else:
 			suffix = ".h5"
-
+			# Copy the uncompressed file to the output path
+			if temp_path != output_path.with_suffix(suffix):
+				shutil.copy(temp_path, output_path.with_suffix(suffix))
+				temp_path.unlink()  # Remove temporary file .h5 file
+		
 		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
 
 	@classmethod
@@ -296,7 +226,6 @@ class OperationPlanResults:
 
 		return op_plan_results
 
-
 def batch_export(output_path: Path, op_plan_results_list: list[OperationPlanResults], compress: bool = True) -> None:
 	""" Export multiple OperationPlanResults objects to a single file. """
 
@@ -311,9 +240,16 @@ def batch_export(output_path: Path, op_plan_results_list: list[OperationPlanResu
 
 	# Compress once after all are written
 	if compress:
+		suffix = ".gz"
 		with open(temp_h5_path, 'rb') as f_in, gzip.open(output_path.with_suffix(".gz"), 'wb') as f_out:
 			shutil.copyfileobj(f_in, f_out)
 		temp_h5_path.unlink()  # Remove uncompressed .h5 file
+	else:
+		suffix = ".h5"
+		# Copy the uncompressed file to the output path
+		# shutil.copy(temp_h5_path, output_path.with_suffix(suffix))
+	
+	logger.info(f"Exported {len(op_plan_results_list)} operation plan results to {output_path.with_suffix(suffix)}")
 
 def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod, 
 								 int_dec_vars_list: list[IntegerDecisionVariables]) -> list[RealDecisionVariablesUpdateTimes]:
@@ -397,7 +333,6 @@ def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariab
 		real_dec_var_times.append(RealDecisionVariablesUpdateTimes(**temp_dict))
 
 	return real_dec_var_times
-
 
 class Problem(BaseNlpProblem):
 	sample_time_mod: int # Model sample time
@@ -729,3 +664,4 @@ def generate_bounds(problem_instance: Problem, int_dec_vars: IntegerDecisionVari
 		ub[var_idx] = np.array(ub_)
 
 	return lb, ub
+

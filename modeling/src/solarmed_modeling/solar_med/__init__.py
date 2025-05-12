@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field, asdict, fields
 import re
+from typing import Optional
 import numpy as np
 import pandas as pd
 from iapws import IAPWS97 as w_props
@@ -183,6 +184,19 @@ class InitialStates:
             # if not isinstance(value, fld.type):
             if isinstance(value, dict):
                 setattr(self, fld.name, fld.type(**value))
+                
+    @classmethod
+    def initialize_from_inactive_state(cls, df: Optional[pd.DataFrame] = None, Tts_h: Optional[list[float]] = None, Tts_c: Optional[list[float]] = None,) -> "InitialStates":
+        """ Just sets values for the thermal storage """
+        
+        if df is not None:
+            Tts_h = [df.iloc[-1][f"Tts_h_{key}"] for key in ["t", "m", "b"]]
+            Tts_c = [df.iloc[-1][f"Tts_c_{key}"] for key in ["t", "m", "b"]]
+        elif Tts_h is None or Tts_c is None:
+            Tts_h=[90, 80, 70]
+            Tts_c=[70, 60, 50]
+        
+        return cls(Tts_h=Tts_h, Tts_c=Tts_c)
 
 
 class SolarMED(BaseModel):

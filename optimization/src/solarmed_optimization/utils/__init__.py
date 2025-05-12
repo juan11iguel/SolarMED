@@ -372,7 +372,9 @@ def add_bounds_to_dataframe(df: pd.DataFrame, problem, target: Literal['optim_st
     return df
 
 def add_dec_vars_to_dataframe(df: pd.DataFrame, dec_vars: DecisionVariables, df_idx: int = 0) -> pd.DataFrame:
-
+    # UPDATE: This functionality was moved as a method integrated in the DecisionVariables object itself
+    warnings.warn("Deprecated function, use DecisionVariables.add_dec_vars_to_dataframe instead")
+    
     for var_id, var_values in asdict(dec_vars).items():
         if isinstance(var_values, pd.Series):
             # Ideally var_values should already be compatible with dataframe, not having to trim it here with [0:len(df)]
@@ -492,3 +494,79 @@ def get_start_and_end_datetimes(series: pd.Series | list[pd.Series]) -> tuple[da
         end_dt = start_dt
 
     return start_dt, end_dt
+
+def select_best_alternative(df: pd.DataFrame, std_penalty_weight: float =1.0, worst_case_penalty_weight: float =1.0) -> tuple[int, pd.DataFrame]:
+    """
+    Select the best alternative based on average performance, consistency (std dev), and worst-case scenario.
+    
+    Parameters:
+    - df: pd.DataFrame
+        Rows = alternatives, Columns = scenarios
+    - std_penalty_weight: float
+        How much to penalize alternatives with high standard deviation
+    - worst_case_penalty_weight: float
+        How much to penalize based on the worst-case performance
+    
+    Returns:
+    - best_alternative: str
+        Index label of the best alternative
+    """
+    # Calculate metrics
+    means = df.mean(axis=1)
+    if len(df.columns) > 1:
+        stds = df.std(axis=1)
+    else:
+        stds = pd.Series([0] * len(df.index), index=df.index)
+    worst_cases = df.max(axis=1)
+    
+    # Composite score (lower is better)
+    scores = means + std_penalty_weight * stds + worst_case_penalty_weight * worst_cases
+    
+    # Reporting
+    report = pd.DataFrame({
+        'Mean': means,
+        'Std Dev': stds,
+        'Worst Case': worst_cases,
+        'Composite Score': scores
+    }).sort_values('Composite Score')
+    
+    print("\n=== Alternative Evaluation Report ===\n")
+    print(report)
+    print("\n======================================\n")
+    
+    # Pick the best
+    best_alternative = scores.idxmin()
+    print(f"Selected Best Alternative: {best_alternative}")
+    
+    return best_alternative, report
+
+
+def condition_result_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Condition the optimization results DataFrame to clean NaN values and some more."""
+
+    df["med_active"] = df["med_active"].astype(bool).fillna(False)
+    df["sf_active"] = df["sf_active"].astype(bool).fillna(False)
+    df["ts_active"] = df["ts_active"].astype(bool).fillna(False)
+    df["sf_ts_state"] = df["sf_ts_state"].astype(float).fillna(0).astype(int)
+    df["med_state"] = df["med_state"].astype(float).fillna(0).astype(int)
+    df["Pth_hx_p"] = df["Pth_hx_p"].fillna(0.0)
+    df["Pth_hx_s"] = df["Pth_hx_s"].fillna(0.0)
+    df["Pth_ts_dis"] = df["Pth_ts_dis"].fillna(0.0)
+    df["net_profit"] = df["net_profit"].fillna(0.0)
+    df["net_loss"] = df["net_loss"].fillna(0.0)
+    df["Jtotal"] = df["Jtotal"].fillna(0.0)
+    
+    for var_id in df.columns:
+        if not var_id.startswith("dec_var_"):
+            continue
+        df[var_id] = df[var_id].astype(float).fillna(0.0)
+
+    # Infer objects to avoid silent downcasting
+    # df = df.infer_objects(copy=False)
+
+    # New plot variables
+    df["cumulative_net_profit"] = df["net_profit"].cumsum()
+    # df["sfts_mode"] = df["sf_ts_state"] + 1
+    # df["med_mode"] = df["med_state"].apply(lambda x: 2 if 1 <= x < 5 or x == 5 else 1 if x == 0 else x)
+
+    return df
