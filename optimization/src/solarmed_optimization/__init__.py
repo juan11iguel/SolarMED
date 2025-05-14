@@ -1,6 +1,7 @@
 import math
 from typing import get_args, NamedTuple, Literal, Optional
 from dataclasses import dataclass, fields, field, is_dataclass, asdict
+import copy
 from enum import Enum
 from datetime import datetime, timedelta
 import numpy as np
@@ -119,7 +120,7 @@ def dump_in_span(vars_dict: dict, span: tuple[int, Optional[int]] | tuple[dateti
 			dt_start, dt_end = span
 			dt_end = dt_end if dt_end is not None else list(vars_dict.values())[0].index[-1]
 			span_vars_dict = {
-				name: value[(value.index >= dt_start) & (value.index < dt_end)]
+				name: value[(value.index >= dt_start) & (value.index <= dt_end)]
 				for name, value in vars_dict.items() if value is not None
 			}
 		else:
@@ -163,7 +164,7 @@ class EnvironmentVariables:
 	#         for var_id in ["Tamb", "I", "cost_w", "cost_e"]
 	#     ), "All variables must have the same length (optim_window_size // sample_time_mod)"
 	@classmethod
-	def initialize_from_dataframe(cls, df: pd.DataFrame, cost_w: float = None, cost_e: float = None) -> "EnvironmentVariables":
+	def from_dataframe(cls, df: pd.DataFrame, cost_w: float = None, cost_e: float = None) -> "EnvironmentVariables":
 		if "cost_w" not in df.columns:
 			cost_w=pd.Series(
 				data=np.ones((len(df.index),)) * cost_w,
@@ -201,7 +202,7 @@ class EnvironmentVariables:
 		
 		return dump if return_dict else EnvironmentVariables(**dump)
 	
-	def dump_in_span(self, span: tuple[int, int] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'EnvironmentVariables':
+	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'EnvironmentVariables':
 		""" Dump environment variables within a given span """
 		
 		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
@@ -238,8 +239,13 @@ class EnvironmentVariables:
 			for name, value in asdict(self).items()
 		}
 		return pd.DataFrame(data)
-	
-		
+
+	def __len__(self) -> int | ValueError:
+		""" Check if all values have equal length and return that length. Otherwise, raise a ValueError. """
+		lengths = {len(v) for v in asdict(self).values()}
+		if len(lengths) > 1:
+			raise ValueError("Length check is unsupported when attributes have different lengths.")
+		return lengths.pop() if lengths else 0
 	
 @dataclass
 class DecisionVariables:
@@ -273,6 +279,15 @@ class DecisionVariables:
 	#             setattr(self, fld.name, value.values.astype(_type))
 	#         else:
 	#             setattr(self, fld.name, _type(value))
+ 
+	@classmethod
+	def from_dataframe(cls, df: pd.DataFrame, ) -> "DecisionVariables":
+			
+		return cls(**{fld.name: df[f"dec_var_{fld.name}"]  for fld in fields(cls) })
+
+	def copy(self) -> "DecisionVariables":
+		""" Create a deep copy of this DecisionVariables instance. """
+		return copy.deepcopy(self)
 	
 	def dump_at_index(self, idx: int, return_dict: bool = False) -> "DecisionVariables":
 		"""
@@ -288,12 +303,18 @@ class DecisionVariables:
 		
 		return dump if return_dict else DecisionVariables(**dump)
 	
-	def dump_in_span(self, span: tuple[int, int] | tuple[datetime, datetime], return_format: Literal["values", "series"] = "values") -> 'DecisionVariables':
+	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'DecisionVariables':
 		""" Dump decision variables within a given span """
 		
 		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
 		return DecisionVariables(**vars_dict)
 	
+	def to_dict(self) -> dict:
+		"""
+		Convert decision variables into a dictionary.
+		"""
+		return asdict(self)
+ 
 	def to_dataframe(self) -> pd.DataFrame:
 		"""
 		Convert decision variables into a pandas DataFrame.
@@ -309,10 +330,95 @@ class DecisionVariables:
 		Add decision variables to a pandas DataFrame.
 		"""
 		dec_vars_df = self.to_dataframe().rename(columns={
-			name: f"dec_var_{name}_dec_vars" for name in self.__dict__.keys()
+			name: f"dec_var_{name}" for name in self.__dict__.keys()
 		})
   
 		return pd.concat([df, dec_vars_df], axis=1)
+
+	def prepend(self, dec_vars: "DecisionVariables") -> "DecisionVariables":
+		""" Prepend the current decision variables with another set of decision variables.
+  			This instance will be prepended with the provided instance up until this instance first index."""
+		
+		output = {}
+		for name, value in asdict(self).items():
+			if value is None:
+				continue
+			elif not isinstance(value, pd.Series):
+				raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
+			
+			pval = getattr(dec_vars, name)
+			pval = pval[pval.index < value.index[0]]
+			# print(f"Prepending {name} with {pval.index[0]} to {value.index[0]}")
+   
+			value = pd.concat([pval, value])
+			output[name] = value
+			
+		return DecisionVariables(**output)
+	
+	def append(self, dec_vars: "DecisionVariables") -> "DecisionVariables":
+		""" Append the current decision variables with another set of decision variables.
+  			This instance will be appended with the provided instance starting from this instance last index"""
+		
+		output = {}
+		for name, value in asdict(self).items():
+			if value is None:
+				continue
+			elif not isinstance(value, pd.Series):
+				raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
+			
+			pval = getattr(dec_vars, name)
+			pval = pval[pval.index > value.index[-1]]
+			# print(f"Prepending {name} with {pval.index[0]} to {value.index[0]}")
+   
+			value = pd.concat([value, pval])
+			output[name] = value
+			
+		return DecisionVariables(**output)
+
+	# def __add__(self, other: "DecisionVariables") -> "DecisionVariables":
+	# 	""" Concatenate two DecisionVariables instances. 
+	# 		The object on the left will be prepended to the object on the right up 
+   	# 		until the first index of it. """
+      
+	# 	if not isinstance(other, DecisionVariables):
+	# 		raise TypeError(f"Cannot add DecisionVariables with {type(other)}")
+
+	# 	output = {}
+	# 	for name, value in asdict(self).items():
+	# 		if value is None:
+	# 			output[name] = getattr(other, name)
+	# 		elif not isinstance(value, pd.Series):
+	# 			raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
+	# 		else:
+	# 			other_value = getattr(other, name)
+	# 			if other_value is not None:
+	# 				other_value = other_value[other_value.index < value.index[0]]
+	# 				value = pd.concat([other_value, value])
+	# 			output[name] = value
+
+	# 	return DecisionVariables(**output)
+
+	def __eq__(self, other: "DecisionVariables") -> bool:
+		""" Check equality of two DecisionVariables instances by comparing all attributes. """
+		if not isinstance(other, DecisionVariables):
+			return False
+
+		for name, value in asdict(self).items():
+			other_value = getattr(other, name)
+			if isinstance(value, pd.Series) and isinstance(other_value, pd.Series):
+				if not value.equals(other_value):
+					return False
+			elif value != other_value:
+				return False
+
+		return True
+
+	def __len__(self) -> int | ValueError:
+		""" Check if all values have equal length and return that length. Otherwise, raise a ValueError. """
+		lengths = {len(v) for v in asdict(self).values()}
+		if len(lengths) > 1:
+			raise ValueError("Length check is unsupported when attributes have different lengths.")
+		return lengths.pop() if lengths else 0
   
   				
 def dump_at_index_dec_vars(dec_vars: DecisionVariables, idx: int, return_dict: bool = False) -> DecisionVariables | dict:
@@ -346,7 +452,7 @@ class IntegerDecisionVariables:
 	med_mode: MedMode | pd.Series
 	
 	@classmethod
-	def initialize_from_dec_vars(cls, dec_vars: DecisionVariables) -> "IntegerDecisionVariables":
+	def from_dec_vars(cls, dec_vars: DecisionVariables) -> "IntegerDecisionVariables":
 		""" Initialize integer decision variables from the DecisionVariables instance """
 		return cls(
 			sfts_mode=dec_vars.sfts_mode,
@@ -430,6 +536,12 @@ class IntegerDecisionVariables:
 			output[name] = value
 			
 		return IntegerDecisionVariables(**output)
+
+	def to_dict(self) -> dict:
+		"""
+		Convert integer decision variables into a dictionary.
+		"""
+		return asdict(self)
 	
 @dataclass
 class DecisionVariablesUpdates:
@@ -447,6 +559,12 @@ class DecisionVariablesUpdates:
 	qmed_f: int # 
 	Tmed_s_in: int # 
 	Tmed_c_out: int # 
+
+	def to_dict(self) -> dict:
+		"""
+		Convert decision variables updates into a dictionary.
+		"""
+		return asdict(self)
 	
 	# def __post_init__(self):
 		# Validate that SfTs FSM related decision varaiables have the same number of updates

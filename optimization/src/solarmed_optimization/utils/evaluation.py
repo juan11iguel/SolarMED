@@ -369,7 +369,7 @@ def evaluate_model_multi_day(
         # Compute operation start and end datetimes for the current day using integer decision variables
 		# day_idx = 0
         day = env_vars_index[0].day + day_idx
-        operation_start, operation_end = IntegerDecisionVariables.initialize_from_dec_vars(dec_vars).get_start_and_end_datetimes(day)
+        operation_start, operation_end = IntegerDecisionVariables.from_dec_vars(dec_vars).get_start_and_end_datetimes(day)
         
         if debug_mode:
             logger.info(f"{day_idx=} | {operation_start=}, {operation_end=}")

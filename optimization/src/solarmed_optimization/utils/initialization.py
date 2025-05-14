@@ -190,7 +190,7 @@ def initialize_problem_instances_nNLP(
     assert getattr(pp, 'initial_dec_vars_values', None) is not None, "Initial decision variables values must be defined in the ProblemParameters"
     
 
-    env_vars: EnvironmentVariables = EnvironmentVariables.initialize_from_dataframe(df, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e)
+    env_vars: EnvironmentVariables = EnvironmentVariables.from_dataframe(df, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e)
     # For operation plan, environment variables are only available with a one hour resolution
     env_vars_opt = env_vars.resample(f"{pp.sample_time_opt}s", origin="start")
     # print(f"{env_vars.I.index[0]=}, {env_vars.I.index[-1]=}, {env_vars.I.index.freq=}")

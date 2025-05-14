@@ -30,7 +30,10 @@ from solarmed_optimization import (
 	AlgoParams,
 	OpPlanActionType
 )
-from solarmed_optimization.utils import resolve_dataclass_type, condition_result_dataframe
+
+from solarmed_optimization.utils import (resolve_dataclass_type, 
+                                         condition_result_dataframe,
+                                         downsample_by_segments)
 from solarmed_optimization.utils.evaluation import (evaluate_model_multi_day,
 													evaluate_optimization_nlp)
 
@@ -70,15 +73,17 @@ class OperationPlanResults:
 			self.env_vars = env_vars
 			
 		elif self.env_vars is None and self.results_df is not None:
-			self.env_vars = EnvironmentVariables.initialize_from_dataframe(self.results_df)
+			self.env_vars = EnvironmentVariables.from_dataframe(self.results_df)
 		
 	def evaluate_best_problem(self, problems: list[BaseNlpProblem] | BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
 		print("best problem idx", self.best_problem_idx, "best x:", self.x.iloc[self.best_problem_idx].values)
-		self.results_df = evaluate_optimization_nlp(
+		results_df = evaluate_optimization_nlp(
 			x=self.x.iloc[self.best_problem_idx].values, 
 			problem=problems[self.best_problem_idx] if isinstance(problems, list) else problems,
 			model=SolarMED(**model.dump_instance())
 		)
+  		# Remove NaNs, add columns for decision variables
+		self.results_df = condition_result_dataframe(results_df)
 		self.set_environment_variables()
    
 		return self.results_df
@@ -106,9 +111,6 @@ class OperationPlanResults:
 		# if reduced:
 		#     self = copy.deepcopy(self)  # To avoid modifying the original object
 		#     self.results_df = None
-		
-		# Remove NaNs
-		results_df = condition_result_dataframe(self.results_df)
 
 		with pd.HDFStore(temp_path, mode='a') as store:
 			path_str = self.get_hdf_base_path()
@@ -117,7 +119,7 @@ class OperationPlanResults:
 			store.put(f'{path_str}/x', self.x)
 			store.put(f'{path_str}/fitness', self.fitness)
 			store.put(f'{path_str}/fitness_history', self.fitness_history)
-			store.put(f'{path_str}/results', results_df)
+			store.put(f'{path_str}/results', self.results_df)
 
 			# Add metadata attributes to the file
 			storer = store.get_storer(f"{path_str}/results")
@@ -352,8 +354,8 @@ class Problem(BaseNlpProblem):
 	box_bounds_upper: list[np.ndarray[float]] # Upper bounds for the decision variables (in list of arrays format).
 	x_evaluated: list[list[float]] # Decision variables vector evaluated (i.e. sent to the fitness function)
 	fitness_history: list[float] # Fitness record of decision variables sent to the fitness function
-	operation_span: tuple[datetime, datetime] # Operation start and end datetimes
-	operation_spans: list[tuple[datetime, datetime]] # Operation start and end datetimes for each day
+	operation_span: tuple[datetime, datetime] # Operation start and end datetimes for the first day
+	daily_operation_spans: list[tuple[datetime, datetime]] # Operation start and end datetimes for each day
 	
 	def __init__(self, int_dec_vars: IntegerDecisionVariables, 
 				 env_vars: EnvironmentVariables, 
@@ -419,7 +421,7 @@ class Problem(BaseNlpProblem):
 		# Compute operation span
 		self.operation_span = int_dec_vars.get_start_and_end_datetimes(self.episode_range[0].day)
 		days = [self.episode_range[0].day + day_cnt for day_cnt in range((self.episode_range[1] - self.episode_range[0]).days+1)]
-		self.operation_spans = [int_dec_vars.get_start_and_end_datetimes(day) for day in days]
+		self.daily_operation_spans = [int_dec_vars.get_start_and_end_datetimes(day) for day in days]
 		# Setup integer decision variables
 		# Off-loaded from here, we should receive already configured IntegerDecisionVariables,
 		# including possible intitial values 
@@ -449,6 +451,12 @@ class Problem(BaseNlpProblem):
 		# 		int_dec_var_id, 
 		# 		int_dec_var_values.resample(f"{self.sample_time_mod}s").ffill()
 		# 	)
+		# Add a value for the end of the episode, needs to be done here since it's only here where we know the episode end
+		int_dec_vars = IntegerDecisionVariables(**{
+			name: pd.concat([value, pd.Series(index=[self.episode_range[1]], data=[0.0])]) 
+			for name, value in int_dec_vars.to_dict().items()
+			if value.index[-1] <= self.episode_range[1]
+		})
 		# Resample integer decision variables to model sample time. Do it here to avoid doing it every time in the fitness function
 		# logger.info(int_dec_vars.sfts_mode.index[0:3])
 		self.int_dec_vars = int_dec_vars.resample(self.sample_time_mod)
@@ -501,8 +509,16 @@ class Problem(BaseNlpProblem):
 			num_updates = getattr(self.dec_var_updates, var_id)
 			dec_var_times = getattr(self.real_dec_vars_times, var_id)
 			
-			if num_updates <= 1:
-				decision_dict[var_id] = getattr(self.initial_values, var_id)
+			if num_updates <= 1: # No estoy seguro de si debería ser solo cuando no haya ninguna actualización (num_updates == 0)
+				initial_value = getattr(self.initial_values, var_id)
+				data = initial_value.values if isinstance(initial_value, pd.Series) else initial_value
+				index = np.array([self.episode_range[0]]) if not isinstance(initial_value, pd.Series) else initial_value.index
+				
+    			# Add an additional (null) value for the end of the episode
+				data = np.append(data, 0.0) 
+				index = np.append(index, self.episode_range[1])
+
+				decision_dict[var_id] = pd.Series(data=data, index=index)
 			else:
 				# Initialize real decision variable array with provided data for active periods
 				data = np.array(x[cnt:cnt+num_updates])
@@ -521,11 +537,19 @@ class Problem(BaseNlpProblem):
 					# Last decision coincides with the operation span end, value is overriden
 					data[insert_pos] = 0.0
 				
-				# Keep the last value until the end of the episode
+				# Keep the last value until the end of the operation
 				# UPDATE: fkn donkey, if there are no more updates is because the system is inactive, the value is zero		
-				if index[-1] != self.operation_spans[-1][1]:
+				if index[-1] != self.daily_operation_spans[-1][1]:
 					data = np.append(data, 0.0) 
-					index = np.append(index, self.operation_spans[-1][1])
+					index = np.append(index, self.daily_operation_spans[-1][1])
+				else:
+					# Last decision coincides with the operation span end, value is overriden
+					data[-1] = 0.0
+     
+				# Finally, add an additional value for the end of the episode
+				if index[-1] != self.episode_range[1]:
+					data = np.append(data, 0.0) 
+					index = np.append(index, self.episode_range[1])
 				else:
 					# Last decision coincides with the operation span end, value is overriden
 					data[-1] = 0.0
@@ -539,15 +563,15 @@ class Problem(BaseNlpProblem):
 				logger.error(f"Here comes the error: {var_id} | {duplicated}")
 
 			if resample:
-				new_index = pd.date_range(
-					start=decision_dict[var_id].index[0],
-					end=self.episode_range[1],
-					freq=f"{self.sample_time_mod}s",
-					tz=timezone.utc
-				)
-				# Reindex and forward fill
-				decision_dict[var_id] = decision_dict[var_id].reindex(new_index).ffill()
-				# decision_dict[var_id] = decision_dict[var_id].resample(f"{self.sample_time_mod}s", origin="start", end=self.episode_range[1]).ffill()
+				# new_index = pd.date_range(
+				# 	start=decision_dict[var_id].index[0],
+				# 	end=self.episode_range[1],
+				# 	freq=f"{self.sample_time_mod}s",
+				# 	tz=timezone.utc
+				# )
+				# # Reindex and forward fill
+				# decision_dict[var_id] = decision_dict[var_id].reindex(new_index).ffill()
+				decision_dict[var_id] = decision_dict[var_id].resample(f"{self.sample_time_mod}s", origin="start", ).ffill()
 				# print(f"{var_id} | {decision_dict[var_id].index[-3:]}")
 			cnt += num_updates
 			
@@ -557,10 +581,36 @@ class Problem(BaseNlpProblem):
 		# assert int_dec_var_index[-1] >= self.episode_range[-1] - pd.Timedelta(seconds=self.sample_time_mod), \
 		# 	f"Last integer decision variable time should span until the episode end: {int_dec_var_index[-1]=}, {self.episode_range[-1]=}"
    
+		int_dec_vars = self.int_dec_vars if resample else self.int_dec_vars_pre_resample
+   
 		return DecisionVariables(
 			**decision_dict,
-			**asdict(self.int_dec_vars)
+			**asdict(int_dec_vars)
 		)
+  
+	def decision_variables_to_decision_vector(self, dec_vars: DecisionVariables) -> np.ndarray[float]:
+		""" Convert decision variables to decision vector """
+		
+		# 1. Extract active operation
+		dec_vars_ = dec_vars.dump_in_span(self.daily_operation_spans[0], return_format="series")
+		for span in self.daily_operation_spans[1:]:
+			dec_vars_ = dec_vars_.append( dec_vars.dump_in_span(span, return_format="series") )
+
+		# 2. Extract the values for each decision variable given their number of updates
+		dec_vars_dict = dec_vars_.to_dict()
+		dec_var_updates_dict = self.dec_var_updates.to_dict()
+
+		x = np.concatenate([
+			downsample_by_segments(
+				dec_vars_dict[var_id], 
+				dec_var_updates_dict[var_id], 
+				dtype=float
+			) 
+			for var_id in self.dec_var_real_ids
+		])
+  
+		return x
+  
   
 	def get_bounds(self, ) -> tuple[np.ndarray, np.ndarray]:
 		return np.hstack(self.box_bounds_lower), np.hstack(self.box_bounds_upper)

@@ -1,5 +1,5 @@
 from dataclasses import asdict, fields, is_dataclass
-from typing import get_origin, get_args, Union, Any, Type, Literal
+from typing import get_origin, get_args, Union, Any, Type, Literal, Optional
 from datetime import datetime, timezone
 from enum import Enum
 import json
@@ -107,7 +107,7 @@ def get_valid_modes(fsm_inputs: MedFsmInputs,
         return [valid_mode.value for valid_mode in valid_modes]
 
     
-def forward_fill_resample(source_array: np.ndarray, target_size: int, dtype: Type = None) -> np.ndarray:
+def forward_fill_resample(source_array: np.ndarray, target_size: int, dtype: Optional[Type] = None) -> np.ndarray:
     """Resample a smaller array to a larger array by forward filling
 
         Args:
@@ -289,12 +289,14 @@ def decision_vector_to_decision_variables(x: np.ndarray, dec_var_updates: Decisi
     
     return DecisionVariables(**decision_dict)
 
-def decision_variables_to_decision_vector(dec_vars: DecisionVariables, dec_var_updates: DecisionVariablesUpdates = None) -> np.ndarray:
+def decision_variables_to_decision_vector(dec_vars: DecisionVariables, dec_var_updates: Optional[DecisionVariablesUpdates] = None) -> np.ndarray:
     """ From DecisionVariables instance to decision vector x
         The decision vector is the one defined in the problem class:
         x = [ [1,...,n_updates_x1], [1,...,n_updates_x2], ..., [1,...,n_updates_xNdec_vars] ]
         where n_updates_xi is the number of updates for decision variable i along the prediction horizon
     """
+    dec_vars = dec_vars.copy()
+    
     if dec_var_updates is not None:
         dec_vars = resample_decision_variables(dec_vars, dec_var_updates)
                 

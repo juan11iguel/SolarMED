@@ -18,33 +18,44 @@ from solarmed_optimization.utils.initialization import initialize_problem_instan
 from solarmed_optimization.utils.operation_plan import build_archipielago
 from solarmed_optimization.utils.serialization import get_fitness_history
 
+def update_fitness_history(
+    isl: pg.island,
+    algo_id: str,
+    n_obj_fun_evals_per_update: int,
+    fit_his: Optional[pd.Series] = None, 
+    initial: bool = False,
+) -> pd.Series:
 
-def evaluate_problems(problems: list[BaseNlpProblem], algo_params: AlgoParams, problems_eval_params: ProblemsEvaluationParameters, action: OpPlanActionType) -> OperationPlanResults:
+    if initial:
+        fit = pd.Series(isl.get_population().champion_f[0], index=[0])
+    else:
+        fit = get_fitness_history(algo_id, isl.get_algorithm() )
+        fit_last = pd.Series(isl.get_population().champion_f[0],
+                                index=[n_obj_fun_evals_per_update])
+        if len(fit) == 0:
+            fit = fit_last
+        elif fit.index[-1] < n_obj_fun_evals_per_update:
+            # Append the last fitness
+            fit = pd.concat([fit, fit_last])
+
+    if fit_his is None or len(fit_his) == 0:
+        fit_his = fit
+    else:
+        fit.index = fit.index + fit_his.index[-1] +1
+        fit_his = pd.concat([fit_his, fit])
+
+    return fit_his
+
+def evaluate_problems(
+    problems: list[BaseNlpProblem], 
+    algo_params: AlgoParams, 
+    problems_eval_params: ProblemsEvaluationParameters, 
+    action: OpPlanActionType
+) -> OperationPlanResults:
     # This function should sequentially, build the archipielagos, 
     # evolve them, drop poorly performing problems and repeat until
     # the best performing problems are evolved completely
 
-    def update_fitness_history(isl: pg.island, fit_his: pd.Series | None, initial: bool = False) -> pd.Series:
-
-        if initial:
-            fit = pd.Series(isl.get_population().champion_f[0], index=[0])
-        else:
-            fit = get_fitness_history(algo_params.algo_id, isl.get_algorithm() )
-            fit_last = pd.Series(isl.get_population().champion_f[0],
-                                 index=[problems_eval_params.n_obj_fun_evals_per_update])
-            if len(fit) == 0:
-                fit = fit_last
-            elif fit.index[-1] < problems_eval_params.n_obj_fun_evals_per_update:
-                # Append the last fitness
-                fit = pd.concat([fit, fit_last])
-
-        if fit_his is None or len(fit_his) == 0:
-            fit_his = fit
-        else:
-            fit.index = fit.index + fit_his.index[-1] +1
-            fit_his = pd.concat([fit_his, fit])
-
-        return fit_his
 
     date_str = list(asdict(problems[0].env_vars).values())[0].index[0].strftime("%Y%m%d")
     start_time = time.time()
@@ -92,7 +103,13 @@ def evaluate_problems(problems: list[BaseNlpProblem], algo_params: AlgoParams, p
             # Add initial fitness to fitness history
             for idx, isl in enumerate(archi):
                 problem_idx = yet_to_eval_idxs[idx]
-                fitness_history[problem_idx] = update_fitness_history(isl, fitness_history[problem_idx], initial=True)
+                fitness_history[problem_idx] = update_fitness_history(
+                    isl, 
+                    fit_his=fitness_history[problem_idx], 
+                    algo_id=algo_params.algo_id,
+                    n_obj_fun_evals_per_update=problems_eval_params.n_obj_fun_evals_per_update,
+                    initial=True
+                )
 
             # start_time2 = time.time()
             archi.evolve()
@@ -108,7 +125,12 @@ def evaluate_problems(problems: list[BaseNlpProblem], algo_params: AlgoParams, p
                 problem_idx = yet_to_eval_idxs[idx]
                 x[problem_idx] = isl.get_population().champion_x
                 fitness[problem_idx] = isl.get_population().champion_f[0]
-                fitness_history[problem_idx] = update_fitness_history(isl, fitness_history[problem_idx])
+                fitness_history[problem_idx] = update_fitness_history(
+                    isl, 
+                    fit_his=fitness_history[problem_idx],
+                    algo_id=algo_params.algo_id,
+                    n_obj_fun_evals_per_update=problems_eval_params.n_obj_fun_evals_per_update,
+                )
 
             yet_to_eval_idxs = yet_to_eval_idxs[batch_size:]
             # logger.info(f"{log_header_str} | Completed evolution of batch {batch_idx}/{len(yet_to_eval_idxs)//batch_size+1}!. Took {int(time.time() - start_time2):.0f} seconds") 
@@ -157,6 +179,8 @@ def evaluate_operation_plan_layer(
     uncertainty_factor: float = 0.,
     stored_results: Optional[Path] = None,
     debug_mode: bool = False,
+    algo_params: Optional[AlgoParams] = None,
+    problems_eval_params: Optional[ProblemsEvaluationParameters] = None,
 ) -> tuple[list[OperationPlanResults], BaseNlpProblem, int]:
 
     if uncertainty_factor > 0:
@@ -166,19 +190,23 @@ def evaluate_operation_plan_layer(
 
     op_plan_results_list: list[OperationPlanResults] = []
 
-    if debug_mode:
-        algo_params = AlgoParams(max_n_obj_fun_evals=10,)
-        problems_eval_params = ProblemsEvaluationParameters(
-            drop_fraction=0.5,
-            max_n_obj_fun_evals=algo_params.max_n_obj_fun_evals,
-            n_obj_fun_evals_per_update=5
-        )
-    else:
-        # Set default values for the algorithm and evaluation parameters
-        algo_params = AlgoParams()
-        # TODO: Here, except for the first evaluation, less function evaluations should be used
-        # since we will provide the best solution from the previous evaluation
-        problems_eval_params = ProblemsEvaluationParameters(n_updates=3, drop_fraction=0.5)
+    if algo_params is None:
+        if debug_mode:
+            algo_params = AlgoParams(max_n_obj_fun_evals=10,)
+        else:
+            # Set default values for the algorithm and evaluation parameters
+            algo_params = AlgoParams()
+    if problems_eval_params is None:
+        if debug_mode:
+            problems_eval_params = ProblemsEvaluationParameters(
+                drop_fraction=0.5,
+                max_n_obj_fun_evals=algo_params.max_n_obj_fun_evals,
+                n_obj_fun_evals_per_update=5
+            )
+        else:
+            # TODO: Here, except for the first evaluation, less function evaluations should be used
+            # since we will provide the best solution from the previous evaluation
+            problems_eval_params = ProblemsEvaluationParameters(n_updates=3, drop_fraction=0.5)
 
     progress_bar = tqdm(
         unc_factors,
@@ -237,3 +265,9 @@ def evaluate_operation_plan_layer(
     best_alternative_idx, _ = select_best_alternative(fitness_df)
 
     return op_plan_results_list, problems[best_alternative_idx], best_alternative_idx
+
+
+def evaluate_operation_optimization_layer():
+    pass
+
+    # return op_optim_results, problem

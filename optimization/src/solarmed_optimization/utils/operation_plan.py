@@ -454,7 +454,8 @@ def build_archipielago(problems: list[BaseNlpProblem], algo_params: AlgoParams, 
     
     archi = pg.archipelago()
     for problem_idx, problem in enumerate(problems):
-
+        # logger.debug(f"Adding {problem_idx=} / {len(problems)-1} to archipielago")
+        
         # Initialize problem instance
         prob = pg.problem(problem)
         
