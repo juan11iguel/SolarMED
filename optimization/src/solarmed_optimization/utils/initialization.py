@@ -20,7 +20,8 @@ from solarmed_optimization import (DecisionVariables,
                                    DecisionVariablesUpdates,
                                    ProblemData,
                                    ProblemParameters,
-                                   ProblemSamples,)
+                                   ProblemSamples,
+                                   IntegerDecisionVariables)
 # MINLP
 from solarmed_optimization.problems.nnlp import Problem as NlpProblem
 from solarmed_optimization.utils import (validate_dec_var_updates, 
@@ -188,7 +189,6 @@ def initialize_problem_instances_nNLP(
     assert getattr(pp, 'operation_actions', None) is not None, "Operation actions must be defined in the ProblemParameters"
     assert getattr(pp, 'real_dec_vars_update_period', None) is not None, "Real decision variables update period must be defined in the ProblemParameters"
     assert getattr(pp, 'initial_dec_vars_values', None) is not None, "Initial decision variables values must be defined in the ProblemParameters"
-    
 
     env_vars: EnvironmentVariables = EnvironmentVariables.from_dataframe(df, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e)
     # For operation plan, environment variables are only available with a one hour resolution
@@ -229,6 +229,54 @@ def initialize_problem_instances_nNLP(
             store_fitness=store_fitness,
         ) for int_dec_vars in int_dec_vars_list
     ]
+    
+def initialize_problem_instance_NLP(
+    problem_data: ProblemData,
+    int_dec_vars: IntegerDecisionVariables,
+    start_dt: datetime.datetime,
+    store_x=False,
+    store_fitness=False,
+    log: bool = False
+) -> NlpProblem:
+    # TODO: Period with 10 min resolution (1h) should be set in the problem parameters
+    # TODO: Sample time for near period and later periods should be set in the problem parameters
+    
+    sample_time_env: tuple[int, int] = (600, 3600) # 10 min and 1h
+    fast_sampling_duration: int = 3600 # 1h
+    
+    pp: ProblemParameters = problem_data.problem_params
+    model = problem_data.model
+    
+    # Setup Environment variables for op.optim.
+    # They are available with a 10min sample time for
+    # the initial hour, after that they are resampled to 1h
+    env_vars = ( # Original environment variables
+        EnvironmentVariables.from_dataframe(problem_data.df, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e).
+        dump_in_span(span=(start_dt, None), return_format="series")
+    )
+    env_vars_opt_1st_part = ( # 10min -> sample_time_mod
+        env_vars.dump_in_span(span=(start_dt, start_dt + datetime.timedelta(seconds=fast_sampling_duration)), return_format="series").
+        resample(f"{sample_time_env[0]}s", origin="start").resample(f"{pp.sample_time_mod}s", origin="start")
+    )
+    env_vars_opt_2nd_part = ( # 1h -> sample_time_mod
+        env_vars.dump_in_span(span=(start_dt + datetime.timedelta(seconds=fast_sampling_duration), None), return_format="series").
+        resample(f"{sample_time_env[1]}s", origin="start").resample(f"{pp.sample_time_mod}s", origin="start")
+    )
+    env_vars_opt = env_vars_opt_1st_part.append(env_vars_opt_2nd_part)
+    
+    # Make sure integer decision variables are in the same time span as the environment variables
+    int_dec_vars = int_dec_vars.dump_in_span(span=(start_dt, None), return_format="series")
+    
+    return NlpProblem(
+        int_dec_vars=int_dec_vars,
+        env_vars=env_vars_opt,
+        real_dec_vars_update_period=pp.real_dec_vars_update_period,
+        model=model,
+        sample_time_ts=pp.sample_time_ts,
+        initial_values=None, # Important, since we need a new decision since the start
+        store_x=store_x,
+        store_fitness=store_fitness,
+    )
 
 def initialize_problem_instance_minlp(problem_data: ProblemData, idx_mod: int,
                        fsm_data_path: Path, return_env_vars: bool = False) -> MinlpProblem | tuple[MinlpProblem, EnvironmentVariables]:

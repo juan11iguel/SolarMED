@@ -1,4 +1,4 @@
-from dataclasses import fields, dataclass, is_dataclass
+from dataclasses import fields, dataclass, is_dataclass, field
 from typing import get_args, Optional
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -39,6 +39,206 @@ from solarmed_optimization.utils.evaluation import (evaluate_model_multi_day,
 
 def get_scenario_id(scenario_idx: int) -> str:
 	return f"scenario_{scenario_idx:02d}"
+
+# TODO: This class should be abstracted into a OperationOptimizationResults and then inherit from it and extend it
+@dataclass(kw_only=True)
+class OperationOptimizationResults:
+	date_str: str # Date in YYYYMMDD format
+	x: pd.DataFrame # Decision vector (columns) for each problem (rows)
+	fitness: pd.Series # Fitness values for each problem
+	fitness_history: pd.DataFrame # Optimization algorithm evolution fitness history (rows) for each problem (columns)
+	best_problem_idx: Optional[int] = None # Index of the best performing problem
+	results_df: Optional[pd.DataFrame] = None # Simulation timeseries results for the best performing problem
+	evaluation_time: Optional[float] = None # Time, in seconds, taken to evaluate layer
+	algo_params: Optional[AlgoParams] = None # Algorithm parameters
+	problems_eval_params: Optional[ProblemsEvaluationParameters] = None
+	problem_params: Optional[ProblemParameters] = None # Problem parameters
+	env_vars: Optional[EnvironmentVariables] = None # Environment variables
+	_metadata_flds: tuple[str, ...] = field(default=("date_str", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params"), init=False)
+	_layer_id: str = field(default="operation optimization", init=False)	
+ 
+	def __post_init__(self):
+		if self.best_problem_idx is None:
+			self.best_problem_idx = int(self.fitness.idxmin())
+		self.set_environment_variables()
+   
+	def set_environment_variables(self, env_vars: Optional[EnvironmentVariables] = None) -> None:
+		if self.env_vars is not None:
+			return
+		
+		# Else
+		if env_vars is not None:
+			self.env_vars = env_vars
+			
+		elif self.env_vars is None and self.results_df is not None:
+			self.env_vars = EnvironmentVariables.from_dataframe(self.results_df)
+		
+	def evaluate_best_problem(self, problems: list[BaseNlpProblem] | BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
+		print("best problem idx", self.best_problem_idx, "best x:", self.x.iloc[self.best_problem_idx].values)
+		results_df = evaluate_optimization_nlp(
+			x=self.x.iloc[self.best_problem_idx].values, 
+			problem=problems[self.best_problem_idx] if isinstance(problems, list) else problems,
+			model=SolarMED(**model.dump_instance())
+		)
+  		# Remove NaNs, add columns for decision variables
+		self.results_df = condition_result_dataframe(results_df)
+		self.set_environment_variables()
+   
+		return self.results_df
+	
+	def get_hdf_base_path(self, date_str: Optional[str] = None, ) -> str:
+		date_str = self.date_str if date_str is None else date_str
+  
+		return f'/{date_str}/operation'
+	
+	def export(self, output_path: Path, compress: bool = True, reduced: bool = False) -> None:
+		""" Export results to a file. """
+		if not output_path.exists():
+			output_path.parent.mkdir(parents=True, exist_ok=True)
+		
+		temp_path = output_path.with_suffix(".h5")
+		if output_path.with_suffix(".gz").exists():
+			# Uncompress the gzip file into a temporary .h5 file
+			with gzip.open(output_path.with_suffix(".gz"), 'rb') as f_in:
+				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
+					shutil.copyfileobj(f_in, f_out)
+					temp_path = Path(f_out.name)
+
+		# if reduced:
+		#     self = copy.deepcopy(self)  # To avoid modifying the original object
+		#     self.results_df = None
+
+		with pd.HDFStore(temp_path, mode='a') as store:
+			path_str = self.get_hdf_base_path()
+
+			# Add the results dataframes to the file
+			store.put(f'{path_str}/x', self.x)
+			store.put(f'{path_str}/fitness', self.fitness)
+			store.put(f'{path_str}/fitness_history', self.fitness_history)
+			store.put(f'{path_str}/results', self.results_df)
+
+			# Add metadata attributes to the file
+			storer = store.get_storer(f"{path_str}/results")
+			action = getattr(self, "action", None)
+			storer.attrs.description = (
+				f"Evaluation results for the SolarMED optimal coupling. "
+				f"{self._layer_id.capitalize()} layer - {action} for day {self.date_str}"
+			)
+			for fld_id in self._metadata_flds:
+				fld_val = getattr(self, fld_id)
+				if is_dataclass(fld_val):
+					fld_val = asdict(fld_val)
+				setattr(storer.attrs, fld_id, fld_val)
+
+		# Compress the .h5 file using gzip
+		if compress:
+			suffix = ".gz"
+			with open(temp_path, 'rb') as f_in, gzip.open(output_path.with_suffix(suffix), 'wb') as f_out:
+				shutil.copyfileobj(f_in, f_out)
+			temp_path.unlink()  # Remove temporary file .h5 file
+		else:
+			suffix = ".h5"
+			# Copy the uncompressed file to the output path
+			if temp_path != output_path.with_suffix(suffix):
+				shutil.copy(temp_path, output_path.with_suffix(suffix))
+				temp_path.unlink()  # Remove temporary file .h5 file
+		
+		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
+
+	@classmethod
+	def initialize(cls, input_path: Path, date_str: str, action: OpPlanActionType, scenario_idx: int = 0, log: bool = True) -> "OperationOptimizationResults":
+		""" Initialize an OperationPlanResults object from a file. """
+		
+		if not isinstance(input_path, Path):
+			input_path = Path(input_path)
+  
+		if input_path.suffix == ".gz":
+			# Uncompress the gzip file into a temporary .h5 file
+			with gzip.open(input_path, 'rb') as f_in:
+				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
+					shutil.copyfileobj(f_in, f_out)
+					temp_path = Path(f_out.name)
+		else:
+			temp_path = input_path
+
+		try:
+			base_path_str = cls.get_hdf_base_path(None, date_str=date_str, action=action, scenario_idx=scenario_idx)
+		
+			with pd.HDFStore(temp_path, mode='r') as store:
+				# Load dataframes
+				try:
+					results_df = store.get(f'{base_path_str}/results')
+				except KeyError:
+					# results_df = None  # In case results_df was not saved (reduced export)
+					all_keys = store.keys()
+					# Find unique base paths (/date_str/action/scenario_idx)
+					unique_base_paths = {
+						str(PurePosixPath(k).parents[0]) for k in all_keys
+					}
+					unique_base_paths = sorted(unique_base_paths)
+					
+					raise KeyError(f"Could not find {base_path_str}. Available evaluation results {len(unique_base_paths)}: {unique_base_paths}")
+
+					
+				x = store.get(f'{base_path_str}/x')
+				fitness = store.get(f'{base_path_str}/fitness')
+				fitness_history = store.get(f'{base_path_str}/fitness_history')
+
+				# Load metadata attributes
+				storer = store.get_storer(f'{base_path_str}/results')
+				# for attr_name in storer.attrs._v_attrnames:
+				# 	value = getattr(storer.attrs, attr_name)
+				# 	print(f"{attr_name} = {value}")
+
+				metadata_flds_dict = {}
+				for fld_id in cls._metadata_flds:
+					# print(f"{fld_id=}")
+					fld_def = cls.__dataclass_fields__[fld_id]
+					fld_type = fld_def.type
+					value = getattr(storer.attrs, fld_id, None)
+
+					dataclass_type = resolve_dataclass_type(fld_type)
+					if dataclass_type and value is not None:
+						value = dataclass_type(**value)
+
+					metadata_flds_dict[fld_id] = value
+				# action = getattr(storer.attrs, 'action', None)
+				# evaluation_time = getattr(storer.attrs, 'evaluation_time', None)
+				# best_problem_idx = getattr(storer.attrs, 'best_problem_idx', None)
+
+		finally:
+			if input_path.suffix == ".gz":
+				temp_path.unlink()  # Clean up temp .h5 file
+
+		# Create the OperationPlanResults object
+		optim_results = cls(
+			x=x,
+			fitness=fitness,
+			fitness_history=fitness_history,
+			results_df=results_df,
+
+			**metadata_flds_dict
+		)
+
+		if log:
+			logger.info(f"Initialized {cls.__name__} from {input_path} / {base_path_str}")
+
+		return optim_results
+
+@dataclass(kw_only=True)
+class OperationPlanResults2(OperationOptimizationResults):
+	action: OpPlanActionType # Operation plan action identifier
+	scenario_idx: int = 0 # Uncertainty scenario index, zero by default
+	_metadata_flds: tuple[str, ...] = field(default=("date_str", "action", "scenario_idx", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params"), init=False)
+	_layer_id: str = field(default="operation plan", init=False)
+	
+	def get_hdf_base_path(self, date_str: Optional[str] = None, action: Optional[OpPlanActionType] = None, 
+                          scenario_idx: Optional[int] = None) -> str:
+		date_str = self.date_str if date_str is None else date_str
+		action = self.action if action is None else action
+		scenario_idx = self.scenario_idx if scenario_idx is None else scenario_idx
+		
+		return f'/{date_str}/{action}/{get_scenario_id(scenario_idx)}'
 
 @dataclass
 class OperationPlanResults:
@@ -224,7 +424,7 @@ class OperationPlanResults:
 		)
 
 		if log:
-			logger.info(f"Initialized OperationPlanResults from {input_path} / {base_path_str}")
+			logger.info(f"Initialized {cls.__name__} from {input_path} / {base_path_str}")
 
 		return op_plan_results
 
@@ -253,8 +453,11 @@ def batch_export(output_path: Path, op_plan_results_list: list[OperationPlanResu
 	
 	logger.info(f"Exported {len(op_plan_results_list)} operation plan results to {output_path.with_suffix(suffix)}")
 
-def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod, 
-								 int_dec_vars_list: list[IntegerDecisionVariables]) -> list[RealDecisionVariablesUpdateTimes]:
+def generate_real_dec_vars_times(
+    real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod, 
+    int_dec_vars_list: list[IntegerDecisionVariables],
+    require_initial_value: bool = True
+) -> list[RealDecisionVariablesUpdateTimes]:
 	"""Generate the real decision variables times for each integer decision variables element in the list.
 
 	Args:
@@ -313,9 +516,9 @@ def generate_real_dec_vars_times(real_dec_vars_update_period: RealDecisionVariab
 				start, end = int_dec_vars.get_start_and_end_datetimes(day=day, var_id=aux_int_dec_var_id)
 				if start == end:
 					continue
-				elif start == getattr(int_dec_vars, aux_int_dec_var_id).index[0]:
+				elif start == getattr(int_dec_vars, aux_int_dec_var_id).index[0] and require_initial_value:
 					# Not an actual start of operation, but a continuation from a previous active state
-					# An initial value should be provided so skip the initial sample
+					# An initial value should be provided (require_initial_value) so skip the initial sample
 					start += sample_time
 				# Generate the timezone-aware datetime index
 				daily_ranges.append(pd.date_range(
@@ -360,22 +563,22 @@ class Problem(BaseNlpProblem):
 	def __init__(self, int_dec_vars: IntegerDecisionVariables, 
 				 env_vars: EnvironmentVariables, 
 				 real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod,
-				 initial_values: InitialDecVarsValues,
 				 model: SolarMED,
 				 sample_time_ts: int,
+				 initial_values: Optional[InitialDecVarsValues] = None,
 				 store_x: bool = False,
 				 store_fitness: bool = True,
 				) -> None:
 
 		# print("duplicates in int_dec_vars: ", int_dec_vars.med_mode.index[int_dec_vars.med_mode.index.duplicated()], int_dec_vars.sfts_mode.index[int_dec_vars.sfts_mode.index.duplicated()])
-		int_dec_vars = IntegerDecisionVariables(**asdict(int_dec_vars)) # Avoid modifying the original instance
+		int_dec_vars = int_dec_vars.copy() # Avoid modifying the original instance
 
 		self.sample_time_mod = model.sample_time
 		self.sample_time_ts = sample_time_ts
 		self.initial_values = initial_values
 		self.env_vars = env_vars.resample(f"{self.sample_time_mod}s", origin="start")
 		self.real_dec_vars_update_period = real_dec_vars_update_period
-		self.int_dec_vars_pre_resample= IntegerDecisionVariables(**asdict(int_dec_vars))
+		self.int_dec_vars_pre_resample= int_dec_vars.copy()
 		self.store_x = store_x
 		self.store_fitness = store_fitness
 
@@ -399,7 +602,8 @@ class Problem(BaseNlpProblem):
 		# Initialize real decision variables times
 		self.real_dec_vars_times = generate_real_dec_vars_times(
 			real_dec_vars_update_period=real_dec_vars_update_period,
-			int_dec_vars_list=[int_dec_vars]
+			int_dec_vars_list=[int_dec_vars],
+			require_initial_value=True if initial_values is not None else False
 		)[0]
 		self.size_dec_vector = sum([len(times) for times in asdict(self.real_dec_vars_times).values()])
 		self.dec_var_updates = DecisionVariablesUpdates(
@@ -453,13 +657,16 @@ class Problem(BaseNlpProblem):
 		# 	)
 		# Add a value for the end of the episode, needs to be done here since it's only here where we know the episode end
 		int_dec_vars = IntegerDecisionVariables(**{
-			name: pd.concat([value, pd.Series(index=[self.episode_range[1]], data=[0.0])]) 
+			name: pd.concat([value, pd.Series(index=[self.episode_range[1]], data=[0])]) 
+			if value.index[-1] < self.episode_range[1]
+			else value
 			for name, value in int_dec_vars.to_dict().items()
-			if value.index[-1] <= self.episode_range[1]
 		})
 		# Resample integer decision variables to model sample time. Do it here to avoid doing it every time in the fitness function
-		# logger.info(int_dec_vars.sfts_mode.index[0:3])
-		self.int_dec_vars = int_dec_vars.resample(self.sample_time_mod)
+		if int_dec_vars.sfts_mode.index.freq is None or int_dec_vars.sfts_mode.index.freq.n != self.sample_time_mod:
+			self.int_dec_vars = int_dec_vars.resample(self.sample_time_mod)
+		else:
+			self.int_dec_vars = int_dec_vars
 		# self.int_dec_vars = int_dec_vars
 		# print("")
 
@@ -525,8 +732,9 @@ class Problem(BaseNlpProblem):
 				index = np.array(dec_var_times)
 
 				# Set initial value. From self.episode_range[0] to self.operation_span[0] -> some initial provided value
-				data = np.insert(data, 0, getattr(self.initial_values, var_id))
-				index = np.insert(index, 0, self.episode_range[0])
+				if self.episode_range[0] < dec_var_times[0]:
+					data = np.insert(data, 0, getattr(self.initial_values, var_id))
+					index = np.insert(index, 0, self.episode_range[0])
 	
 				# Set final value for operation_span[1] (should be done for each day in a multi-day scenario)
 				insert_pos = np.searchsorted(index, self.operation_span[1])
@@ -610,7 +818,6 @@ class Problem(BaseNlpProblem):
 		])
   
 		return x
-  
   
 	def get_bounds(self, ) -> tuple[np.ndarray, np.ndarray]:
 		return np.hstack(self.box_bounds_lower), np.hstack(self.box_bounds_upper)

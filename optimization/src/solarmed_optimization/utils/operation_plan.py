@@ -18,6 +18,7 @@ from solarmed_optimization import (
     OperationUpdateDatetimesType,
     InitialDecVarsValues,
     AlgoParams,
+    PygmoArchipelagoTopologies
 )
 from solarmed_optimization.problems import BaseNlpProblem
 from solarmed_optimization.utils import (infer_attribute_name, 
@@ -446,13 +447,19 @@ class OperationPlanner:
         return dec_vars_list
     
     
-def build_archipielago(problems: list[BaseNlpProblem], algo_params: AlgoParams, x0: Optional[list[np.ndarray]] = None, fitness0: list[float] = None) -> pg.archipelago:
+def build_archipielago(
+    problems: list[BaseNlpProblem], 
+    algo_params: AlgoParams, 
+    x0: Optional[list[np.ndarray]] = None, 
+    fitness0: Optional[list[float]] = None,
+    topology: PygmoArchipelagoTopologies = "unconnected",
+) -> pg.archipelago:
     
     if x0 is not None:
         assert len(problems) == len(x0), f"Number of initial populations ({len(x0)}) should match number of problems ({len(problems)})"
         assert fitness0 is not None, "Initial fitness should be provided if initial populations are provided"
     
-    archi = pg.archipelago()
+    archi = pg.archipelago(t=getattr(pg, topology)())
     for problem_idx, problem in enumerate(problems):
         # logger.debug(f"Adding {problem_idx=} / {len(problems)-1} to archipielago")
         
@@ -462,7 +469,10 @@ def build_archipielago(problems: list[BaseNlpProblem], algo_params: AlgoParams, 
         # Initialize population
         pop = pg.population(prob, size=algo_params.pop_size, seed=0)
         if x0 is not None and x0[problem_idx] is not None:
-            pop.set_xf(0, x0[problem_idx], [fitness0[problem_idx]])
+            if fitness0[problem_idx] is None:
+                pop.set_x(0, x0[problem_idx])
+            else:
+                pop.set_xf(0, x0[problem_idx], [fitness0[problem_idx]])
         
         algo = pg.algorithm(getattr(pg, algo_params.algo_id)(**algo_params.params_dict))
         algo.set_verbosity( algo_params.log_verbosity )

@@ -1,11 +1,12 @@
 import math
-from typing import get_args, NamedTuple, Literal, Optional
+from typing import get_args, NamedTuple, Literal, Optional, Any, Type
 from dataclasses import dataclass, fields, field, is_dataclass, asdict
 import copy
 from enum import Enum
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
+import pygmo as pg
 
 from solarmed_modeling.solar_med import (SolarMED, 
 										 EnvironmentParameters,
@@ -30,7 +31,8 @@ OperationActionType = dict[str, list[tuple[str, int]]]
 #  'med': [('startup', [datetime1, ..., datetimeN]), ('shutdown', [datetime1, ..., datetimeN]), ('startup', [datetime1, ..., datetimeN]), ('shutdown', [datetime1, ..., datetimeN])]}
 OperationUpdateDatetimesType = dict[str, list[tuple[str, list[datetime]]]]
 
-OpPlanActionType = Literal["startup", "shutdown"]	
+OpPlanActionType = Literal["startup", "shutdown"]
+PygmoArchipelagoTopologies = Literal["unconnected", "ring", "fully_connected"]
  
 class MedMode(Enum):
 	""" Possible decisions for MED operation modes.
@@ -97,47 +99,88 @@ class IrradianceThresholds:
 	""" Irradiance thresholds (W/m²)"""
 	lower: float = 300.
 	upper: float = 600.
+ 
+def prepend(obj_cls: Type[Any], obj: Any, prepend_object: Any) -> Any:
+	""" Prepend the current decision variables with another set of decision variables.
+		This instance will be prepended with the provided instance up until this instance first index."""
+	
+	output = {}
+	for name, value in asdict(obj).items():
+		if value is None:
+			continue
+		elif not isinstance(value, pd.Series):
+			raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
+		
+		pval = getattr(prepend_object, name)
+		pval = pval[pval.index < value.index[0]]
+		# print(f"Prepending {name} with {pval.index[0]} to {value.index[0]}")
+
+		value = pd.concat([pval, value])
+		output[name] = value
+		
+	return obj_cls(**output)
+
+def append(obj_cls: Type[Any], obj: Any, append_object: Any) -> Any:
+	""" Append the current decision variables with another set of decision variables.
+		This instance will be appended with the provided instance starting from this instance last index"""
+	
+	output = {}
+	for name, value in asdict(obj).items():
+		if value is None:
+			continue
+		elif not isinstance(value, pd.Series):
+			raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
+		
+		aval = getattr(append_object, name)
+		aval = aval[aval.index > value.index[-1]]
+		# print(f"Prepending {name} with {aval.index[0]} to {value.index[0]}")
+
+		value = pd.concat([value, aval])
+		output[name] = value
+		
+	return obj_cls(**output)
+
 
 def dump_in_span(vars_dict: dict, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> dict:
-		"""
-		Dump variables within a given span.
+	"""
+	Dump variables within a given span.
+	
+	Args:
+		vars_dict: A dictionary containing the variables to dump.
+		span: A tuple representing the range (indices or datetimes).
+		return_format: Format of the returned values ("values" or "series").
+	
+	Returns:
+		A new dictionary containing the filtered data.
+	"""
+	if isinstance(span[0], datetime):
+		# Ensure all attributes are pd.Series for datetime filtering
+		for name, value in vars_dict.items():
+			if not isinstance(value, pd.Series) and value is not None:
+				raise TypeError(f"All attributes must be pd.Series for datetime indexing: {name} is {type(value)}")
 		
-		Args:
-			vars_dict: A dictionary containing the variables to dump.
-			span: A tuple representing the range (indices or datetimes).
-			return_format: Format of the returned values ("values" or "series").
+		# Extract the range
+		dt_start, dt_end = span
+		dt_end = dt_end if dt_end is not None else list(vars_dict.values())[0].index[-1]
+		span_vars_dict = {
+			name: value[(value.index >= dt_start) & (value.index <= dt_end)]
+			for name, value in vars_dict.items() if value is not None
+		}
+	else:
+		# Assume numeric indices
+		idx_start, idx_end = span
+		idx_end = -1 if idx_end is None else idx_end
 		
-		Returns:
-			A new dictionary containing the filtered data.
-		"""
-		if isinstance(span[0], datetime):
-			# Ensure all attributes are pd.Series for datetime filtering
-			for name, value in vars_dict.items():
-				if not isinstance(value, pd.Series) and value is not None:
-					raise TypeError(f"All attributes must be pd.Series for datetime indexing: {name} is {type(value)}")
-			
-			# Extract the range
-			dt_start, dt_end = span
-			dt_end = dt_end if dt_end is not None else list(vars_dict.values())[0].index[-1]
-			span_vars_dict = {
-				name: value[(value.index >= dt_start) & (value.index <= dt_end)]
-				for name, value in vars_dict.items() if value is not None
-			}
-		else:
-			# Assume numeric indices
-			idx_start, idx_end = span
-			idx_end = -1 if idx_end is None else idx_end
-			
-			span_vars_dict = {
-				name: value[idx_start:idx_end]
-				if isinstance(value, (pd.Series, np.ndarray)) else value
-				for name, value in vars_dict.items()
-			}
+		span_vars_dict = {
+			name: value[idx_start:idx_end]
+			if isinstance(value, (pd.Series, np.ndarray)) else value
+			for name, value in vars_dict.items()
+		}
 
-		if return_format == "values":
-			span_vars_dict = {name: value.values if isinstance(value, pd.Series) else value for name, value in span_vars_dict.items()}
+	if return_format == "values":
+		span_vars_dict = {name: value.values if isinstance(value, pd.Series) else value for name, value in span_vars_dict.items()}
 
-		return span_vars_dict
+	return span_vars_dict
 	
 @dataclass
 class EnvironmentVariables:
@@ -187,6 +230,10 @@ class EnvironmentVariables:
 			cost_w=cost_w,
 			cost_e=cost_e
 		)
+  
+	def copy(self) -> "EnvironmentVariables":
+		""" Create a deep copy of this EnvironmentVariables" instance. """
+		return copy.deepcopy(self)
 
 	def dump_at_index(self, idx: int, return_dict: bool = False) -> "EnvironmentVariables":
 		"""
@@ -246,6 +293,18 @@ class EnvironmentVariables:
 		if len(lengths) > 1:
 			raise ValueError("Length check is unsupported when attributes have different lengths.")
 		return lengths.pop() if lengths else 0
+
+	def prepend(self, dec_vars: "EnvironmentVariables") -> "EnvironmentVariables":
+		""" Prepend the current decision variables with another set of decision variables.
+  			This instance will be prepended with the provided instance up until this instance first index."""
+			
+		return prepend(EnvironmentVariables, self, dec_vars)
+	
+	def append(self, dec_vars: "EnvironmentVariables") -> "EnvironmentVariables":
+		""" Append the current decision variables with another set of decision variables.
+  			This instance will be appended with the provided instance starting from this instance last index"""
+			
+		return append(EnvironmentVariables, self, dec_vars)
 	
 @dataclass
 class DecisionVariables:
@@ -338,42 +397,14 @@ class DecisionVariables:
 	def prepend(self, dec_vars: "DecisionVariables") -> "DecisionVariables":
 		""" Prepend the current decision variables with another set of decision variables.
   			This instance will be prepended with the provided instance up until this instance first index."""
-		
-		output = {}
-		for name, value in asdict(self).items():
-			if value is None:
-				continue
-			elif not isinstance(value, pd.Series):
-				raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
 			
-			pval = getattr(dec_vars, name)
-			pval = pval[pval.index < value.index[0]]
-			# print(f"Prepending {name} with {pval.index[0]} to {value.index[0]}")
-   
-			value = pd.concat([pval, value])
-			output[name] = value
-			
-		return DecisionVariables(**output)
+		return prepend(DecisionVariables, self, dec_vars)
 	
 	def append(self, dec_vars: "DecisionVariables") -> "DecisionVariables":
 		""" Append the current decision variables with another set of decision variables.
   			This instance will be appended with the provided instance starting from this instance last index"""
-		
-		output = {}
-		for name, value in asdict(self).items():
-			if value is None:
-				continue
-			elif not isinstance(value, pd.Series):
-				raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
 			
-			pval = getattr(dec_vars, name)
-			pval = pval[pval.index > value.index[-1]]
-			# print(f"Prepending {name} with {pval.index[0]} to {value.index[0]}")
-   
-			value = pd.concat([value, pval])
-			output[name] = value
-			
-		return DecisionVariables(**output)
+		return append(DecisionVariables, self, dec_vars)
 
 	# def __add__(self, other: "DecisionVariables") -> "DecisionVariables":
 	# 	""" Concatenate two DecisionVariables instances. 
@@ -468,6 +499,10 @@ class IntegerDecisionVariables:
 			for name, value in asdict(self).items()
 		}
 		return pd.DataFrame(data)
+
+	def copy(self) -> "IntegerDecisionVariables":
+		""" Create a deep copy of this IntegerDecisionVariables" instance. """
+		return copy.deepcopy(self)
 	
 	def get_start_and_end_datetimes(self, day: Optional[int] = None, var_id: Optional[Literal["sfts_mode", "med_mode"]] = None) -> tuple[datetime, datetime]:
 		""" Get start and end datetimes of the decision variables """
@@ -537,9 +572,15 @@ class IntegerDecisionVariables:
 			
 		return IntegerDecisionVariables(**output)
 
+	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'IntegerDecisionVariables':
+		""" Dump decision variables within a given span """
+		
+		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
+		return IntegerDecisionVariables(**vars_dict)
+	
 	def to_dict(self) -> dict:
 		"""
-		Convert integer decision variables into a dictionary.
+		Convert decision variables into a dictionary.
 		"""
 		return asdict(self)
 	
@@ -854,10 +895,16 @@ class ProblemsEvaluationParameters:
 	max_n_parallel_problems: int = 50 # Maximum number of problems to evaluate in parallel
 	n_updates: Optional[int] = None # Number of (problem drop) updates to perform
 	n_obj_fun_evals_per_update: Optional[int] = None # Number of objective function evaluations between updates
+	archipelago_topology: Optional[PygmoArchipelagoTopologies] = "unconnected"
+	n_instances: int = 1 # Number of problem instances (islands) evolving in parallel in a connected archipelago. Used for op.optim 
 
 	def __post_init__(self):
+		if self.archipelago_topology != "unconnected":
+			assert self.n_instances > 1, "If using a connected archipelago topology, n_instances must be greater than 1"
+			self.n_updates = 1
 		assert self.n_updates is not None or self.n_obj_fun_evals_per_update is not None, "Either n_updates or n_obj_fun_evals_per_update must be provided"
 		assert self.drop_fraction >= 0 and self.drop_fraction <= 1, "Fraction of problems to drop per update must be between 0 and 1"
+
 
 		if self.n_obj_fun_evals_per_update is None:
 			self.n_obj_fun_evals_per_update = self.max_n_obj_fun_evals // self.n_updates

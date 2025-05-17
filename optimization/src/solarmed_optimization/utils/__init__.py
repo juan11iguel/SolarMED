@@ -10,8 +10,10 @@ import warnings
 from loguru import logger
 import numpy as np
 import pandas as pd
+
 from solarmed_modeling.fsms import MedState
 from solarmed_modeling.fsms.med import FsmInputs as MedFsmInputs
+
 from solarmed_optimization import (DecisionVariables, 
                                    DecisionVariablesUpdates, 
                                    dump_at_index_dec_vars,
@@ -572,3 +574,20 @@ def condition_result_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     # df["med_mode"] = df["med_state"].apply(lambda x: 2 if 1 <= x < 5 or x == 5 else 1 if x == 0 else x)
 
     return df
+
+def decision_vectors_to_dataframe(x: list[np.ndarray], problems: list[Any]) -> pd.DataFrame:
+    assert len(x) == len(problems), "x and problems must have the same length"
+    
+    longest_problem_x_idx = np.argmax([len(x_) for x_ in x])
+    len_longest_x = len(x[longest_problem_x_idx])
+    
+    x_df = pd.DataFrame(
+        np.array([np.pad(item, (0, len_longest_x - len(item)), constant_values=np.nan) for item in x]),
+        columns = [
+            f"{var_id}_step_{step_idx:03d}"
+            for var_id, num_steps in asdict(problems[longest_problem_x_idx].dec_var_updates).items() if var_id not in problems[0].dec_var_int_ids
+            for step_idx in range(num_steps)
+        ]
+    )
+    
+    return x_df

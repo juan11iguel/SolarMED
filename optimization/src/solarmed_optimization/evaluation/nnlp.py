@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 from solarmed_optimization import AlgoParams, ProblemData, ProblemsEvaluationParameters, OpPlanActionType
 from solarmed_optimization.problems import BaseNlpProblem
 from solarmed_optimization.problems.nnlp import OperationPlanResults
-from solarmed_optimization.utils import select_best_alternative
+from solarmed_optimization.utils import select_best_alternative, decision_vectors_to_dataframe
 from solarmed_optimization.utils.initialization import initialize_problem_instances_nNLP
 from solarmed_optimization.utils.operation_plan import build_archipielago
 from solarmed_optimization.utils.serialization import get_fitness_history
@@ -46,7 +46,12 @@ def update_fitness_history(
 
     return fit_his
 
-def evaluate_problems(
+def evaluate_problems():
+    # TODO: Find a way to have a common evaluate_problems(...) that can be used for both
+    # evaluate_operation_optimization_problem and evaluate_operation_plan_problems
+    pass
+
+def evaluate_operation_plan_problems(
     problems: list[BaseNlpProblem], 
     algo_params: AlgoParams, 
     problems_eval_params: ProblemsEvaluationParameters, 
@@ -143,22 +148,14 @@ def evaluate_problems(
         droped_problem_idxs += drop_idxs
 
     evaluation_time = int(time.time() - start_time)
-    longest_problem_x_idx = np.argmax([len(x_) for x_ in x])
-    len_longest_x = len(x[longest_problem_x_idx])
     # dec_vec = [ for x_, problem in zip(x, problems)] # Including integer part
     # x should be padded with nans to match the length of the longest problem
     # fitness_history should be padded with nans to match lengths
+    
     op_plan_results = OperationPlanResults(
         date_str=date_str, # Date in YYYYMMDD format
         action=action,
-        x = pd.DataFrame(
-            np.array([np.pad(item, (0, len_longest_x - len(item)), constant_values=np.nan) for item in x]),
-            columns = [
-                f"{var_id}_step_{step_idx:03d}"
-                for var_id, num_steps in asdict(problems[longest_problem_x_idx].dec_var_updates).items() if var_id not in problems[0].dec_var_int_ids
-                for step_idx in range(num_steps)
-            ]
-        ),
+        x = decision_vectors_to_dataframe(x, problems),
         # int_dec_vars = [problem.int_dec_vars.to_dataframe() for problem in problems],
         fitness = pd.Series(fitness),
         fitness_history = pd.concat(fitness_history, axis=1).sort_index(),
@@ -248,7 +245,7 @@ def evaluate_operation_plan_layer(
                 logger.info(f"Retrieved previously computed solutions for action {action} in {stored_results}")
 
         if stored_results is None:
-            op_plan_results = evaluate_problems(
+            op_plan_results = evaluate_operation_plan_problems(
                 problems,
                 algo_params=algo_params,
                 problems_eval_params=problems_eval_params,
