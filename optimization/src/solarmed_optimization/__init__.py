@@ -231,6 +231,10 @@ class EnvironmentVariables:
 			cost_e=cost_e
 		)
   
+	def get_date_str(self) -> str:
+		""" Returns date string in YYYYMMDD format for the first index entry """
+		return list(asdict(self).values())[0].index[0].strftime("%Y%m%d")
+  
 	def copy(self) -> "EnvironmentVariables":
 		""" Create a deep copy of this EnvironmentVariables" instance. """
 		return copy.deepcopy(self)
@@ -808,6 +812,9 @@ class ProblemData:
 	problem_params: ProblemParameters
 	problem_samples: ProblemSamples 
 	model: SolarMED
+ 
+	def copy(self, ) -> "ProblemData":
+		return copy.deepcopy(self)
 
 @dataclass
 class AlgorithmParameters:

@@ -146,7 +146,7 @@ class OperationOptimizationResults:
 		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
 
 	@classmethod
-	def initialize(cls, input_path: Path, date_str: str, action: OpPlanActionType, scenario_idx: int = 0, log: bool = True) -> "OperationOptimizationResults":
+	def initialize(cls, input_path: Path, date_str: str, action: Optional[OpPlanActionType] = None, scenario_idx: Optional[int] = 0, log: bool = True) -> "OperationOptimizationResults":
 		""" Initialize an OperationPlanResults object from a file. """
 		
 		if not isinstance(input_path, Path):
@@ -226,7 +226,7 @@ class OperationOptimizationResults:
 		return optim_results
 
 @dataclass(kw_only=True)
-class OperationPlanResults2(OperationOptimizationResults):
+class OperationPlanResults(OperationOptimizationResults):
 	action: OpPlanActionType # Operation plan action identifier
 	scenario_idx: int = 0 # Uncertainty scenario index, zero by default
 	_metadata_flds: tuple[str, ...] = field(default=("date_str", "action", "scenario_idx", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params"), init=False)
@@ -240,193 +240,193 @@ class OperationPlanResults2(OperationOptimizationResults):
 		
 		return f'/{date_str}/{action}/{get_scenario_id(scenario_idx)}'
 
-@dataclass
-class OperationPlanResults:
-	date_str: str # Date in YYYYMMDD format
-	action: OpPlanActionType # Operation plan action identifier
-	x: pd.DataFrame # Decision vector (columns) for each problem (rows)
-	# int_dec_vars: list[pd.DataFrame] # Integer decision variables for each problem
-	fitness: pd.Series # Fitness values for each problem
-	fitness_history: pd.DataFrame # Optimization algorithm evolution fitness history (rows) for each problem (columns)
-	# environment_df: pd.DataFrame # Environment data
-	scenario_idx: int = 0 # Uncertainty scenario index, zero by default
-	metadata_flds: tuple[str, ...] = ("date_str", "action", "scenario_idx", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params")
-	best_problem_idx: Optional[int] = None # Index of the best performing problem
-	results_df: Optional[pd.DataFrame] = None # Simulation timeseries results for the best performing problem
-	evaluation_time: Optional[float] = None # Time, in seconds, taken to evaluate layer
-	algo_params: Optional[AlgoParams] = None # Algorithm parameters
-	problems_eval_params: Optional[ProblemsEvaluationParameters] = None
-	problem_params: Optional[ProblemParameters] = None # Problem parameters
-	env_vars: Optional[EnvironmentVariables] = None # Environment variables
+# @dataclass
+# class OperationPlanResults:
+# 	date_str: str # Date in YYYYMMDD format
+# 	action: OpPlanActionType # Operation plan action identifier
+# 	x: pd.DataFrame # Decision vector (columns) for each problem (rows)
+# 	# int_dec_vars: list[pd.DataFrame] # Integer decision variables for each problem
+# 	fitness: pd.Series # Fitness values for each problem
+# 	fitness_history: pd.DataFrame # Optimization algorithm evolution fitness history (rows) for each problem (columns)
+# 	# environment_df: pd.DataFrame # Environment data
+# 	scenario_idx: int = 0 # Uncertainty scenario index, zero by default
+# 	metadata_flds: tuple[str, ...] = ("date_str", "action", "scenario_idx", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params")
+# 	best_problem_idx: Optional[int] = None # Index of the best performing problem
+# 	results_df: Optional[pd.DataFrame] = None # Simulation timeseries results for the best performing problem
+# 	evaluation_time: Optional[float] = None # Time, in seconds, taken to evaluate layer
+# 	algo_params: Optional[AlgoParams] = None # Algorithm parameters
+# 	problems_eval_params: Optional[ProblemsEvaluationParameters] = None
+# 	problem_params: Optional[ProblemParameters] = None # Problem parameters
+# 	env_vars: Optional[EnvironmentVariables] = None # Environment variables
 	
-	def __post_init__(self):
-		if self.best_problem_idx is None:
-			self.best_problem_idx = int(self.fitness.idxmin())
-		self.set_environment_variables()
+# 	def __post_init__(self):
+# 		if self.best_problem_idx is None:
+# 			self.best_problem_idx = int(self.fitness.idxmin())
+# 		self.set_environment_variables()
    
-	def set_environment_variables(self, env_vars: Optional[EnvironmentVariables] = None) -> None:
-		if self.env_vars is not None:
-			return
+# 	def set_environment_variables(self, env_vars: Optional[EnvironmentVariables] = None) -> None:
+# 		if self.env_vars is not None:
+# 			return
 		
-		# Else
-		if env_vars is not None:
-			self.env_vars = env_vars
+# 		# Else
+# 		if env_vars is not None:
+# 			self.env_vars = env_vars
 			
-		elif self.env_vars is None and self.results_df is not None:
-			self.env_vars = EnvironmentVariables.from_dataframe(self.results_df)
+# 		elif self.env_vars is None and self.results_df is not None:
+# 			self.env_vars = EnvironmentVariables.from_dataframe(self.results_df)
 		
-	def evaluate_best_problem(self, problems: list[BaseNlpProblem] | BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
-		print("best problem idx", self.best_problem_idx, "best x:", self.x.iloc[self.best_problem_idx].values)
-		results_df = evaluate_optimization_nlp(
-			x=self.x.iloc[self.best_problem_idx].values, 
-			problem=problems[self.best_problem_idx] if isinstance(problems, list) else problems,
-			model=SolarMED(**model.dump_instance())
-		)
-  		# Remove NaNs, add columns for decision variables
-		self.results_df = condition_result_dataframe(results_df)
-		self.set_environment_variables()
+# 	def evaluate_best_problem(self, problems: list[BaseNlpProblem] | BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
+# 		print("best problem idx", self.best_problem_idx, "best x:", self.x.iloc[self.best_problem_idx].values)
+# 		results_df = evaluate_optimization_nlp(
+# 			x=self.x.iloc[self.best_problem_idx].values, 
+# 			problem=problems[self.best_problem_idx] if isinstance(problems, list) else problems,
+# 			model=SolarMED(**model.dump_instance())
+# 		)
+#   		# Remove NaNs, add columns for decision variables
+# 		self.results_df = condition_result_dataframe(results_df)
+# 		self.set_environment_variables()
    
-		return self.results_df
+# 		return self.results_df
 	
-	def get_hdf_base_path(self, date_str: str = None, action: OpPlanActionType = None, scenario_idx: int = None) -> str:
-		date_str = self.date_str if date_str is None else date_str
-		action = self.action if action is None else action
-		scenario_idx = self.scenario_idx if scenario_idx is None else scenario_idx
+# 	def get_hdf_base_path(self, date_str: str = None, action: OpPlanActionType = None, scenario_idx: int = None) -> str:
+# 		date_str = self.date_str if date_str is None else date_str
+# 		action = self.action if action is None else action
+# 		scenario_idx = self.scenario_idx if scenario_idx is None else scenario_idx
 		
-		return f'/{date_str}/{action}/{get_scenario_id(scenario_idx)}'
+# 		return f'/{date_str}/{action}/{get_scenario_id(scenario_idx)}'
 	
-	def export(self, output_path: Path, compress: bool = True, reduced: bool = False) -> None:
-		""" Export results to a file. """
-		if not output_path.exists():
-			output_path.parent.mkdir(parents=True, exist_ok=True)
+# 	def export(self, output_path: Path, compress: bool = True, reduced: bool = False) -> None:
+# 		""" Export results to a file. """
+# 		if not output_path.exists():
+# 			output_path.parent.mkdir(parents=True, exist_ok=True)
 		
-		temp_path = output_path.with_suffix(".h5")
-		if output_path.with_suffix(".gz").exists():
-			# Uncompress the gzip file into a temporary .h5 file
-			with gzip.open(output_path.with_suffix(".gz"), 'rb') as f_in:
-				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
-					shutil.copyfileobj(f_in, f_out)
-					temp_path = Path(f_out.name)
+# 		temp_path = output_path.with_suffix(".h5")
+# 		if output_path.with_suffix(".gz").exists():
+# 			# Uncompress the gzip file into a temporary .h5 file
+# 			with gzip.open(output_path.with_suffix(".gz"), 'rb') as f_in:
+# 				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
+# 					shutil.copyfileobj(f_in, f_out)
+# 					temp_path = Path(f_out.name)
 
-		# if reduced:
-		#     self = copy.deepcopy(self)  # To avoid modifying the original object
-		#     self.results_df = None
+# 		# if reduced:
+# 		#     self = copy.deepcopy(self)  # To avoid modifying the original object
+# 		#     self.results_df = None
 
-		with pd.HDFStore(temp_path, mode='a') as store:
-			path_str = self.get_hdf_base_path()
+# 		with pd.HDFStore(temp_path, mode='a') as store:
+# 			path_str = self.get_hdf_base_path()
 
-			# Add the results dataframes to the file
-			store.put(f'{path_str}/x', self.x)
-			store.put(f'{path_str}/fitness', self.fitness)
-			store.put(f'{path_str}/fitness_history', self.fitness_history)
-			store.put(f'{path_str}/results', self.results_df)
+# 			# Add the results dataframes to the file
+# 			store.put(f'{path_str}/x', self.x)
+# 			store.put(f'{path_str}/fitness', self.fitness)
+# 			store.put(f'{path_str}/fitness_history', self.fitness_history)
+# 			store.put(f'{path_str}/results', self.results_df)
 
-			# Add metadata attributes to the file
-			storer = store.get_storer(f"{path_str}/results")
-			storer.attrs.description = (
-				f"Evaluation results for the SolarMED optimal coupling. "
-				f"Operation plan layer - {self.action} for day {self.date_str}"
-			)
-			for fld_id in self.metadata_flds:
-				fld_val = getattr(self, fld_id)
-				if is_dataclass(fld_val):
-					fld_val = asdict(fld_val)
-				setattr(storer.attrs, fld_id, fld_val)
+# 			# Add metadata attributes to the file
+# 			storer = store.get_storer(f"{path_str}/results")
+# 			storer.attrs.description = (
+# 				f"Evaluation results for the SolarMED optimal coupling. "
+# 				f"Operation plan layer - {self.action} for day {self.date_str}"
+# 			)
+# 			for fld_id in self.metadata_flds:
+# 				fld_val = getattr(self, fld_id)
+# 				if is_dataclass(fld_val):
+# 					fld_val = asdict(fld_val)
+# 				setattr(storer.attrs, fld_id, fld_val)
 
-		# Compress the .h5 file using gzip
-		if compress:
-			suffix = ".gz"
-			with open(temp_path, 'rb') as f_in, gzip.open(output_path.with_suffix(suffix), 'wb') as f_out:
-				shutil.copyfileobj(f_in, f_out)
-			temp_path.unlink()  # Remove temporary file .h5 file
-		else:
-			suffix = ".h5"
-			# Copy the uncompressed file to the output path
-			if temp_path != output_path.with_suffix(suffix):
-				shutil.copy(temp_path, output_path.with_suffix(suffix))
-				temp_path.unlink()  # Remove temporary file .h5 file
+# 		# Compress the .h5 file using gzip
+# 		if compress:
+# 			suffix = ".gz"
+# 			with open(temp_path, 'rb') as f_in, gzip.open(output_path.with_suffix(suffix), 'wb') as f_out:
+# 				shutil.copyfileobj(f_in, f_out)
+# 			temp_path.unlink()  # Remove temporary file .h5 file
+# 		else:
+# 			suffix = ".h5"
+# 			# Copy the uncompressed file to the output path
+# 			if temp_path != output_path.with_suffix(suffix):
+# 				shutil.copy(temp_path, output_path.with_suffix(suffix))
+# 				temp_path.unlink()  # Remove temporary file .h5 file
 		
-		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
+# 		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
 
-	@classmethod
-	def initialize(cls, input_path: Path, date_str: str, action: OpPlanActionType, scenario_idx: int = 0, log: bool = True) -> "OperationPlanResults":
-		""" Initialize an OperationPlanResults object from a file. """
+# 	@classmethod
+# 	def initialize(cls, input_path: Path, date_str: str, action: OpPlanActionType, scenario_idx: int = 0, log: bool = True) -> "OperationPlanResults":
+# 		""" Initialize an OperationPlanResults object from a file. """
 		
-		if not isinstance(input_path, Path):
-			input_path = Path(input_path)
+# 		if not isinstance(input_path, Path):
+# 			input_path = Path(input_path)
   
-		if input_path.suffix == ".gz":
-			# Uncompress the gzip file into a temporary .h5 file
-			with gzip.open(input_path, 'rb') as f_in:
-				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
-					shutil.copyfileobj(f_in, f_out)
-					temp_path = Path(f_out.name)
-		else:
-			temp_path = input_path
+# 		if input_path.suffix == ".gz":
+# 			# Uncompress the gzip file into a temporary .h5 file
+# 			with gzip.open(input_path, 'rb') as f_in:
+# 				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
+# 					shutil.copyfileobj(f_in, f_out)
+# 					temp_path = Path(f_out.name)
+# 		else:
+# 			temp_path = input_path
 
-		try:
-			base_path_str = cls.get_hdf_base_path(None, date_str=date_str, action=action, scenario_idx=scenario_idx)
+# 		try:
+# 			base_path_str = cls.get_hdf_base_path(None, date_str=date_str, action=action, scenario_idx=scenario_idx)
 		
-			with pd.HDFStore(temp_path, mode='r') as store:
-				# Load dataframes
-				try:
-					results_df = store.get(f'{base_path_str}/results')
-				except KeyError:
-					# results_df = None  # In case results_df was not saved (reduced export)
-					all_keys = store.keys()
-					# Find unique base paths (/date_str/action/scenario_idx)
-					unique_base_paths = {
-						str(PurePosixPath(k).parents[0]) for k in all_keys
-					}
-					unique_base_paths = sorted(unique_base_paths)
+# 			with pd.HDFStore(temp_path, mode='r') as store:
+# 				# Load dataframes
+# 				try:
+# 					results_df = store.get(f'{base_path_str}/results')
+# 				except KeyError:
+# 					# results_df = None  # In case results_df was not saved (reduced export)
+# 					all_keys = store.keys()
+# 					# Find unique base paths (/date_str/action/scenario_idx)
+# 					unique_base_paths = {
+# 						str(PurePosixPath(k).parents[0]) for k in all_keys
+# 					}
+# 					unique_base_paths = sorted(unique_base_paths)
 					
-					raise KeyError(f"Could not find {base_path_str}. Available evaluation results {len(unique_base_paths)}: {unique_base_paths}")
+# 					raise KeyError(f"Could not find {base_path_str}. Available evaluation results {len(unique_base_paths)}: {unique_base_paths}")
 
 					
-				x = store.get(f'{base_path_str}/x')
-				fitness = store.get(f'{base_path_str}/fitness')
-				fitness_history = store.get(f'{base_path_str}/fitness_history')
+# 				x = store.get(f'{base_path_str}/x')
+# 				fitness = store.get(f'{base_path_str}/fitness')
+# 				fitness_history = store.get(f'{base_path_str}/fitness_history')
 
-				# Load metadata attributes
-				storer = store.get_storer(f'{base_path_str}/results')
-				# for attr_name in storer.attrs._v_attrnames:
-				# 	value = getattr(storer.attrs, attr_name)
-				# 	print(f"{attr_name} = {value}")
+# 				# Load metadata attributes
+# 				storer = store.get_storer(f'{base_path_str}/results')
+# 				# for attr_name in storer.attrs._v_attrnames:
+# 				# 	value = getattr(storer.attrs, attr_name)
+# 				# 	print(f"{attr_name} = {value}")
 
-				metadata_flds_dict = {}
-				for fld_id in cls.metadata_flds:
-					# print(f"{fld_id=}")
-					fld_def = cls.__dataclass_fields__[fld_id]
-					fld_type = fld_def.type
-					value = getattr(storer.attrs, fld_id, None)
+# 				metadata_flds_dict = {}
+# 				for fld_id in cls.metadata_flds:
+# 					# print(f"{fld_id=}")
+# 					fld_def = cls.__dataclass_fields__[fld_id]
+# 					fld_type = fld_def.type
+# 					value = getattr(storer.attrs, fld_id, None)
 
-					dataclass_type = resolve_dataclass_type(fld_type)
-					if dataclass_type and value is not None:
-						value = dataclass_type(**value)
+# 					dataclass_type = resolve_dataclass_type(fld_type)
+# 					if dataclass_type and value is not None:
+# 						value = dataclass_type(**value)
 
-					metadata_flds_dict[fld_id] = value
-				# action = getattr(storer.attrs, 'action', None)
-				# evaluation_time = getattr(storer.attrs, 'evaluation_time', None)
-				# best_problem_idx = getattr(storer.attrs, 'best_problem_idx', None)
+# 					metadata_flds_dict[fld_id] = value
+# 				# action = getattr(storer.attrs, 'action', None)
+# 				# evaluation_time = getattr(storer.attrs, 'evaluation_time', None)
+# 				# best_problem_idx = getattr(storer.attrs, 'best_problem_idx', None)
 
-		finally:
-			if input_path.suffix == ".gz":
-				temp_path.unlink()  # Clean up temp .h5 file
+# 		finally:
+# 			if input_path.suffix == ".gz":
+# 				temp_path.unlink()  # Clean up temp .h5 file
 
-		# Create the OperationPlanResults object
-		op_plan_results = OperationPlanResults(
-			x=x,
-			fitness=fitness,
-			fitness_history=fitness_history,
-			results_df=results_df,
+# 		# Create the OperationPlanResults object
+# 		op_plan_results = OperationPlanResults(
+# 			x=x,
+# 			fitness=fitness,
+# 			fitness_history=fitness_history,
+# 			results_df=results_df,
 
-			**metadata_flds_dict
-		)
+# 			**metadata_flds_dict
+# 		)
 
-		if log:
-			logger.info(f"Initialized {cls.__name__} from {input_path} / {base_path_str}")
+# 		if log:
+# 			logger.info(f"Initialized {cls.__name__} from {input_path} / {base_path_str}")
 
-		return op_plan_results
+# 		return op_plan_results
 
 def batch_export(output_path: Path, op_plan_results_list: list[OperationPlanResults], compress: bool = True) -> None:
 	""" Export multiple OperationPlanResults objects to a single file. """

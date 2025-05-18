@@ -234,8 +234,8 @@ def initialize_problem_instance_NLP(
     problem_data: ProblemData,
     int_dec_vars: IntegerDecisionVariables,
     start_dt: datetime.datetime,
-    store_x=False,
-    store_fitness=False,
+    store_x: bool = False,
+    store_fitness: bool = False,
     log: bool = False
 ) -> NlpProblem:
     # TODO: Period with 10 min resolution (1h) should be set in the problem parameters

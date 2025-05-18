@@ -3,6 +3,7 @@ import copy
 from pathlib import Path
 import time
 from dataclasses import asdict
+import datetime
 
 from loguru import logger
 import numpy as np
@@ -10,11 +11,19 @@ import pandas as pd
 import pygmo as pg
 from tqdm.auto import tqdm
 
-from solarmed_optimization import AlgoParams, ProblemData, ProblemsEvaluationParameters, OpPlanActionType
+from solarmed_optimization import (
+    AlgoParams, 
+    ProblemData, 
+    ProblemsEvaluationParameters, 
+    OpPlanActionType,
+    DecisionVariables,
+    IntegerDecisionVariables
+)
 from solarmed_optimization.problems import BaseNlpProblem
-from solarmed_optimization.problems.nnlp import OperationPlanResults
+from solarmed_optimization.problems.nnlp import OperationPlanResults, OperationOptimizationResults
 from solarmed_optimization.utils import select_best_alternative, decision_vectors_to_dataframe
-from solarmed_optimization.utils.initialization import initialize_problem_instances_nNLP
+from solarmed_optimization.utils.initialization import (initialize_problem_instances_nNLP, 
+                                                        initialize_problem_instance_NLP)
 from solarmed_optimization.utils.operation_plan import build_archipielago
 from solarmed_optimization.utils.serialization import get_fitness_history
 
@@ -46,35 +55,23 @@ def update_fitness_history(
 
     return fit_his
 
-def evaluate_problems():
-    # TODO: Find a way to have a common evaluate_problems(...) that can be used for both
-    # evaluate_operation_optimization_problem and evaluate_operation_plan_problems
-    pass
-
-def evaluate_operation_plan_problems(
+def evaluate_problems(
     problems: list[BaseNlpProblem], 
     algo_params: AlgoParams, 
-    problems_eval_params: ProblemsEvaluationParameters, 
-    action: OpPlanActionType
-) -> OperationPlanResults:
-    # This function should sequentially, build the archipielagos, 
-    # evolve them, drop poorly performing problems and repeat until
-    # the best performing problems are evolved completely
-
-
+    problems_eval_params: ProblemsEvaluationParameters,
+    x0: Optional[list[np.ndarray]] = None, 
+    fitness0: Optional[list[float]] = None,
+) -> tuple[str, pd.DataFrame, pd.Series, pd.DataFrame, int] :
+    # date_str, x, fitness, fitness_history, evaluation_time
+    
+    # TODO: Find a way to have a common evaluate_problems(...) that can be used for both
+    # evaluate_operation_optimization_problem and evaluate_operation_plan_problems
     date_str = list(asdict(problems[0].env_vars).values())[0].index[0].strftime("%Y%m%d")
     start_time = time.time()
 
-    algo_params = AlgoParams(
-        algo_id=algo_params.algo_id,
-        max_n_obj_fun_evals=problems_eval_params.n_obj_fun_evals_per_update,
-        pop_size=algo_params.pop_size,
-        max_n_logs=algo_params.max_n_logs,
-    )
-
     # TODO: Here x should be providable from a previous evaluation
-    x = [None] * len(problems)
-    fitness = [None] * len(problems)
+    x = [x0_ for x0_ in x0] if x0 is not None else [None] * len(problems)
+    fitness = [f0 for f0 in fitness0] if fitness0 is not None else [None] * len(problems)
     fitness_history = [None] * len(problems)
     droped_problem_idxs = []
     kept_problem_idxs = np.arange(len(problems))
@@ -102,6 +99,7 @@ def evaluate_operation_plan_problems(
                 algo_params=algo_params,
                 x0=[x[idx] for idx in yet_to_eval_idxs[:batch_size]],
                 fitness0=[fitness[idx] for idx in yet_to_eval_idxs[:batch_size]],
+                topology=problems_eval_params.archipelago_topology,
             )
             # logger.info(f"{log_header_str} | Initialized archipelago of problems of size {batch_size}")
 
@@ -111,6 +109,14 @@ def evaluate_operation_plan_problems(
                 fitness_history[problem_idx] = update_fitness_history(
                     isl, 
                     fit_his=fitness_history[problem_idx], 
+                    algo_id=algo_params.algo_id,
+                    n_obj_fun_evals_per_update=problems_eval_params.n_obj_fun_evals_per_update,
+                    initial=True
+                )
+            for idx, isl in enumerate(archi):
+                fitness_history[idx] = update_fitness_history(
+                    isl, 
+                    fit_his=fitness_history[idx], 
                     algo_id=algo_params.algo_id,
                     n_obj_fun_evals_per_update=problems_eval_params.n_obj_fun_evals_per_update,
                     initial=True
@@ -144,31 +150,71 @@ def evaluate_operation_plan_problems(
         # Retain only the best performing problems
         fitness_current_update = np.array(copy.deepcopy(fitness))
         fitness_current_update[droped_problem_idxs] = np.nan
+        
+        # Add the last fitness to the fitness history
+        new_fit_history = [
+            pd.concat([
+                fitness_history[idx], 
+                pd.Series(
+                    [fitness[idx]], 
+                    index=[max(fitness_history[idx].index[-1] + 1, 
+                           problems_eval_params.n_obj_fun_evals_per_update)]
+                )
+            ]) 
+            if fitness[idx] < fitness_history[idx].iloc[-1] else fitness_history[idx]
+            for idx in kept_problem_idxs
+        ]
+        for idx, new_fit_his in zip(kept_problem_idxs, new_fit_history):
+            fitness_history[idx] = new_fit_his
+            
         kept_problem_idxs, drop_idxs = problems_eval_params.update_problems(fitness_current_update)
         droped_problem_idxs += drop_idxs
 
     evaluation_time = int(time.time() - start_time)
-    # dec_vec = [ for x_, problem in zip(x, problems)] # Including integer part
-    # x should be padded with nans to match the length of the longest problem
-    # fitness_history should be padded with nans to match lengths
+    x = decision_vectors_to_dataframe(x, problems)
+        
+    fitness = pd.Series(fitness)
+    fitness_history = pd.concat(fitness_history, axis=1).sort_index()
     
-    op_plan_results = OperationPlanResults(
-        date_str=date_str, # Date in YYYYMMDD format
+    return date_str, x, fitness, fitness_history, evaluation_time
+
+def evaluate_operation_plan_problems(
+    problems: list[BaseNlpProblem], 
+    algo_params: AlgoParams, 
+    problems_eval_params: ProblemsEvaluationParameters, 
+    action: OpPlanActionType,
+    x0: Optional[list[np.ndarray]] = None, 
+    fitness0: Optional[list[float]] = None,
+) -> OperationPlanResults:
+    # This function should sequentially, build the archipielagos, 
+    # evolve them, drop poorly performing problems and repeat until
+    # the best performing problems are evolved completely
+
+    algo_params = AlgoParams(
+        algo_id=algo_params.algo_id,
+        max_n_obj_fun_evals=problems_eval_params.n_obj_fun_evals_per_update,
+        pop_size=algo_params.pop_size,
+        max_n_logs=algo_params.max_n_logs,
+    )
+    
+    date_str, x, fitness, fitness_history, evaluation_time = evaluate_problems(
+        problems=problems, 
+        algo_params=algo_params, 
+        problems_eval_params=problems_eval_params, 
+        x0=x0,
+        fitness0=fitness0
+    )
+    
+    return OperationPlanResults(
+        date_str=date_str,
         action=action,
-        x = decision_vectors_to_dataframe(x, problems),
-        # int_dec_vars = [problem.int_dec_vars.to_dataframe() for problem in problems],
-        fitness = pd.Series(fitness),
-        fitness_history = pd.concat(fitness_history, axis=1).sort_index(),
-        # environment_df = problems[0].env_vars.to_dataframe(),
+        x=x,
+        fitness=fitness,
+        fitness_history=fitness_history,
         evaluation_time=evaluation_time,
         algo_params=algo_params,
         problems_eval_params=problems_eval_params,
     )
-
-    # logger.info(f"Completed evolution process! Took {evaluation_time/60:.0f} minutes") 
-
-    return op_plan_results
-
 
 def evaluate_operation_plan_layer(
     problem_data: ProblemData,
@@ -263,8 +309,99 @@ def evaluate_operation_plan_layer(
 
     return op_plan_results_list, problems[best_alternative_idx], best_alternative_idx
 
+def evaluate_operation_optimization_problems(
+    problem: BaseNlpProblem, 
+    algo_params: AlgoParams, 
+    problems_eval_params: ProblemsEvaluationParameters,
+    x0: Optional[np.ndarray] = None, 
+    fitness0: Optional[float] = None,
+) -> OperationOptimizationResults:
+    
+    n_instances = problems_eval_params.n_instances
+    
+    date_str, x, fitness, fitness_history, evaluation_time = evaluate_problems(
+        problems=[problem] * n_instances,
+        algo_params=algo_params,
+        problems_eval_params=problems_eval_params,
+        x0=[x0]*n_instances,
+        fitness0=[fitness0]*n_instances
+    )
+    
+    return OperationOptimizationResults(
+        date_str=date_str,
+        x=x,
+        fitness=fitness,
+        fitness_history=fitness_history,
+        evaluation_time=evaluation_time,
+        algo_params=algo_params,
+        problems_eval_params=problems_eval_params,
+    )
 
-def evaluate_operation_optimization_layer():
-    pass
+def evaluate_operation_optimization_layer(
+    problem_data: ProblemData,
+    int_dec_vars: IntegerDecisionVariables,
+    results_df: pd.DataFrame,
+    start_dt: datetime.datetime,
+    stored_results: Optional[Path] = None,
+    debug_mode: bool = False,
+    algo_params: Optional[AlgoParams] = None,
+    problems_eval_params: Optional[ProblemsEvaluationParameters] = None,
+    n_instances: int = 5
+) -> tuple[OperationOptimizationResults, BaseNlpProblem]:
 
-    # return op_optim_results, problem
+    problem_data_copy = problem_data.copy()
+
+    if algo_params is None:
+        if debug_mode:
+            algo_params = AlgoParams(max_n_obj_fun_evals=10,)
+        else:
+            # Set default values for the algorithm and evaluation parameters
+            algo_params = AlgoParams()
+    if problems_eval_params is None:
+        if debug_mode:
+            problems_eval_params = ProblemsEvaluationParameters(
+                max_n_obj_fun_evals=algo_params.max_n_obj_fun_evals,
+                archipelago_topology="fully_connected",
+                n_instances=3
+            )
+        else:
+            problems_eval_params = ProblemsEvaluationParameters(
+                max_n_obj_fun_evals=algo_params.max_n_obj_fun_evals,
+                archipelago_topology="fully_connected",
+                n_instances=n_instances
+            )
+    
+    problem = initialize_problem_instance_NLP(problem_data, int_dec_vars=int_dec_vars, start_dt=start_dt)
+
+    # Setup initial decision variables from prior decision variables
+    dec_vars = (
+        DecisionVariables.from_dataframe(results_df).
+        dump_in_span(span=(start_dt, None), return_format="series")
+    )
+    x0 = problem.decision_variables_to_decision_vector(dec_vars)
+    
+    if stored_results is not None:
+        # Skip evaluting the layer if results exists
+        date_str = problem.env_vars.get_date_str()
+        try:
+            op_optim_results = OperationOptimizationResults.initialize(input_path=stored_results, date_str=date_str,)
+        except KeyError:
+            logger.info(f"Stored results provided but not found in {stored_results}, falling back to computing layer")
+            stored_results = None
+        else:
+            # Check retrieved results params match the current ones
+            # TODO: We should check that problem_params, algo_params, problem_eval_params are the same
+            # assert unc_factor == op_optim_results.uncertainty_factor, f"Uncertainty factor {unc_factor} does not match stored results {op_optim_results.uncertainty_factor}"
+            logger.info(f"Retrieved previously computed solutions in {stored_results}")
+
+    if stored_results is None:
+        op_optim_results = evaluate_operation_optimization_problems(
+            problem,
+            algo_params=algo_params,
+            problems_eval_params=problems_eval_params,
+            x0=x0,
+        )
+        op_optim_results.evaluate_best_problem(problems=problem, model=problem_data_copy.model)
+        op_optim_results.problem_params = problem_data_copy.problem_params
+
+    return op_optim_results, problem
