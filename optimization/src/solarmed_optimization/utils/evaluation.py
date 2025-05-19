@@ -151,7 +151,7 @@ def evaluate_model(
     model: SolarMED,
     dec_vars: DecisionVariables,
     env_vars: EnvironmentVariables,
-    n_evals_mod: int,
+    n_evals_mod: Optional[int] = None,
     mode: EvaluationMode = "optimization",
 #    model_dec_var_ids: list[str] = None,
     df_mod: pd.DataFrame = None,
@@ -174,6 +174,10 @@ def evaluate_model(
     
     if mode not in ["optimization", "evaluation"]:
         raise ValueError(f"Invalid mode: {mode}")
+    
+    if n_evals_mod is None:
+        assert len(env_vars) == len(dec_vars), "The number of decision variables and environment variables must be the same"
+        n_evals_mod = len(env_vars) # Assuming that the environment variables are resampled to the same frequency as the model
     
     # if mode == "optimization":
     #     assert model_dec_var_ids is not None, "`model_dec_var_ids` is required if `mode` is set to 'optimization'"

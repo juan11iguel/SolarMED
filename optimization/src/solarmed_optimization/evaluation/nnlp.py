@@ -219,11 +219,11 @@ def evaluate_operation_plan_problems(
 def evaluate_operation_plan_layer(
     problem_data: ProblemData,
     action: OpPlanActionType,
+    algo_params: AlgoParams,
+    problems_eval_params: ProblemsEvaluationParameters,
     uncertainty_factor: float = 0.,
     stored_results: Optional[Path] = None,
     debug_mode: bool = False,
-    algo_params: Optional[AlgoParams] = None,
-    problems_eval_params: Optional[ProblemsEvaluationParameters] = None,
 ) -> tuple[list[OperationPlanResults], BaseNlpProblem, int]:
 
     if uncertainty_factor > 0:
@@ -232,24 +232,6 @@ def evaluate_operation_plan_layer(
         unc_factors = [0]
 
     op_plan_results_list: list[OperationPlanResults] = []
-
-    if algo_params is None:
-        if debug_mode:
-            algo_params = AlgoParams(max_n_obj_fun_evals=10,)
-        else:
-            # Set default values for the algorithm and evaluation parameters
-            algo_params = AlgoParams()
-    if problems_eval_params is None:
-        if debug_mode:
-            problems_eval_params = ProblemsEvaluationParameters(
-                drop_fraction=0.5,
-                max_n_obj_fun_evals=algo_params.max_n_obj_fun_evals,
-                n_obj_fun_evals_per_update=5
-            )
-        else:
-            # TODO: Here, except for the first evaluation, less function evaluations should be used
-            # since we will provide the best solution from the previous evaluation
-            problems_eval_params = ProblemsEvaluationParameters(n_updates=3, drop_fraction=0.5)
 
     progress_bar = tqdm(
         unc_factors,
@@ -342,34 +324,13 @@ def evaluate_operation_optimization_layer(
     int_dec_vars: IntegerDecisionVariables,
     results_df: pd.DataFrame,
     start_dt: datetime.datetime,
+    algo_params: AlgoParams,
+    problems_eval_params: ProblemsEvaluationParameters,
     stored_results: Optional[Path] = None,
     debug_mode: bool = False,
-    algo_params: Optional[AlgoParams] = None,
-    problems_eval_params: Optional[ProblemsEvaluationParameters] = None,
-    n_instances: int = 5
 ) -> tuple[OperationOptimizationResults, BaseNlpProblem]:
 
     problem_data_copy = problem_data.copy()
-
-    if algo_params is None:
-        if debug_mode:
-            algo_params = AlgoParams(max_n_obj_fun_evals=10,)
-        else:
-            # Set default values for the algorithm and evaluation parameters
-            algo_params = AlgoParams()
-    if problems_eval_params is None:
-        if debug_mode:
-            problems_eval_params = ProblemsEvaluationParameters(
-                max_n_obj_fun_evals=algo_params.max_n_obj_fun_evals,
-                archipelago_topology="fully_connected",
-                n_instances=3
-            )
-        else:
-            problems_eval_params = ProblemsEvaluationParameters(
-                max_n_obj_fun_evals=algo_params.max_n_obj_fun_evals,
-                archipelago_topology="fully_connected",
-                n_instances=n_instances
-            )
     
     problem = initialize_problem_instance_NLP(problem_data, int_dec_vars=int_dec_vars, start_dt=start_dt)
 

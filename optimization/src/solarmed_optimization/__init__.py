@@ -34,72 +34,6 @@ OperationUpdateDatetimesType = dict[str, list[tuple[str, list[datetime]]]]
 OpPlanActionType = Literal["startup", "shutdown"]
 PygmoArchipelagoTopologies = Literal["unconnected", "ring", "fully_connected"]
  
-class MedMode(Enum):
-	""" Possible decisions for MED operation modes.
-	Given this, the FSM inputs are deterministic """
-	OFF = 0
-	# IDLE = 1
-	ACTIVE = 1
-	
-med_fsm_inputs_table: dict[tuple[MedMode, MedState], MedFsmInputs] = {
-	# med_mode = OFF
-	(MedMode.OFF, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
-	(MedMode.OFF, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
-	(MedMode.OFF, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
-	(MedMode.OFF, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
-	(MedMode.OFF, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
-	(MedMode.OFF, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
-	
-	# med_mode = IDLE
-	# (MedMode.IDLE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
-	# (MedMode.IDLE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
-	# (MedMode.IDLE, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
-	# (MedMode.IDLE, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
-	# (MedMode.IDLE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
-	# (MedMode.IDLE, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
-	
-	# med_mode = ACTIVE
-	(MedMode.ACTIVE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
-	(MedMode.ACTIVE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
-	(MedMode.ACTIVE, MedState.IDLE):              MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
-	(MedMode.ACTIVE, MedState.STARTING_UP):       MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
-	(MedMode.ACTIVE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
-	(MedMode.ACTIVE, MedState.ACTIVE):            MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
-}
-
-class SfTsMode(Enum):
-	""" Possible decisions for Solar field and Thermal storage modes.
-	Given this, the associated FSM inputs are deterministic """
-	OFF = 0
-	# SF_HEATING_UP = 1
-	ACTIVE = 1
-	
-sfts_fsm_inputs_table: dict[tuple[SfTsMode, SfTsState], SfTsFsmInputs] = {
-	# sfts_mode = OFF
-	(SfTsMode.OFF, SfTsState.IDLE): SfTsFsmInputs(sf_active=False, ts_active=False),
-	(SfTsMode.OFF, SfTsState.HEATING_UP_SF): SfTsFsmInputs(sf_active=False, ts_active=False),
-	(SfTsMode.OFF, SfTsState.SF_HEATING_TS): SfTsFsmInputs(sf_active=False, ts_active=False),
-	
-	# sfts_mode = ACTIVE
-	(SfTsMode.ACTIVE, SfTsState.IDLE): SfTsFsmInputs(sf_active=True, ts_active=True),
-	(SfTsMode.ACTIVE, SfTsState.HEATING_UP_SF): SfTsFsmInputs(sf_active=True, ts_active=True),
-	(SfTsMode.ACTIVE, SfTsState.SF_HEATING_TS): SfTsFsmInputs(sf_active=True, ts_active=True),
-}
-
-class SubsystemId(Enum):
-	SFTS = "sfts"
-	MED = "med"
-	
-class SubsystemDecVarId(Enum):
-	SFTS = SfTsMode
-	MED = MedMode
-	
-@dataclass
-class IrradianceThresholds:
-	""" Irradiance thresholds (W/m²)"""
-	lower: float = 300.
-	upper: float = 600.
- 
 def prepend(obj_cls: Type[Any], obj: Any, prepend_object: Any) -> Any:
 	""" Prepend the current decision variables with another set of decision variables.
 		This instance will be prepended with the provided instance up until this instance first index."""
@@ -181,6 +115,73 @@ def dump_in_span(vars_dict: dict, span: tuple[int, Optional[int]] | tuple[dateti
 		span_vars_dict = {name: value.values if isinstance(value, pd.Series) else value for name, value in span_vars_dict.items()}
 
 	return span_vars_dict
+
+class MedMode(Enum):
+	""" Possible decisions for MED operation modes.
+	Given this, the FSM inputs are deterministic """
+	OFF = 0
+	# IDLE = 1
+	ACTIVE = 1
+	
+med_fsm_inputs_table: dict[tuple[MedMode, MedState], MedFsmInputs] = {
+	# med_mode = OFF
+	(MedMode.OFF, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+	(MedMode.OFF, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+	(MedMode.OFF, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+	(MedMode.OFF, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+	(MedMode.OFF, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+	(MedMode.OFF, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+	
+	# med_mode = IDLE
+	# (MedMode.IDLE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+	# (MedMode.IDLE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+	# (MedMode.IDLE, MedState.IDLE):              MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+	# (MedMode.IDLE, MedState.STARTING_UP):       MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+	# (MedMode.IDLE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+	# (MedMode.IDLE, MedState.ACTIVE):            MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.LOW),
+	
+	# med_mode = ACTIVE
+	(MedMode.ACTIVE, MedState.OFF):               MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+	(MedMode.ACTIVE, MedState.GENERATING_VACUUM): MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.HIGH),
+	(MedMode.ACTIVE, MedState.IDLE):              MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
+	(MedMode.ACTIVE, MedState.STARTING_UP):       MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
+	(MedMode.ACTIVE, MedState.SHUTTING_DOWN):     MedFsmInputs(med_active=False, med_vacuum_state=MedVacuumState.OFF),
+	(MedMode.ACTIVE, MedState.ACTIVE):            MedFsmInputs(med_active=True,  med_vacuum_state=MedVacuumState.LOW),
+}
+
+class SfTsMode(Enum):
+	""" Possible decisions for Solar field and Thermal storage modes.
+	Given this, the associated FSM inputs are deterministic """
+	OFF = 0
+	# SF_HEATING_UP = 1
+	ACTIVE = 1
+	
+sfts_fsm_inputs_table: dict[tuple[SfTsMode, SfTsState], SfTsFsmInputs] = {
+	# sfts_mode = OFF
+	(SfTsMode.OFF, SfTsState.IDLE): SfTsFsmInputs(sf_active=False, ts_active=False),
+	(SfTsMode.OFF, SfTsState.HEATING_UP_SF): SfTsFsmInputs(sf_active=False, ts_active=False),
+	(SfTsMode.OFF, SfTsState.SF_HEATING_TS): SfTsFsmInputs(sf_active=False, ts_active=False),
+	
+	# sfts_mode = ACTIVE
+	(SfTsMode.ACTIVE, SfTsState.IDLE): SfTsFsmInputs(sf_active=True, ts_active=True),
+	(SfTsMode.ACTIVE, SfTsState.HEATING_UP_SF): SfTsFsmInputs(sf_active=True, ts_active=True),
+	(SfTsMode.ACTIVE, SfTsState.SF_HEATING_TS): SfTsFsmInputs(sf_active=True, ts_active=True),
+}
+
+class SubsystemId(Enum):
+	SFTS = "sfts"
+	MED = "med"
+	
+class SubsystemDecVarId(Enum):
+	SFTS = SfTsMode
+	MED = MedMode
+	
+@dataclass
+class IrradianceThresholds:
+	""" Irradiance thresholds (W/m²)"""
+	lower: float = 300.
+	upper: float = 600.
+ 
 	
 @dataclass
 class EnvironmentVariables:
@@ -293,7 +294,7 @@ class EnvironmentVariables:
 
 	def __len__(self) -> int | ValueError:
 		""" Check if all values have equal length and return that length. Otherwise, raise a ValueError. """
-		lengths = {len(v) for v in asdict(self).values()}
+		lengths = {len(v) for v in asdict(self).values() if v is not None}
 		if len(lengths) > 1:
 			raise ValueError("Length check is unsupported when attributes have different lengths.")
 		return lengths.pop() if lengths else 0
@@ -740,6 +741,14 @@ class ProblemSamples:
 	max_dec_var_updates: int # Maximum number of decision variable updates in the optimization window (depends on sample_time_mod)
 	min_dec_var_updates: int  = 1 # Minimum number of decision variable updates in the optimization window
 	
+# @dataclass
+# class OptimizationParamters:
+# 	operation_actions: Optional[OperationActionType] = None # Optional for MINLP, required in nNLP alternative. Defines the operation actions/updates for each subsystem
+# 	real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = field(default_factory=lambda: RealDecisionVariablesUpdatePeriod()) # nNLP
+# 	initial_dec_vars_values: InitialDecVarsValues = field(default_factory=lambda: InitialDecVarsValues())  # nNLP
+# 	irradiance_thresholds: IrradianceThresholds = field(default_factory=lambda: IrradianceThresholds()) # nNLP
+# 	op_optim_computation_time = timedelta(minutes=15)
+# 	op_optim_eval_period = timedelta(minutes=30)
 
 @dataclass
 class ProblemParameters:
@@ -779,13 +788,16 @@ class ProblemParameters:
 	dec_var_updates: Optional[DecisionVariablesUpdates] = None # Set automatically in utils.initialization.problem_initialization if not manually defined
 	optim_window_days: Optional[int] = None # Automatically computed from optim_window_time
 	initial_states: Optional[InitialStates] = None # Optional, if specified model will be initialized with these states
+	system_shutdown_duration: timedelta = timedelta(hours=1) # Approximate time to shutdown all subsystems in the system
+	operation_min_duration: timedelta = timedelta(hours=2) # Mininum exptected operation time in order for the system to be activated
 	operation_actions: Optional[OperationActionType] = None # Optional for MINLP, required in nNLP alternative. Defines the operation actions/updates for each subsystem
 	real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = field(default_factory=lambda: RealDecisionVariablesUpdatePeriod()) # nNLP
-	initial_dec_vars_values: InitialDecVarsValues = field(default_factory=lambda: InitialDecVarsValues())  # nNLP
-	irradiance_thresholds: IrradianceThresholds = field(default_factory=lambda: IrradianceThresholds()) # nNLP
-	operation_min_duration: timedelta = timedelta(hours=2) # nNLP
-	system_shutdown_duration: timedelta = timedelta(hours=1) # Approximate time to shutdown all subsystems in the system
-	
+	initial_dec_vars_values: InitialDecVarsValues = field(default_factory=lambda: InitialDecVarsValues())  # ... (nNLP)
+	irradiance_thresholds: IrradianceThresholds = field(default_factory=lambda: IrradianceThresholds()) # ... (nNLP)
+	op_optim_computation_time: timedelta = timedelta(minutes=15)
+	op_optim_eval_period: timedelta = timedelta(minutes=30)
+	op_plan_startup_computation_time: timedelta = timedelta(hours=3)
+	op_plan_shutdown_computation_time: timedelta = timedelta(minutes=30)
 	
 	def __post_init__(self):
 		""" Make convenient to initialize this dataclass from dumped instances """
@@ -810,18 +822,21 @@ class ProblemParameters:
 class ProblemData:
 	df: pd.DataFrame
 	problem_params: ProblemParameters
-	problem_samples: ProblemSamples 
+	problem_samples: ProblemSamples
 	model: SolarMED
+	# optim_params: Optional[OptimizationParamters] = None
  
 	def copy(self, ) -> "ProblemData":
 		return copy.deepcopy(self)
 
+# Legacy MINLP
 @dataclass
 class AlgorithmParameters:
 	pop_size: int = 32
 	n_gen: int = 80
 	seed_num: int = 23
 	
+# Legacy MINLP
 @dataclass
 class PopulationResults:
 	pop_per_gen: list[list[float|int]] # (gen, individual, dec.variable)
@@ -890,6 +905,10 @@ class AlgoParams:
 
 		if self.log_verbosity is None:
 			self.log_verbosity = math.ceil( self.gen / self.max_n_logs)
+   
+	def copy(self) -> "AlgoParams":
+		""" Create a deep copy of this AlgorithmParameters instance. """
+		return copy.deepcopy(self)
 
 
 @dataclass
@@ -907,7 +926,7 @@ class ProblemsEvaluationParameters:
 
 	def __post_init__(self):
 		if self.archipelago_topology != "unconnected":
-			assert self.n_instances > 1, "If using a connected archipelago topology, n_instances must be greater than 1"
+			assert self.n_instances >= 1, "If using a connected archipelago topology, n_instances must be greater or equal to 1"
 			self.n_updates = 1
 		assert self.n_updates is not None or self.n_obj_fun_evals_per_update is not None, "Either n_updates or n_obj_fun_evals_per_update must be provided"
 		assert self.drop_fraction >= 0 and self.drop_fraction <= 1, "Fraction of problems to drop per update must be between 0 and 1"
@@ -941,3 +960,12 @@ class ProblemsEvaluationParameters:
 		keep_indices = [i for i in valid_indices if i not in drop_indices]
 
 		return keep_indices, drop_indices
+
+	def copy(self) -> "ProblemsEvaluationParameters":
+		""" Create a deep copy of this ProblemsEvaluationParameters instance. """
+		return copy.deepcopy(self)
+
+@dataclass
+class OptimizationParams:
+    algo_params: AlgoParams
+    problems_eval_params: ProblemsEvaluationParameters
