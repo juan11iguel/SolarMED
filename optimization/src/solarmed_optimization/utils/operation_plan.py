@@ -353,6 +353,7 @@ class OperationPlanner:
     plans: list[tuple[tuple[int], ...]]
     operation_actions: OperationActionType
     irradiance_thresholds: IrradianceThresholds
+    operation_datetimes: Optional[OperationUpdateDatetimesType] = None
     
     @classmethod
     def initialize(cls, operation_actions: OperationActionType, irradiance_thresholds: IrradianceThresholds, ) -> "OperationPlanner":
@@ -406,9 +407,10 @@ class OperationPlanner:
         #     update_datetimes.append(dts)
         
         operation_datetimes = generate_operation_datetimes(I, self.operation_actions, self.irradiance_thresholds)
+        self.operation_datetimes = operation_datetimes
         operation_datetimes_flat = [
-                flatten_list([action_tuple[1] for action_tuple in action_tuples])
-                for action_tuples in operation_datetimes.values()
+            flatten_list([action_tuple[1] for action_tuple in action_tuples])
+            for action_tuples in operation_datetimes.values()
         ] # -> list[list[datetime]]
 
         dec_var_ids = [

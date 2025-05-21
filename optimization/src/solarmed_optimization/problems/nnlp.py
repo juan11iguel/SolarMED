@@ -47,6 +47,7 @@ class OperationOptimizationResults:
 	x: pd.DataFrame # Decision vector (columns) for each problem (rows)
 	fitness: pd.Series # Fitness values for each problem
 	fitness_history: pd.DataFrame # Optimization algorithm evolution fitness history (rows) for each problem (columns)
+	time_str: Optional[str] = None # Time in HH_MM format. It's required, just set optional so it's not mandatory for OperationPlanResults
 	best_problem_idx: Optional[int] = None # Index of the best performing problem
 	results_df: Optional[pd.DataFrame] = None # Simulation timeseries results for the best performing problem
 	evaluation_time: Optional[float] = None # Time, in seconds, taken to evaluate layer
@@ -54,7 +55,7 @@ class OperationOptimizationResults:
 	problems_eval_params: Optional[ProblemsEvaluationParameters] = None
 	problem_params: Optional[ProblemParameters] = None # Problem parameters
 	env_vars: Optional[EnvironmentVariables] = None # Environment variables
-	_metadata_flds: tuple[str, ...] = field(default=("date_str", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params"), init=False)
+	_metadata_flds: tuple[str, ...] = field(default=("date_str", "time_str", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params"), init=False)
 	_layer_id: str = field(default="operation optimization", init=False)	
  
 	def __post_init__(self):
@@ -86,10 +87,13 @@ class OperationOptimizationResults:
    
 		return self.results_df
 	
-	def get_hdf_base_path(self, date_str: Optional[str] = None, ) -> str:
+	def get_hdf_base_path(self, date_str: Optional[str] = None, time_str: Optional[str] = None, **kwargs) -> str:
 		date_str = self.date_str if date_str is None else date_str
   
-		return f'/{date_str}/operation'
+		assert (self is not None and self.time_str is not None) or time_str is not None, "At least results_df or time_str must be provided"
+		time_str = self.time_str if time_str is None else time_str
+  
+		return f'/{date_str}/operation/{time_str}'
 	
 	def export(self, output_path: Path, compress: bool = True, reduced: bool = False) -> None:
 		""" Export results to a file. """
@@ -146,7 +150,7 @@ class OperationOptimizationResults:
 		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
 
 	@classmethod
-	def initialize(cls, input_path: Path, date_str: str, action: Optional[OpPlanActionType] = None, scenario_idx: Optional[int] = 0, log: bool = True) -> "OperationOptimizationResults":
+	def initialize(cls, input_path: Path, date_str: str, time_str: Optional[str] = None, action: Optional[OpPlanActionType] = None, scenario_idx: Optional[int] = 0, log: bool = True) -> "OperationOptimizationResults":
 		""" Initialize an OperationPlanResults object from a file. """
 		
 		if not isinstance(input_path, Path):
@@ -162,7 +166,7 @@ class OperationOptimizationResults:
 			temp_path = input_path
 
 		try:
-			base_path_str = cls.get_hdf_base_path(None, date_str=date_str, action=action, scenario_idx=scenario_idx)
+			base_path_str = cls.get_hdf_base_path(None, date_str=date_str, time_str=time_str, action=action, scenario_idx=scenario_idx)
 		
 			with pd.HDFStore(temp_path, mode='r') as store:
 				# Load dataframes
@@ -233,7 +237,7 @@ class OperationPlanResults(OperationOptimizationResults):
 	_layer_id: str = field(default="operation plan", init=False)
 	
 	def get_hdf_base_path(self, date_str: Optional[str] = None, action: Optional[OpPlanActionType] = None, 
-                          scenario_idx: Optional[int] = None) -> str:
+                          scenario_idx: Optional[int] = None, **kwargs) -> str:
 		date_str = self.date_str if date_str is None else date_str
 		action = self.action if action is None else action
 		scenario_idx = self.scenario_idx if scenario_idx is None else scenario_idx
@@ -733,7 +737,12 @@ class Problem(BaseNlpProblem):
 
 				# Set initial value. From self.episode_range[0] to self.operation_span[0] -> some initial provided value
 				if self.episode_range[0] < dec_var_times[0]:
-					data = np.insert(data, 0, getattr(self.initial_values, var_id))
+					# TODO: Here it would be good to check if the associated integer decision variable
+					# is active, if it is, an initial value should have been provided
+					# otherwise, we can jsut set the initial value to zero
+					val = getattr(self.initial_values, var_id) if self.initial_values is not None else 0.0
+
+					data = np.insert(data, 0, val)
 					index = np.insert(index, 0, self.episode_range[0])
 	
 				# Set final value for operation_span[1] (should be done for each day in a multi-day scenario)

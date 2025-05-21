@@ -21,7 +21,9 @@ from solarmed_optimization import (DecisionVariables,
                                    ProblemData,
                                    ProblemParameters,
                                    ProblemSamples,
-                                   IntegerDecisionVariables)
+                                   IntegerDecisionVariables,
+                                   OperationUpdateDatetimesType
+                                   )
 # MINLP
 from solarmed_optimization.problems.nnlp import Problem as NlpProblem
 from solarmed_optimization.utils import (validate_dec_var_updates, 
@@ -179,8 +181,9 @@ def initialize_problem_instances_nNLP(
     problem_data: ProblemData,
     store_x=False,
     store_fitness=False,
+    return_operation_dts: bool = False,
     log: bool = False
-) -> list[NlpProblem]:
+) -> list[NlpProblem] | tuple[list[NlpProblem], OperationUpdateDatetimesType]: 
     
     pp: ProblemParameters = problem_data.problem_params
     model = problem_data.model
@@ -216,7 +219,7 @@ def initialize_problem_instances_nNLP(
             logger.error(f"duplicated in {int_idx}: {duplicated}")
 
     # 4. Initialize problem instances
-    return [
+    problems = [
         NlpProblem(
             int_dec_vars=int_dec_vars,
             # Planner layer should get time imprecise weather forecasts
@@ -229,6 +232,10 @@ def initialize_problem_instances_nNLP(
             store_fitness=store_fitness,
         ) for int_dec_vars in int_dec_vars_list
     ]
+    
+    if return_operation_dts:
+        return problems, operation_planner.operation_datetimes
+    return problems
     
 def initialize_problem_instance_NLP(
     problem_data: ProblemData,
@@ -252,7 +259,7 @@ def initialize_problem_instance_NLP(
     # the initial hour, after that they are resampled to 1h
     env_vars = ( # Original environment variables
         EnvironmentVariables.from_dataframe(problem_data.df, cost_w=pp.env_params.cost_w, cost_e=pp.env_params.cost_e).
-        dump_in_span(span=(start_dt, None), return_format="series")
+        dump_in_span(span=(start_dt, None), return_format="series", align_first=True, resampling_method="nearest")
     )
     env_vars_opt_1st_part = ( # 10min -> sample_time_mod
         env_vars.dump_in_span(span=(start_dt, start_dt + datetime.timedelta(seconds=fast_sampling_duration)), return_format="series").
@@ -262,10 +269,10 @@ def initialize_problem_instance_NLP(
         env_vars.dump_in_span(span=(start_dt + datetime.timedelta(seconds=fast_sampling_duration), None), return_format="series").
         resample(f"{sample_time_env[1]}s", origin="start").resample(f"{pp.sample_time_mod}s", origin="start")
     )
-    env_vars_opt = env_vars_opt_1st_part.append(env_vars_opt_2nd_part)
+    env_vars_opt = env_vars_opt_1st_part.append(env_vars_opt_2nd_part).resample(f"{pp.sample_time_mod}s", origin="start")
     
     # Make sure integer decision variables are in the same time span as the environment variables
-    int_dec_vars = int_dec_vars.dump_in_span(span=(start_dt, None), return_format="series")
+    int_dec_vars = int_dec_vars.dump_in_span(span=(start_dt, None), return_format="series", align_first=True, resampling_method="bfill")
     
     return NlpProblem(
         int_dec_vars=int_dec_vars,
