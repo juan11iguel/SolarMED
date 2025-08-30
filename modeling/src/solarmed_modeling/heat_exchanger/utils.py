@@ -175,13 +175,17 @@ def evaluate_model(
             #     raise ValueError(f"Output shape {out_metrics.shape} does not match reference shape {out_ref.shape}")
             
             
-            
+        df_mod = pd.DataFrame(out, columns=out_var_ids, index=df.index[idx_start:])
         
         # Calculate performance metrics
         stats.append({
             "test_id": df.index[0].strftime("%Y%m%d"),
             "alternative": alt_id,
-            "metrics": calculate_metrics(out_metrics, out_ref), 
+            "metrics": calculate_metrics(out_metrics, out_ref),
+            "metrics_per_variable": {
+                out_var_id: calculate_metrics(df_mod[out_var_id].values, df[out_var_id].values)
+                for out_var_id in out_var_ids    
+            },
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model_params.__dict__,

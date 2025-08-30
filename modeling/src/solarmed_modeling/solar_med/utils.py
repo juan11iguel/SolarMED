@@ -17,7 +17,7 @@ from . import (supported_eval_alternatives,
                EnvironmentParameters,
                SolarMED)
 
-out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Tts_h_in", *Th_labels, *Tc_labels]
+out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Thx_s_out", *Th_labels, *Tc_labels, "qmed_d", "qmed_c"]
 
 def evaluate_model(
     df: pd.DataFrame, sample_rate: int, 
@@ -125,7 +125,11 @@ def evaluate_model(
         stats.append({
             "test_id": df.index[0].strftime("%Y%m%d"),
             "alternative": alt_id,
-            "metrics": calculate_metrics(out_metrics, out_ref), 
+            "metrics": calculate_metrics(out_metrics, out_ref),
+            "metrics_per_variable": {
+                out_var_id: calculate_metrics(out_metrics[out_var_id].values, out_ref[out_var_id].values)
+                for out_var_id in out_var_ids    
+            },
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model.model_dump_configuration(),

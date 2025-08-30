@@ -1,23 +1,26 @@
 {
     "title": "Solar field",
-    "subtitle": "model validation",
-    "height": 1000,
+    "subtitle": "test visualization",
+    "title_y": 0.95,
+    "height": 600,
     "width": 1000,
     "margin": {
-        "l": 20,
-        "r": 20,
+        "l": 5,
+        "r": 5,
         "t": 100,
         "b": 20,
         "pad": 5
     },
-    "vertical_spacing": 0.03,
+    "vertical_spacing": 0.08,
     "xdomain": [
         0,
-        0.85
+        0.99
     ],
     "plots": {
         "environment": {
-            "title": "Environment",
+            "title": "<b>Environment</b>",
+            "showlegend": true,
+            "legend_position": "top",
             "row_height": 0.8,
             "bg_color": "steelblue",
             "ylabels_left": [
@@ -30,6 +33,7 @@
             "traces_left": [
                 {
                     "var_id": "Tamb",
+                    "showlegend": true,
                     "mode": "lines",
                     "color": "plotly_green",
                     "axis_arrow": true,
@@ -39,6 +43,7 @@
             "traces_right": [
                 {
                     "var_id": "I",
+                    "showlegend": true,
                     "mode": "lines",
                     "color": "plotly_yellow",
                     "axis_arrow": true,
@@ -48,6 +53,8 @@
         },
         "temperatures": {
             "title": "<b>Temperatures</b>",
+            "showlegend": true,
+            "legend_position": "side",
             "row_height": 1,
             "bg_color": "bg_gray",
             "ylabels_left": [
@@ -57,21 +64,25 @@
             "traces_left": [
                 {
                     "var_id": "Tsf_in_l*",
+                    "showlegend": true,
                     "dash": "longdash",
                     "opacity": 0.3
                 },
                 {
                     "var_id": "Tsf_out_l*",
+                    "showlegend": true,
                     "opacity": 0.3
                 },
                 {
                     "var_id": "Tsf_in",
+                    "showlegend": true,
                     "color": "plotly_red",
                     "width": 5,
                     "dash": "dashdot"
                 },
                 {
                     "var_id": "Tsf_out",
+                    "showlegend": true,
                     "color": "plotly_red",
                     "width": 5
                 }
@@ -79,6 +90,8 @@
         },
         "flows": {
             "title": "<b>Total flow</b> and per loop",
+            "showlegend": true,
+            "legend_position": "top",
             "row_height": 1,
             "bg_color": "bg_gray",
             "ylabels_left": [
@@ -88,10 +101,12 @@
             "traces_left": [
                 {
                     "var_id": "qsf_l*",
+                    "showlegend": true,
                     "fill": "tonexty"
                 },
                 {
                     "var_id": "qsf",
+                    "showlegend": true,
                     "color": "plotly_yellow",
                     "width": 5
                 }
