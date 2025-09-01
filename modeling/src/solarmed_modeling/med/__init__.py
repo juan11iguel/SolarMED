@@ -13,6 +13,8 @@ warnings.filterwarnings(
     module=r".*paramz\.parameterized"
 )
 
+supported_eval_alternatives = ["standard"]
+
 @dataclass
 class FixedModelParameters:
     """
