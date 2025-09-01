@@ -422,13 +422,14 @@ def plot_state_graph(nodes_df: pd.DataFrame | list[pd.DataFrame], Np: int, syste
             xanchor= 'left',
         ),
         legend=dict(
-            x=1,  # Position on x-axis (right-most)
-            y=1.05,  # Position above the plot area
+            x=1.0,  # Position on x-axis (right-most)
+            y=1.0,  # Position above the plot area
             xanchor='right',  # Anchor legend box to the right
             yanchor='bottom',  # Anchor legend box to the bottom
             traceorder='normal',
             bordercolor='rgba(0,0,0,0)',
-            borderwidth=0
+            borderwidth=0,
+            orientation="h"
         ),
         showlegend=True if show_inputs_subplot else False,
         autosize=False,

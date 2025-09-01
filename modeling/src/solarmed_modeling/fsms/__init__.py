@@ -547,6 +547,7 @@ class BaseFsm(ABC):
         if output_path is None:
             return self.machine.get_graph().draw(None, format=fmt, prog='dot')
         else:
+            output_path = Path(output_path)
             # Create output directory if it doesn't exist
             output_path.parent.mkdir(parents=True, exist_ok=True)
 

@@ -37,7 +37,7 @@ class FsmShutdownConditions:
 class FsmParameters:
     vacuum_duration_time: int = 30 * 60  # Time to generate vacuum in the MED system (seconds)
     brine_emptying_time: int = 60 * 60  # Time to extract brine from MED plant (seconds)
-    startup_duration_time: int = 30 * 60  # Time to start up the MED plant (seconds)
+    startup_duration_time: int = 20 * 60  # Time to start up the MED plant (seconds)
     off_cooldown_time: int = 12 * 3600 # Time to wait before activating the MED plant again after shutting it off (12 hours, in seconds)
     active_cooldown_time: int = 2 * 3600 # Time to wait before activating the MED plant again after shutting it off / suspending it
     
