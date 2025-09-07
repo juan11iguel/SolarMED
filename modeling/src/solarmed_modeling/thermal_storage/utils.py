@@ -8,7 +8,7 @@ from loguru import logger
 from solarmed_modeling.metrics import calculate_metrics
 from solarmed_modeling.utils import resample_results
 
-from . import ModelParameters, supported_eval_alternatives
+from . import ModelParameters, supported_eval_alternatives, FixedModelParameters
 from . import thermal_storage_two_tanks_model as model
 
 Th_labels: list[str] = ['Tts_h_t', 'Tts_h_m', 'Tts_h_b']
@@ -16,8 +16,10 @@ Tc_labels: list[str] = ['Tts_c_t', 'Tts_c_m', 'Tts_c_b']
 T_labels: list[str] = Th_labels + Tc_labels
 
 def evaluate_model(
-    df: pd.DataFrame, sample_rate: int, 
-    model_params: ModelParameters, fixed_model_params: None = None,
+    df: pd.DataFrame, 
+    sample_rate: int, 
+    model_params: ModelParameters, 
+    fixed_model_params: FixedModelParameters,
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
     Th_labels: list[str] = ['Tts_h_t', 'Tts_h_m', 'Tts_h_b'],
@@ -47,6 +49,8 @@ def evaluate_model(
 
     idx_start = 0
     N = len(Th_labels)
+    
+    out_var_ids: list[str] = Th_labels + Tc_labels  # Output variable ids for the model metrics
 
     # Experimental (reference) outputs, used later in performance metrics evaluation
     
@@ -94,7 +98,8 @@ def evaluate_model(
                     qdis=ds["qts_dis"],  # m³/h
 
                     model_params=model_params,
-                    sample_time=sample_rate, Tmin=60,  # seg, ºC
+                    sample_time=sample_rate, 
+                    fixed_model_params=fixed_model_params,
                     water_props=None,
                 )
             elif alt_id == "constant-water-props":
@@ -108,7 +113,8 @@ def evaluate_model(
                     qdis=ds["qts_dis"],  # m³/h
 
                     model_params=model_params,
-                    sample_time=sample_rate, Tmin=60,  # seg, ºC
+                    fixed_model_params=fixed_model_params,
+                    sample_time=sample_rate, 
                     water_props=water_props,
                 )
             else:
@@ -136,7 +142,11 @@ def evaluate_model(
         stats.append({
             "test_id": df.index[0].strftime("%Y%m%d"),
             "alternative": alt_id,
-            "metrics": calculate_metrics(out_metrics, out_ref), 
+            "metrics": calculate_metrics(out_metrics, out_ref),
+            "metrics_per_variable": {
+                out_var_id: calculate_metrics(out_metrics[:,out_idx], out_ref[:,out_idx], metrics=['RMSE', 'MAE', 'MSE', 'R2', 'NRMSE', 'MAPE'])
+                for out_idx, out_var_id in enumerate(out_var_ids)    
+            },
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model_params.__dict__,

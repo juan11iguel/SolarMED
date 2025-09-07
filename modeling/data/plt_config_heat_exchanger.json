@@ -1,21 +1,19 @@
 {
-    "title": "Heat exchanger",
-    "subtitle": "model validation",
-    "height": 1000,
+    "title_y": 0.95,
+    "height": 600,
     "width": 1000,
     "margin": {
         "l": 20,
-        "r": 100,
+        "r": 20,
         "t": 100,
         "b": 20,
         "pad": 5
     },
-    "vertical_spacing": 0.03,
+    "vertical_spacing": 0.08,
     "xdomain": [
         0,
-        0.85
+        0.90
     ],
-    "arrow_xrel_pos": 60,
     "plots": {    	
         "heat_exchanger_flows": {
             "title": "<b>Flows</b>",
@@ -28,21 +26,25 @@
                 "m<sup>3</sup>/h"
             ],
             "ylims_left": "manual",
+            "showlegend": true,
+            "legend_position": "top",
             "traces_left": [
                 {
                     "var_id": "qhx_p",
+                    "showlegend": true,
                     "color": "plotly_red",
                     "axis_arrow": true
-                }
-            ],
-            "traces_right": [
+                },
                 {
                     "var_id": "qhx_s",
+                    "showlegend": true,
                     "color": "plotly_blue",
                     "axis_arrow": true
                 },
                 {
                     "var_id": "qhx_s_original",
+                    "name": "q<sub>hx,s</sub> original",
+                    "showlegend": true,
                     "color": "plotly_blue",
                     "dash": "dash",
                     "axis_arrow": true
@@ -51,6 +53,8 @@
         },
         "heat_exchanger_temperatures": {
             "title": "<b>Temperatures</b>",
+            "showlegend": true,
+            "legend_position": "side",
             "row_height": 1,
             "bg_color": "bg_gray",
             "ylabels_left": [
@@ -60,26 +64,32 @@
             "traces_left": [
                 {
                     "var_id": "Thx_p_in",
+                    "showlegend": true,
                     "color": "plotly_red"
                 },
                 {
                     "var_id": "Thx_p_out",
+                    "showlegend": true,
                     "color": "plotly_red",
                     "dash": "longdash"
                 },
                 {
                     "var_id": "Thx_s_out",
+                    "showlegend": true,
                     "color": "plotly_blue",
                     "dash": "longdash"
                 },
                 {
                     "var_id": "Thx_s_in",
+                    "showlegend": true,
                     "color": "plotly_blue"
                 }
             ]
         },
         "effectiveness": {
             "title": "<b>Effectiveness - NTU</b>",
+            "showlegend": true,
+            "legend_position": "top",
             "row_height": 0.5,
             "bg_color": "plotly_yellow",
             "ylabels_left": [
@@ -92,6 +102,7 @@
             "traces_left": [
                 {
                     "var_id": "epsilon",
+                    "showlegend": true,
                     "color": "plotly_green",
                     "name": "\u03b5"
                 }

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import pygmo as pg
+from loguru import logger
 
 from solarmed_modeling.solar_med import (SolarMED, 
 										 EnvironmentParameters,
@@ -44,19 +45,23 @@ def prepend(obj_cls: Type[Any], obj: Any, prepend_object: Any) -> Any:
 			continue
 		elif not isinstance(value, pd.Series):
 			raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
-		
+
 		pval = getattr(prepend_object, name)
 		pval = pval[pval.index < value.index[0]]
-		# print(f"Prepending {name} with {pval.index[0]} to {value.index[0]}")
 
-		value = pd.concat([pval, value])
-		output[name] = value
-		
+		combined = pd.concat([pval, value])
+
+		# Preserve frequency if both parts have matching freq
+		# if value.index.freq == pval.index.freq and value.index.freq is not None:
+		# 	combined.index.freq = value.index.freq
+
+		output[name] = combined
+
 	return obj_cls(**output)
 
 def append(obj_cls: Type[Any], obj: Any, append_object: Any) -> Any:
 	""" Append the current decision variables with another set of decision variables.
-		This instance will be appended with the provided instance starting from this instance last index"""
+		This instance will be appended with the provided instance starting from this instance last index."""
 	
 	output = {}
 	for name, value in asdict(obj).items():
@@ -64,57 +69,101 @@ def append(obj_cls: Type[Any], obj: Any, append_object: Any) -> Any:
 			continue
 		elif not isinstance(value, pd.Series):
 			raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
-		
+
 		aval = getattr(append_object, name)
 		aval = aval[aval.index > value.index[-1]]
-		# print(f"Prepending {name} with {aval.index[0]} to {value.index[0]}")
 
-		value = pd.concat([value, aval])
-		output[name] = value
-		
+		combined = pd.concat([value, aval])
+
+		# Preserve frequency if both parts have matching freq
+		# if value.index.freq == aval.index.freq and value.index.freq is not None:
+		# 	combined.index.freq = value.index.freq
+
+		output[name] = combined
+
 	return obj_cls(**output)
 
 
-def dump_in_span(vars_dict: dict, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> dict:
-	"""
-	Dump variables within a given span.
-	
-	Args:
-		vars_dict: A dictionary containing the variables to dump.
-		span: A tuple representing the range (indices or datetimes).
-		return_format: Format of the returned values ("values" or "series").
-	
-	Returns:
-		A new dictionary containing the filtered data.
-	"""
-	if isinstance(span[0], datetime):
-		# Ensure all attributes are pd.Series for datetime filtering
-		for name, value in vars_dict.items():
-			if not isinstance(value, pd.Series) and value is not None:
-				raise TypeError(f"All attributes must be pd.Series for datetime indexing: {name} is {type(value)}")
-		
-		# Extract the range
-		dt_start, dt_end = span
-		dt_end = dt_end if dt_end is not None else list(vars_dict.values())[0].index[-1]
-		span_vars_dict = {
-			name: value[(value.index >= dt_start) & (value.index <= dt_end)]
-			for name, value in vars_dict.items() if value is not None
-		}
-	else:
-		# Assume numeric indices
-		idx_start, idx_end = span
-		idx_end = -1 if idx_end is None else idx_end
-		
-		span_vars_dict = {
-			name: value[idx_start:idx_end]
-			if isinstance(value, (pd.Series, np.ndarray)) else value
-			for name, value in vars_dict.items()
-		}
+def dump_in_span(
+    vars_dict: dict,
+    span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]],
+    return_format: Literal["values", "series"] = "values",
+    align_first: bool = False,
+    resampling_method: Optional[Literal["nearest", "ffill", "bfill"]] = None, # "interpolate"
+) -> dict:
+    """
+    Dump variables within a given span, optionally aligning the first value and reindexing.
 
-	if return_format == "values":
-		span_vars_dict = {name: value.values if isinstance(value, pd.Series) else value for name, value in span_vars_dict.items()}
+    Args:
+        vars_dict: A dictionary containing the variables to dump.
+        span: A tuple representing the range (indices or datetimes).
+        return_format: Format of the returned values ("values" or "series").
+        align_first: If True, aligns the first value exactly to span[0] using interpolation or nearest method.
+        resampling_method: If provided, reindexes using original frequency after alignment. Options: "interpolate", "nearest", etc.
 
-	return span_vars_dict
+    Returns:
+        A new dictionary containing the filtered data.
+    """
+    if isinstance(span[0], datetime):
+        dt_start, dt_end = span
+        dt_end = dt_end if dt_end is not None else list(vars_dict.values())[0].index[-1]
+
+        span_vars_dict = {}
+        for name, series in vars_dict.items():
+            if series is None:
+                continue
+            if not isinstance(series, pd.Series):
+                raise TypeError(f"All attributes must be pd.Series for datetime indexing: {name} is {type(series)}")
+
+            sliced = series[(series.index >= dt_start) & (series.index <= dt_end)]
+
+            if align_first and dt_start not in series.index:
+                if series.index[0] < dt_start < series.index[-1]:
+                    # if resampling_method == "interpolate":
+                    #     aligned_val = series.reindex(series.index.union([dt_start])).sort_index().interpolate("time").loc[dt_start]
+                    # else:
+                    aligned_val = series.loc[:dt_start].iloc[-1] if resampling_method == "ffill" else \
+                                series.loc[dt_start:].iloc[0] if resampling_method == "bfill" else \
+                                series.reindex(series.index.union([dt_start])).sort_index().asof(dt_start) if resampling_method == "nearest" else \
+                                None
+                    if aligned_val is not None:
+                        # Insert aligned first value
+                        sliced = pd.concat([pd.Series([aligned_val], index=[dt_start]), sliced])
+                        sliced = sliced[~sliced.index.duplicated(keep="first")].sort_index()
+
+            # Optional reindexing with original frequency
+            if resampling_method and series.index.freq is not None:
+                try:
+                    freq = series.index.freq
+                    new_index = pd.date_range(start=dt_start, end=dt_end, freq=freq)
+                    if resampling_method == "interpolate":
+                        sliced = sliced.reindex(new_index).interpolate("time")
+                    else:
+                        sliced = sliced.reindex(new_index, method=resampling_method)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to reindex {name}: {e}")
+
+            span_vars_dict[name] = sliced
+
+    else:
+        # Numeric span
+        idx_start, idx_end = span
+        idx_end = -1 if idx_end is None else idx_end
+
+        span_vars_dict = {
+            name: value[idx_start:idx_end]
+            if isinstance(value, (pd.Series, np.ndarray)) else value
+            for name, value in vars_dict.items()
+        }
+
+    if return_format == "values":
+        span_vars_dict = {
+            name: value.values if isinstance(value, pd.Series) else value
+            for name, value in span_vars_dict.items()
+        }
+
+    return span_vars_dict
+
 
 class MedMode(Enum):
 	""" Possible decisions for MED operation modes.
@@ -254,10 +303,10 @@ class EnvironmentVariables:
 		
 		return dump if return_dict else EnvironmentVariables(**dump)
 	
-	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'EnvironmentVariables':
+	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values", **kwargs) -> 'EnvironmentVariables':
 		""" Dump environment variables within a given span """
 		
-		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
+		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format, **kwargs)
 		return EnvironmentVariables(**vars_dict)
 	
 	def resample(self, *args, **kwargs) -> "EnvironmentVariables":
@@ -271,7 +320,11 @@ class EnvironmentVariables:
 				raise TypeError(f"All attributes must be pd.Series for datetime indexing. Got {type(value)} instead.")
 			
 			target_freq = int(float(args[0][:-1]))
-			current_freq = value.index.freq.n
+			try:
+				current_freq = value.index.freq.n
+			except AttributeError as e:
+				logger.error(f"Series index has no valid freq for resampling: {value.index}")
+				raise e
 			
 			value = value.resample(*args, **kwargs)
 			if  target_freq > current_freq: # Downsample
@@ -367,10 +420,10 @@ class DecisionVariables:
 		
 		return dump if return_dict else DecisionVariables(**dump)
 	
-	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'DecisionVariables':
+	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values", **kwargs) -> 'DecisionVariables':
 		""" Dump decision variables within a given span """
 		
-		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
+		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format, **kwargs)
 		return DecisionVariables(**vars_dict)
 	
 	def to_dict(self) -> dict:
@@ -577,10 +630,10 @@ class IntegerDecisionVariables:
 			
 		return IntegerDecisionVariables(**output)
 
-	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values") -> 'IntegerDecisionVariables':
+	def dump_in_span(self, span: tuple[int, Optional[int]] | tuple[datetime, Optional[datetime]], return_format: Literal["values", "series"] = "values", **kwargs) -> 'IntegerDecisionVariables':
 		""" Dump decision variables within a given span """
 		
-		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format)
+		vars_dict = dump_in_span(vars_dict=asdict(self), span=span, return_format=return_format, **kwargs)
 		return IntegerDecisionVariables(**vars_dict)
 	
 	def to_dict(self) -> dict:

@@ -227,7 +227,8 @@ def evaluate_operation_plan_layer(
 ) -> tuple[list[OperationPlanResults], BaseNlpProblem, int]:
 
     if uncertainty_factor > 0:
-        unc_factors = [uncertainty_factor, 0, -uncertainty_factor]
+        # Important, neutral must be the first element
+        unc_factors = [0, uncertainty_factor, -uncertainty_factor]
     else:
         unc_factors = [0]
 
@@ -244,7 +245,7 @@ def evaluate_operation_plan_layer(
         progress_bar.set_postfix({"Uncertainty factor": f"{unc_factor:.2f}"})
 
         # Modify environment
-        problem_data_copy = copy.deepcopy(problem_data)
+        problem_data_copy = problem_data.copy()
         problem_data_copy.df["I"] = problem_data_copy.df["I"] * (1 + np.random.rand(len(problem_data.df)) * unc_factor)
 
         problems = initialize_problem_instances_nNLP(
@@ -253,6 +254,7 @@ def evaluate_operation_plan_layer(
             store_fitness=False,
             log=debug_mode
         )
+            
         if stored_results is not None:
             # Skip evaluting the layer if results exists
             date_str = list(asdict(problems[0].env_vars).values())[0].index[0].strftime("%Y%m%d")
@@ -288,11 +290,12 @@ def evaluate_operation_plan_layer(
     fitness_df = pd.concat([op_plan_results.fitness for op_plan_results in op_plan_results_list], axis=1)
     # Choose best alternative
     best_alternative_idx, _ = select_best_alternative(fitness_df)
-
+            
     return op_plan_results_list, problems[best_alternative_idx], best_alternative_idx
 
 def evaluate_operation_optimization_problems(
     problem: BaseNlpProblem, 
+    time_str: str,
     algo_params: AlgoParams, 
     problems_eval_params: ProblemsEvaluationParameters,
     x0: Optional[np.ndarray] = None, 
@@ -311,6 +314,7 @@ def evaluate_operation_optimization_problems(
     
     return OperationOptimizationResults(
         date_str=date_str,
+        time_str=time_str,
         x=x,
         fitness=fitness,
         fitness_history=fitness_history,
@@ -337,15 +341,16 @@ def evaluate_operation_optimization_layer(
     # Setup initial decision variables from prior decision variables
     dec_vars = (
         DecisionVariables.from_dataframe(results_df).
-        dump_in_span(span=(start_dt, None), return_format="series")
+        dump_in_span(span=(start_dt, None), return_format="series", align_first=True, resampling_method="nearest")
     )
     x0 = problem.decision_variables_to_decision_vector(dec_vars)
     
     if stored_results is not None:
         # Skip evaluting the layer if results exists
         date_str = problem.env_vars.get_date_str()
+        time_str = f"{start_dt.strftime('%H_%M')}"
         try:
-            op_optim_results = OperationOptimizationResults.initialize(input_path=stored_results, date_str=date_str,)
+            op_optim_results = OperationOptimizationResults.initialize(input_path=stored_results, date_str=date_str, time_str=time_str)
         except KeyError:
             logger.info(f"Stored results provided but not found in {stored_results}, falling back to computing layer")
             stored_results = None
@@ -358,6 +363,7 @@ def evaluate_operation_optimization_layer(
     if stored_results is None:
         op_optim_results = evaluate_operation_optimization_problems(
             problem,
+            time_str=f"{start_dt.strftime('%H_%M')}",
             algo_params=algo_params,
             problems_eval_params=problems_eval_params,
             x0=x0,

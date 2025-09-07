@@ -15,15 +15,25 @@ from . import (supported_eval_alternatives,
                FixedModelParameters,
                FsmParameters,
                EnvironmentParameters,
+               MedFsmParams,
                SolarMED)
 
-out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Tts_h_in", *Th_labels, *Tc_labels]
+out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Thx_s_out", *Th_labels, *Tc_labels, "qmed_d", "qmed_c", "Tmed_s_out"]
 
 def evaluate_model(
     df: pd.DataFrame, sample_rate: int, 
     model_params: ModelParameters, 
     fixed_model_params: FixedModelParameters = FixedModelParameters(),
-    fsm_params: FsmParameters = FsmParameters(),
+    fsm_params: FsmParameters = FsmParameters(
+        med=MedFsmParams(
+            # Effectively disable waiting times and cooldowns
+            vacuum_duration_time=0, 
+            off_cooldown_time=0,
+            active_cooldown_time=0,
+            brine_emptying_time=0,
+            startup_duration_time=0
+        )
+    ),
     env_params: EnvironmentParameters = EnvironmentParameters(),
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
@@ -65,6 +75,7 @@ def evaluate_model(
             fsms_params=fsm_params,
             env_params=env_params,
             sample_time=sample_rate,
+            on_limits_violation_policy="clip",
             
             # Initial states
             ## Thermal storage
@@ -125,7 +136,11 @@ def evaluate_model(
         stats.append({
             "test_id": df.index[0].strftime("%Y%m%d"),
             "alternative": alt_id,
-            "metrics": calculate_metrics(out_metrics, out_ref), 
+            "metrics": calculate_metrics(out_metrics, out_ref),
+            "metrics_per_variable": {
+                out_var_id: calculate_metrics(out_metrics[:,out_idx], out_ref[:,out_idx])
+                for out_idx, out_var_id in enumerate(out_var_ids)    
+            },
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model.model_dump_configuration(),

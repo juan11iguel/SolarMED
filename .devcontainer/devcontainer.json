@@ -37,7 +37,8 @@
 				"trietho.file-size-explorer",
 				"mutantdino.resourcemonitor",
 				"SimonSiefke.svg-preview",
-				"h5web.vscode-h5web"
+				"h5web.vscode-h5web",
+				"george-alisson.html-preview-vscode"
 			],
 			"containerEnv": {
 				"ENVIRONMENT": "container",

@@ -318,7 +318,7 @@ class OperationPlanVisualizer:
         if save:
             self.check_output_path_defined()
             
-        df = self.op_plan_results.fitness_history
+        df = self.op_plan_results.fitness_history.ffill()
         fitness_history_list = [df[col].tolist() for col in df.columns]
         problem_ids = [f"problem {problem_id:03d}" for problem_id in df.columns.tolist()]
             
@@ -328,7 +328,8 @@ class OperationPlanVisualizer:
             highlight_best=highlight_best,
             title_text="<b>Fitness evolution</b><br>comparison between different problems", # algorithms
             width=600,
-            legend=dict(x=0.72, y=1)
+            legend=dict(x=0.72, y=1),
+            showlegend=False,
         )
         
         return fig

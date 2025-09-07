@@ -2,11 +2,11 @@
     Module to calculate metrics for evaluating the performance of the model to experimental data
 """
 
-from typing import Literal, get_args
+from typing import Literal, get_args, Optional
 import numpy as np
 import pandas as pd
 
-supported_metrics_type = Literal['ITAE', 'ISE', 'IAE', 'RMSE', 'MAE', 'MSE', 'R2', 'NRMSE']
+supported_metrics_type = Literal['ITAE', 'ISE', 'IAE', 'RMSE', 'MAE', 'MSE', 'R2', 'NRMSE', 'MAPE']
 
 def calculate_itae(predicted: np.ndarray[float], actual: np.ndarray[float]) -> float:
     """
@@ -152,8 +152,29 @@ def calculate_nrmse(predicted: np.ndarray[float], actual: np.ndarray[float]) -> 
 
     return nrmse
 
+def calculate_mape(predicted: np.ndarray[float], actual: np.ndarray[float]) -> float:
+    """
+    Calculate the Mean Absolute Percentage Error (MAPE).
 
-def calculate_metrics(predicted: np.ndarray[float] | pd.DataFrame, actual: np.ndarray[float] | pd.DataFrame, metrics: list[supported_metrics_type] = None) -> dict[str, float]:
+    Args:
+        predicted (array-like): Predicted values.
+        actual (array-like): Actual values.
+
+    Returns:
+        float: MAPE value.
+    """
+
+    error = np.abs((predicted - actual) / actual)
+    mape = np.nanmean(error) * 100  # Convert to percentage
+
+    return mape
+
+
+def calculate_metrics(
+    predicted: np.ndarray[float] | pd.DataFrame, 
+    actual: np.ndarray[float] | pd.DataFrame, 
+    metrics: Optional[list[supported_metrics_type]] = None
+) -> dict[str, float]:
     """
     Calculate the metrics for evaluating the performance of the model to experimental data.
 
@@ -167,7 +188,8 @@ def calculate_metrics(predicted: np.ndarray[float] | pd.DataFrame, actual: np.nd
     """
 
     if metrics is not None:
-        assert all(metric in get_args(supported_metrics_type) for metric in metrics), f"Metrics not supported. Supported metrics: {get_args(supported_metrics_type)}"
+        assert all(metric in get_args(supported_metrics_type) for metric in metrics), \
+            f"Metrics not supported. Supported metrics: {get_args(supported_metrics_type)}"
     else:
         metrics = get_args(supported_metrics_type)
         
@@ -192,5 +214,9 @@ def calculate_metrics(predicted: np.ndarray[float] | pd.DataFrame, actual: np.nd
         calculated_metrics['MSE'] = calculate_mse(predicted, actual)
     if 'R2' in metrics:
         calculated_metrics['R2'] = calculate_r2(predicted, actual)
+    if 'NRMSE' in metrics:
+        calculated_metrics['NRMSE'] = calculate_nrmse(predicted, actual)
+    if 'MAPE' in metrics:
+        calculated_metrics['MAPE'] = calculate_mape(predicted, actual)
 
     return calculated_metrics

@@ -20,7 +20,7 @@ supported_eval_alternatives: list[str] = ["standard", "no-delay", "constant-wate
 
 @dataclass
 class ModelParameters:
-    beta: float = 4.36396e-02  # Gain coefficient (-)
+    beta: float = 4.36396e-02  # Gain coefficient (m)
     H: float = 13.676448551722462  # Losses to the environment (W/m²)
     gamma: float = 0.1  # Artificial parameters to account for flow variations within the whole solar field"
 
@@ -62,7 +62,8 @@ def find_delay_samples(q: np.ndarray[float], sample_time: int = 1, total_pipe_le
         Order is from most recent to oldest [m³/h]
         sample_time: Time between samples [s]
         total_pipe_length: Total representative length of the pipe (simplification to not consider each different pipe section) [m]
-        equivalent_pipe_area: Cross-sectional area representative of the pipe (simplification to not consider each different pipe section) [m²] #NOTE: Probably the current value is way to small for the actual equivalent pipe area since it's just the cross section of the collector tubes, while the connecting pipes are quite large and with a much larger cross-section.
+        equivalent_pipe_area: Cross-sectional area representative of the pipe (simplification to not consider each different pipe section) [m²] 
+        #NOTE: Probably the current value is way to small for the actual equivalent pipe area since it's just the cross section of the collector tubes, while the connecting pipes are quite large and with a much larger cross-section.
 
     Notes:
         - The `l` was manually fitted by:
@@ -250,6 +251,35 @@ def solar_field_inverse_model(
 
     return q
 
+def solar_field_model_calibration(
+    Tout_ant: float,
+    Tin: float | np.ndarray[float],
+    q: float | np.ndarray[float],
+    I: float,
+    Tamb: float,
+    beta: float,
+    gamma: float,
+    H: float,
+    sample_time=5,
+) -> float:
+    
+    return solar_field_model(
+        Tout_ant=Tout_ant,
+        Tin=Tin,
+        q=q,
+        I=I,
+        Tamb=Tamb,
+        model_params=ModelParameters(beta=beta, gamma=gamma, H=H),
+        fixed_model_params=FixedModelParameters(),
+        sample_time=sample_time,
+        consider_transport_delay=True,
+        water_props=None,
+        log=False,
+        enforce_limits=True,
+    )
+
+
+
 def solar_field_model(
     Tout_ant: float,
     Tin: float | np.ndarray[float],
@@ -298,7 +328,11 @@ def solar_field_model(
 
     Tavg = (Tin.take(-1) + Tout_ant) / 2  # ºC
     if water_props is None:
-        water_props = w_props(P=0.2, T=Tavg + 273.15)  # P=2 bar  -> 0.1MPa, T=Tin C,
+        try:
+            water_props = w_props(P=0.2, T=Tavg + 273.15)  # P=2 bar  -> 0.2MPa, T=Tin C,
+        except Exception as e:
+            print(f'Error calculating water properties: {Tavg=}, P=0.2MPa')
+            raise e
     rho = water_props.rho  # [kg/m³]
     cp = water_props.cp * 1e3  # [kJ/kg·K] -> [J/kg·K]
 

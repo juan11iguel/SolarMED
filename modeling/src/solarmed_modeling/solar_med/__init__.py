@@ -1187,12 +1187,16 @@ class SolarMED(BaseModel):
             Tin=np.append(self.Tsf_in_ant, self.Tsf_in), # From current value, up to array start
             q=self.qsf_sp,
             q_ant=self.qsf_ant,
-            I=self.I, Tamb=self.Tamb, Tout_ant=self.Tsf_out_ant,
+            I=self.I, 
+            Tamb=self.Tamb, 
+            Tout_ant=self.Tsf_out_ant,
 
             model_params=self.model_params.sf,
             fixed_model_params=self.fixed_model_params.sf,
-            sample_time=self.sample_time, consider_transport_delay=True,
-            water_props=self._water_props[0]
+            sample_time=self.sample_time, 
+            consider_transport_delay=True,
+            water_props=self._water_props[0],
+            enforce_final_limits=(self.on_limits_violation_policy in ["clip", "penalize"])
         )
         
         if update_attrs:

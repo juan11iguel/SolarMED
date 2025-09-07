@@ -48,7 +48,7 @@
         // },
         {
           var_id: "Tamb",
-          name: "T<sub>amb</sub> ❮", # "T<sub>amb,ts</sub>",
+          name: "T<sub>amb</sub>", # "T<sub>amb,ts</sub>",
           mode: "lines",
           color: "plotly_green",
           // showlegend: true,
@@ -57,7 +57,7 @@
         },
         {
           var_id: "Tmed_c_in",
-          name: "T<sub>med,c,in</sub> ❮", # "T<sub>med,c,in</sub> ❮",
+          name: "T<sub>med,c,in</sub>", # "T<sub>med,c,in</sub>",
           mode: "lines",
           color: "plotly_blue",
           width: 3,
@@ -68,7 +68,7 @@
       traces_right: [
         {
           var_id: "I",
-          name: "I ❯",
+          name: "I",
           mode: "lines",
           color: "plotly_yellow", # plotly green
           width: 3,
@@ -94,7 +94,7 @@
       traces_left: [
           {
             var_id: "net_profit",
-            name: "B ❮",
+            name: "B",
             mode: "lines",
             color: "dc_green", # gray
             showlegend: true,
@@ -107,7 +107,7 @@
           // Experimental
           {
             var_id: "qmed_d",
-            name: "q<sub>med,d</sub> ❯",
+            name: "q<sub>med,d</sub>",
             mode: "lines",
             color: "dc_green", # green DC
             dash: "dash",
@@ -119,7 +119,7 @@
           // Experimental
           {
             var_id: "Jtotal",
-            name: "C<sub>e</sub> ❯❯",
+            name: "C<sub>e</sub>",
             mode: "lines",
             width: 3,
             color: "wct_purple", # gray
@@ -374,7 +374,7 @@
       traces_left: [
         {
           var_id: "qmed_f",
-          name: "q<sub>med,f</sub> ❮",
+          name: "q<sub>med,f</sub>",
           color: "c_blue",
           mode: "lines",
           dash: "dot"
@@ -383,7 +383,7 @@
         },
         {
           var_id: "qmed_d",
-          name: "q<sub>med,d</sub> ❮",
+          name: "q<sub>med,d</sub>",
           color: "plotly_green",
           mode: "lines",
           dash: "dashdot"
@@ -392,7 +392,7 @@
         },
         {
           var_id: "qmed_c",
-          name: "q<sub>med,c</sub> ❯",
+          name: "q<sub>med,c</sub>",
           color: "plotly_cyan",
           mode: "lines"
           dash: "dash"
@@ -404,7 +404,7 @@
       traces_right: [
         {
           var_id: "qmed_s",
-          name: "q<sub>med,s</sub> ❮",
+          name: "q<sub>med,s</sub>",
           mode: "lines",
           color: "wct_purple",
           width: 3,

@@ -11,9 +11,14 @@ from solarmed_modeling.utils import resample_results
 from . import supported_eval_alternatives, ModelParameters, FixedModelParameters
 from . import solar_field_model as model
 
+out_var_ids: list[str] = ["Tsf_out"]
+input_var_ids: list[str] = ["Tsf_in", "qsf", "I", "Tamb"]
+
 def evaluate_model(
-    df: pd.DataFrame, sample_rate: int, 
-    model_params: ModelParameters, fixed_model_params: FixedModelParameters = FixedModelParameters(),
+    df: pd.DataFrame, 
+    sample_rate: int, 
+    model_params: ModelParameters, 
+    fixed_model_params: FixedModelParameters = FixedModelParameters(),
     alternatives_to_eval: list[Literal["standard", "no-delay", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
@@ -38,8 +43,8 @@ def evaluate_model(
     """
     
     assert all([alt in supported_eval_alternatives for alt in alternatives_to_eval])
-    out_var_id: str = "Tsf_out"
-
+    out_var_id: str = out_var_ids[0]
+    
     span = math.ceil(600 / sample_rate) # 600 s
     idx_start = np.max([span, 2]) # idx_start-1 should at least be one 
 
@@ -54,6 +59,11 @@ def evaluate_model(
         idx_start_ref = int(round(600 / base_df.index.freq.n, 0))
         ref_df = base_df
     out_ref = ref_df.iloc[idx_start_ref:][out_var_id].values
+    
+    # Assert that input and output variables are present in the dataframe, and that there are no NaNs
+    for var_id in input_var_ids + [out_var_id]:
+        assert var_id in df.columns, f"Variable {var_id} not found in dataframe columns: {df.columns}"
+        assert not df[var_id].isna().any(), f"Variable {var_id} contains NaN values: {df[var_id].isna().sum()} NaNs"
 
     # Initialize particular variables for earch alternative that requires it
     water_props = None
@@ -90,9 +100,11 @@ def evaluate_model(
                     Tout_ant=out[j - 1],
                     sample_time=sample_rate,
                     consider_transport_delay=False,
-                    beta=1.1578e-2,
-                    H=3.1260,
-                    gamma=0.0471,
+                    model_params=ModelParameters(
+                        beta=1.1578e-2,
+                        H=3.1260,
+                        gamma=0.0471,
+                    )
                 )
             elif alt_id == "standard":
                 out[j] = model(
@@ -154,7 +166,10 @@ def evaluate_model(
         stats.append({
             "test_id": df.index[0].strftime("%Y%m%d"),
             "alternative": alt_id,
-            "metrics": calculate_metrics(out_metrics, out_ref), 
+            "metrics": calculate_metrics(out_metrics, out_ref),
+            "metrics_per_variable": {
+                out_var_id: calculate_metrics(out_metrics, out_ref)
+            },
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model_params.__dict__,

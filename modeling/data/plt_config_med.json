@@ -5,7 +5,7 @@
     "width": 1000,
     "margin": {
         "l": 20,
-        "r": 100,
+        "r": 20,
         "t": 100,
         "b": 20,
         "pad": 5
@@ -13,12 +13,11 @@
     "vertical_spacing": 0.03,
     "xdomain": [
         0,
-        0.85
+        0.95
     ],
-    "arrow_xrel_pos": 60,
+    "legend_xmargin": 0.08,
     "plots": {
         "med_flows": {
-            "title": "<b>MED</b>",
             "row_height": 1,
             "bg_color": "bg_gray",
             "ylabels_left": [
@@ -32,21 +31,26 @@
             "show_active": true,
             "active_var_id": "med_active",
             "active_color": "dc_green",
+            "showlegend": true,
+            "legend_position": "side",
             "traces_left": [
                 {
                     "var_id": "qmed_f",
+                    "showlegend": true,
                     "color": "c_blue",
                     "mode": "lines",
                     "dash": "dot"
                 },
                 {
                     "var_id": "qmed_d",
+                    "showlegend": true,
                     "color": "plotly_green",
                     "mode": "lines",
                     "dash": "dashdot"
                 },
                 {
                     "var_id": "qmed_c",
+                    "showlegend": true,
                     "color": "plotly_cyan",
                     "mode": "lines",
                     "dash": "dash"
@@ -55,38 +59,42 @@
             "traces_right": [
                 {
                     "var_id": "qmed_s",
+                    "showlegend": true,
                     "mode": "lines",
-                    "color": "plotly_red",
-                    "axis_arrow": true,
-                    "arrow_yrel_pos": 0.9
+                    "color": "plotly_red"
                 }
             ]
         },
         "med_temperatures": {
             "row_height": 1,
             "bg_color": "bg_gray",
-
             "ylabels_left": ["\u2070C"],
             "ylims_left": "manual",
+            "showlegend": true,
+            "legend_position": "side",
             "traces_left": [
                 {
                     "var_id": "Tmed_s_in",
+                    "showlegend": true,
                     "mode": "lines",
                     "color": "plotly_red"
                 },
                 {
                     "var_id": "Tmed_s_out",
+                    "showlegend": true,
                     "mode": "lines",
                     "color": "plotly_red",
                     "dash": "dash"
                 },
                 {
                     "var_id": "Tmed_c_in",
+                    "showlegend": true,
                     "mode": "lines",
                     "color": "c_blue"
                 },
                 {
                     "var_id": "Tmed_c_out",
+                    "showlegend": true,
                     "mode": "lines",
                     "color": "c_blue",
                     "dash": "dash"
@@ -94,8 +102,8 @@
             ],
 
             "ylabels_right": ["mbar"],
-            "ylims_right": "manual",
-            "traces_right": [ {"var_id": "Pmed_c"}, {"var_id": "Pmed_14"} ]
+            "ylims_right": [10, 90],
+            "traces_right": [ {"var_id": "Pmed_c", "shoelegend": true}, {"var_id": "Pmed_14", "shoelegend": true} ]
         }
     }
 }
