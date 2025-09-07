@@ -60,6 +60,20 @@ Por defecto:
 
 ## Equations
 
+Model parameters:
+
+$$ T_{\text{out}}(k) = f\left(
+    T_{\text{out}}(k\!-\!1),\,
+    \mathbf{T}_{\text{in}}[k\!-\!n : k],\,
+    \boldsymbol{\dot{m}}[k\!-\!n : k],\,
+    I(k),\,
+    T_{\text{amb}}(k);\,
+    \beta,\,
+    H
+\right) $$
+
+
+
 TODO: Update, in the mean time, this is the source code:
 
 ```python
