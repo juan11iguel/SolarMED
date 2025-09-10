@@ -1,4 +1,4 @@
-
+ 
 # Thermal storage model
 
 > [!info]

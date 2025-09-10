@@ -11,17 +11,36 @@ The model of the complete system, called `SolarMED` is contained in the [models_
 - For examples on how to use it check the [examples](#examples) section.
 
 
-# TODOs
+## What it is
 
-- [x] Re-factor packaging using uv
-- [x] Add .devcontainer
-- [ ] Add support for notebook deployment. WIP reverse-proxy giving trouble, works on port
-- [x] Model refactor with benchmark implementation
-- [x] Integrate new models and last practises to combined model
-- [ ] Simulate two consecutive operation days
-- [x] In FSMs, add cooldown times for particular state changes
-- [x] Add support for partial initialization of FSMs
-- [ ] As with FsmParameters and FsmInternalState, use a dataclass for FsmInputs. This simplifies FSM code but also path_explorer from SolarMED-optimization
+The complete-plant model is the [`solarmed_modeling.solar_med.SolarMED`]() class. It orchestrates physics models for the solar field, heat exchanger, thermal storage, three-way valve and MED, plus two supervisory finite state machines (FSMs).
+Parameters and initial conditions are grouped in dataclasses you pass once: [`solarmed_modeling.solar_med.ModelParameters`](), [`solarmed_modeling.solar_med.FixedModelParameters`](), [`solarmed_modeling.solar_med.FsmParameters`](), [`solarmed_modeling.solar_med.FsmInternalState`](), and initial states via [`solarmed_modeling.solar_med.InitialStates`](). Environment and actuator mapping live in [`solarmed_modeling.solar_med.EnvironmentParameters`]() and [`solarmed_modeling.solar_med.ActuatorsMaping`]().
+Inputs vs. decisions
+
+Each step takes environment inputs (irradiance I, ambient temperature Tamb, seawater temperature Tmed_c_in, salinity) and “decision setpoints” (e.g., qsf_sp, qts_src_sp, qmed_s_sp, Tmed_s_in_sp, Tmed_c_out_sp). Setpoints reflect operator/optimizer intent; the model validates and turns them into realized outputs (same names without “_sp”).
+Limits handling is controlled by on_limits_violation_policy (clip/penalize/raise). Resolution of thermophysical properties can be “standard” vs. “constant-water-props” via resolution_mode.
+Supervisory layer (optional FSMs)
+
+If use_finite_state_machine=True, the model first updates two FSMs that encode operational logic and cooldowns:
+Solar field + thermal storage FSM: [`solarmed_modeling.fsms.sfts`]().SolarFieldWithThermalStorageFsm, with states [`solarmed_modeling.fsms.SfTsState`]().
+MED FSM: [`solarmed_modeling.fsms.med`]().MedFsm, with states [`solarmed_modeling.fsms.MedState`]() and [`solarmed_modeling.fsms.MedVacuumState`]().
+The FSMs convert intent into admissible on/off/transitioning modes and gate the effective flows/temperatures consistent with cooldown and startup/shutdown rules.
+Physics evaluation order (forward, component-coupled)
+
+After decisions are validated (and possibly adjusted by FSMs), the step evaluates component models in a physically consistent sequence:
+Solar field: computes outlet temperature and thermal power given irradiance, ambient, flow and inlet temperature (lagged history is kept as Tsf_in_ant, qsf_ant). See [`solarmed_modeling.solar_field.solar_field_with_q_validation_model`]().
+Heat exchanger: couples the solar loop to the storage loop and computes primary/secondary in/out temperatures and effectiveness. See [`solarmed_modeling.heat_exchanger.heat_exchanger_model`]() and [`solarmed_modeling.heat_exchanger.calculate_heat_transfer_effectiveness`]().
+Thermal storage (two tanks): updates stratified temperatures and storage in/out thermal powers depending on recharge/discharge flows. See [`solarmed_modeling.thermal_storage.thermal_storage_two_tanks_model`]().
+Three‑way valve: mixes streams to meet MED inlet temperature target and sets the split ratio. See [`solarmed_modeling.three_way_valve.three_way_valve_model`]().
+MED: computes distillate/brine flows, outlet temperatures, and thermal/electrical demands for the current mode. See [`solarmed_modeling.med.MedModel`]().
+When relevant, an auxiliary coupling routine is available for heat generation vs. storage routing: [`solarmed_modeling.heat_gen_and_storage.heat_generation_and_storage_subproblem`]().
+Power/metrics and mapping to actuators
+
+Electrical consumptions are computed from the realized flows using the actuator map [`solarmed_modeling.power_consumption.Actuator`]() and exported as Jsf, Jts, Jmed, and Jsf_ts. Thermal powers (Pth_*) and efficiencies (e.g., SEC/SEEC) are derived from component outputs.
+State persistence and serialization
+
+The model keeps a sample counter, rolling solar-field histories, FSM internal state, and tank temperatures. It supports exporting results to dataframes and serializing/deserializing using Pydantic (model_dump, model_dump_json), as noted in [`solarmed_modeling.solar_med.SolarMED`]().
+This design lets you run purely physics-based steps (use_models=True), add operational logic with FSMs (use_finite_state_machine=True), or combine both so that high-level mode decisions are enforced before the coupled component models are evaluated.
 
 
 # Benchmarks
