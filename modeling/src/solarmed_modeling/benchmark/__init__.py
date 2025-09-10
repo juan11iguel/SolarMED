@@ -24,6 +24,7 @@ def benchmark_model(
     evaluate_model_fn: callable,
     alternatives_to_eval: list[str],
     fixed_model_params: dict[str, float] = None,
+    fsm_params: dict[str, float] = None,
     test_ids: list[str] = None, 
     data_path: Path = Path("../../data"), 
     datasets_path: Path = None,
@@ -35,6 +36,7 @@ def benchmark_model(
     save_results: bool = False,
     viz_val_config: Optional[VisualizeValidationConfig] = None,
     output_path: Path = Path("../../results/models_validation"),
+    skip_sample_rates_viz: Optional[list[int]] = None,
 ) -> list[dict[str, str | dict[str, float]]]:
     """Benchmark a model by evaluating it on different datasets and sample rates.
     
@@ -92,42 +94,56 @@ def benchmark_model(
         logger.info(f"Processing test {test_id} ({idx+1}/{len(test_ids)})")
         
         # Load data and preprocess data
-        df = data_preprocessing(
-            [
-                datasets_path / f"{filenames_data[idx].replace(default_files_suffix[0], suffix)}" 
-                for suffix in default_files_suffix
-            ],
-            vars_config,
-            sample_rate_key=f"{sample_rates[0]}s",
-        )
+        try:
+            df = data_preprocessing(
+                [
+                    datasets_path / f"{filenames_data[idx].replace(default_files_suffix[0], suffix)}" 
+                    for suffix in default_files_suffix
+                ],
+                vars_config,
+                sample_rate_key=f"{sample_rates[0]}s",
+            )
+        except FileNotFoundError as e:
+            logger.error(f"File not found for test_id {test_id}: {e}")
+            continue
         # Condition data
         df = data_conditioning(df, sample_rate_numeric=sample_rates[0], vars_config=vars_config)
+        df0 = df.copy()
+        
+        # Resample data to each sample rate
+        dfs = [df.copy().resample(f"{ts}s").mean() for ts in sample_rates] 
         
         # Filter data if required
         if filter_non_active:
             assert len(filter_str) > 0, "filter_str must be provided if filter_non_active is True"
-            len0 = len(df)
             try:
-                df = df[eval(filter_str)]
+                for i, (df, sample_rate) in enumerate(zip(dfs, sample_rates)):
+                    len0 = len(df)
+                    dfs[i] = df[eval(filter_str)]  # modifies element in dfs
+                    if len(df) < 3:
+                        logger.error(f"Filtered data is empty for test_id {test_id} with filter: {filter_str}")
+                        continue
+                
+                    logger.info(f"[Ts={sample_rate}s] Filtered data went from {len0} to {len(dfs[i])} rows using filter: {filter_str}")
+                
+                # freq = pd.infer_freq(df.index)
+                # if freq is None:
+                #     logger.warning("Filtered data has an irregular index. Please provide a filter that does not produce gaps in the data, since it will produce NaNs when resampling to lower sample rates.")
             except Exception as e:
                 logger.warning(f"Error evaluating filter_str: {filter_str}. Error: {e}")
                 continue
             
-            assert len(df) > 0, f"Filtered data is empty for test_id {test_id} with filter: {filter_str}"
-            logger.info(f"Filtered data went from {len0} to {len(df)} rows using filter: {filter_str}")
             
-            freq = pd.infer_freq(df.index)
-            if freq is None:
-                logger.warning("Filtered data has an irregular index. Please provide a filter that does not produce gaps in the data, since it will produce NaNs when resampling to lower sample rates.")
                                 
-        # Resample data to each sample rate
-        dfs = [df.copy().resample(f"{ts}s").mean() for ts in sample_rates] 
         dfs_mod: list[pd.DataFrame] = []
         try:
             for df_, ts in zip(dfs, sample_rates):
                 out = evaluate_model_fn(
-                    df_, ts, model_params, 
-                    fixed_model_params=fixed_model_params, 
+                    df_, 
+                    ts, 
+                    model_params, 
+                    fixed_model_params=fixed_model_params,
+                    fsm_params=fsm_params,
                     alternatives_to_eval=alternatives_to_eval, 
                     base_df=dfs[0]
                 )
@@ -146,13 +162,14 @@ def benchmark_model(
                 from phd_visualizations.test_timeseries import experimental_results_plot
                 from phd_visualizations.regression import regression_plot
                 
-                date_str = df.index[0].strftime('%Y%m%d')
+                date_str = df0.index[0].strftime('%Y%m%d')
                 
                 # Match sample rates so they can be plot together
-                dfs_mod = [df_.reindex(df.index, method='ffill') for df_ in dfs_mod]
+                # Resample to the base dataframe **AFTER** applying the active filter
+                dfs_mod = [df_.reindex(dfs[0].index, method='ffill') for df_ in dfs_mod]
                 
                 # Save results to csv
-                df.to_csv(output_path / f"out_exp_{viz_val_config.subsystem_id}_{date_str}.csv")
+                dfs[0].to_csv(output_path / f"out_exp_{viz_val_config.subsystem_id}_{date_str}.csv")
                 [df_.to_csv(output_path / f"out_mod_{viz_val_config.subsystem_id}_{ts}s_{date_str}.csv") for ts, df_ in zip(sample_rates, dfs_mod) ]
                 
                 # Remove variables not wanted in the plots
@@ -164,9 +181,9 @@ def benchmark_model(
 
                 fig = experimental_results_plot(
                     viz_val_config.plot_config,
-                    df,
-                    df_comp=dfs_mod,
-                    comp_trace_labels=[f"[Ts={ts}s]" for ts in sample_rates]*len(alternatives_to_eval),
+                    df0,
+                    df_comp=[df_ for ts, df_ in zip(sample_rates, dfs_mod) if ts not in (skip_sample_rates_viz or [])],
+                    comp_trace_labels=[f"[Ts={ts}s]" for ts in sample_rates if ts not in (skip_sample_rates_viz or [])]*len(alternatives_to_eval),
                     # {df.index[0].strftime('%d/%m/%Y')}
                     # ɣ: {model_params.gamma:.4f}
                     title_text=f"<b>{viz_val_config.subsystem_id.capitalize().replace('_', ' ')}</b> model validation<br><span style='font-size: 13px;'>{viz_val_config.params_str} | T<sub>s</sub>={sample_rates}s</span>",
@@ -185,7 +202,7 @@ def benchmark_model(
                 if viz_val_config.out_var_ids is not None:
                     for df_mod, ts in zip(dfs_mod,sample_rates):
                         fig = regression_plot(
-                            df_ref=df,
+                            df_ref=dfs[0],
                             df_mod=df_mod,
                             var_ids=viz_val_config.out_var_ids,
                             units=viz_val_config.out_var_units,
@@ -199,7 +216,6 @@ def benchmark_model(
                             fig=fig, formats=('png', 'html'), 
                             width=fig.layout.width, height=fig.layout.height, scale=2
                         )
-
                 
         except (KeyError, AssertionError) as e:
             print(f"Failed to evaluate {test_id}: {e}")

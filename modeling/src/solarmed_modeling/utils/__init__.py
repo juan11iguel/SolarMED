@@ -470,8 +470,12 @@ def calculate_powers_thermal_storage(row: pd.Series | pd.DataFrame, max_power: f
         _type_: _description_
     """
     
+    from solarmed_modeling.thermal_storage import calculate_stored_energy, ModelParameters as ts_mp
+    from solarmed_modeling.med import FixedModelParameters as med_fmp
+    
     try:
-        # Thermal storage input powerdf.loc[df["qsf"] < qsf_min, "qsf"] = 0
+        # Thermal storage input power
+        # df.loc[df["qsf"] < qsf_min, "qsf"] = 0
         w_p = w_props(P=0.16, T=(row["Thx_s_out"] + row["Thx_s_in"]) / 2 + 273.15) if water_props is None else water_props[0]
         row["Pth_ts_src"] = row["qts_src"] / 3600 * w_p.rho * w_p.cp * (row["Thx_s_out"] - row["Thx_s_in"])  # kW
         row["Pth_ts_src"] = row["Pth_ts_src"].clip(lower=min_power, upper=max_power)
@@ -482,6 +486,21 @@ def calculate_powers_thermal_storage(row: pd.Series | pd.DataFrame, max_power: f
         row["Pth_ts_dis"] = row["qts_dis"] / 3600 * w_p.rho * w_p.cp * (row["Tts_h_out"] - row["Tts_c_in"])  # kW
         row["Pth_ts_dis"] = row["Pth_ts_dis"].clip(lower=min_power, upper=max_power)
 
+
+        # Calculate stored energy in the thermal storage
+        row["Ets_h"] = calculate_stored_energy(
+            Ti=row[["Tts_h_b", "Tts_h_m", "Tts_h_t"]].values, # Bottom to top
+            V_i=ts_mp.V_h[::-1],
+            Tmin=med_fmp.Tmed_s_min,
+            # water_props=w_p,
+        )
+
+        row["Ets_c"] = calculate_stored_energy(
+            Ti=row[["Tts_c_b", "Tts_c_m", "Tts_c_t"]].values, # Bottom to top
+            V_i=ts_mp.V_c[::-1],
+            Tmin=med_fmp.Tmed_s_min,
+            # water_props=w_p,
+        )
 
     except Exception as e:
         logger.error(f'Error calculate thermal storage thermal power (source/discharge): missing {e} in data')

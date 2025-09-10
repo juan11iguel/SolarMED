@@ -20,6 +20,7 @@ def evaluate_model(
     sample_rate: int, 
     model_params: ModelParameters, 
     fixed_model_params: FixedModelParameters,
+    fsm_params: None = None,
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
     Th_labels: list[str] = ['Tts_h_t', 'Tts_h_m', 'Tts_h_b'],

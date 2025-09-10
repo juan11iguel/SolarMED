@@ -16,8 +16,8 @@
   # General plot attributes
   title: "Solar MED",
   subtitle: "Experimental results", // Model validation?
-  height: 2000,
-  width: 1000,
+  height: 1300,
+  width: 1200,
   margin: {
     l:20,
     r:20,
@@ -210,7 +210,7 @@
           mode: "lines",
           color: "plotly_red",
           width: 3,
-          dash: "dash", # "dot", "dash", "dashdot"
+          dash: "solid", # "dot", "dash", "dashdot"
           showlegend: true,
         },
       ]
@@ -229,7 +229,7 @@
     heat_exchanger_flows: {
       title: "<b>Heat exchanger</b>",
       row_height: 0.3,
-      ylabels_left: ["m<sup>3</sup>/h"],
+      ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
       // ylabels_right: ["kW<sub>th</sub>"],
       tigth_vertical_spacing: true, # Reduce vertical spacing between this plot and the next one
       ylims_left: 'manual',
@@ -251,7 +251,7 @@
           showlegend: true,
         },
         // Add original value to compare with the estimated one
-        {var_id: "qhx_s_original", mode: "lines", color: "plotly_blue",  width: 1.5, dash: "dash",},
+        // {var_id: "qhx_s_original", mode: "lines", color: "plotly_blue",  width: 1.5, dash: "dash",},
       ],
       // traces_right: [
       //   {
@@ -273,7 +273,7 @@
 
     heat_exchanger_temperatures: {
       row_height: 0.6,
-      ylabels_left: ["⁰C"],
+      ylabels_left: ["Temperatures<br>(⁰C)"],
       ylims_left: [60, 120],
       showlegend: true,
 
@@ -291,7 +291,7 @@
           color: "plotly_red",
           width: 3,
           showlegend: true,
-          dash: "dash", # "dot", "dash", "dashdot"
+          dash: "longdash", # "dot", "dash", "dashdot"
         },
         {
           var_id: "Thx_s_in",
@@ -306,15 +306,79 @@
           color: "plotly_blue",
           width: 3,
           showlegend: true,
-          dash: "dash", # "dot", "dash", "dashdot"
+          dash: "longdash", # "dot", "dash", "dashdot"
         },
       ]
     },
 
+    "thermal_storage_energy": {
+          "row_height": 0.5,
+          title: "<b>Thermal storage</b>",
+          // "title": "Power balance",
+          "ylabels_left": ["Energy<br>(kWh<sub>th</sub>)"],
+          "ylims_left": [0, 400],
+          "showlegend": true,
+          "legend_position": "top",
+    
+          "traces_left": [
+            {
+              "var_id": "Ets_c",
+              "name": "Q<sub>ts,c</sub>",
+              "mode": "lines",
+              "color": "plotly_green",
+              "width": 3,
+              "showlegend": true,
+              "fill": "tonexty", 
+              stackgroup: "energy",
+            },
+            {
+              "var_id": "Ets_h",
+              "name": "Q<sub>ts,h</sub>",
+              "mode": "lines",
+              "color": "plotly_red",
+              "width": 3,
+              "showlegend": true,
+              "fill": "tonexty",
+              stackgroup: "energy",
+            },
+          ]
+        },
+
+    "thermal_storage_power_balance": {
+          "row_height": 0.5,
+          // title: "<b>Thermal storage</b>",
+          // "title": "Power balance",
+          "ylabels_left": ["Power balance<br>(kW<sub>th</sub>)"],
+          "ylims_left": [0, 260],
+          showlegend: true,
+          "legend_position": "top",
+    
+          "traces_left": [
+            # Make this a filled trace between source and discharge, where the color is red when there is more discharge than recharge, and green otherwise
+            {
+              "var_id": "Pth_ts_src",
+              "name": "Q̇<sub>ts,src</sub>",
+              "mode": "lines",
+              "color": "plotly_yellow",
+              "width": 3,
+              showlegend: true,
+              "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
+            },
+            {
+              "var_id": "Pth_ts_dis",
+              "name": "Q̇<sub>ts,dis</sub>",
+              "mode": "lines",
+              "color": "wct_purple",
+              "width": 3,
+              showlegend: true,
+              "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
+            },
+          ]
+        },
+
     thermal_storage_flows: {
-      title: "<b>Thermal storage</b>",
       row_height: 0.33,
-      ylabels_left: ["m<sup>3</sup>/h"],
+      ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
       // ylabels_right: ["kW<sub>th</sub>"],
       ylims_left: 'manual',
       showlegend: true,
@@ -336,16 +400,16 @@
           width: 3,
           showlegend: true,
         },
-        {
-          var_id: "qts_dis_original",
-          name: "q<sub>ts,dis,measured</sub>",
-          color: "plotly_blue", "width": 1.5, "dash": "dash"
-        },
-        {
-          var_id: "qts_src_original", //"qts_src",
-          name: "q<sub>ts,src,measured</sub>",
-          color: "plotly_red", "dash": "dash", "width": 1.5,
-        },
+        // {
+        //   var_id: "qts_dis_original",
+        //   name: "q<sub>ts,dis,measured</sub>",
+        //   color: "plotly_blue", "width": 1.5, "dash": "dash"
+        // },
+        // {
+        //   var_id: "qts_src_original", //"qts_src",
+        //   name: "q<sub>ts,src,measured</sub>",
+        //   color: "plotly_red", "dash": "dash", "width": 1.5,
+        // },
       ]
 
       // traces_right: [
@@ -368,44 +432,16 @@
       # TODO: Estaría guay añadir trazas a la derecha con power balance
     },
 
-    "thermal_storage_power_balance": {
-          "row_height": 0.5,
-          "title": "Power balance",
-          "ylabels_left": ["kW<sub>th</sub>"],
-          "ylims_left": [0, 260],
-          showlegend: true,
-    
-          "traces_left": [
-            # Make this a filled trace between source and discharge, where the color is red when there is more discharge than recharge, and green otherwise
-            {
-              "var_id": "Pth_ts_src",
-              "name": "P<sub>th,ts,src</sub>",
-              "mode": "lines",
-              "color": "plotly_yellow",
-              "width": 3,
-              showlegend: true,
-              "fill_between": "Pth_ts_dis", # Traces to plot fill between need to be defined next to each other
-            },
-            {
-              "var_id": "Pth_ts_dis",
-              "name": "P<sub>th,ts,dis</sub>",
-              "mode": "lines",
-              "color": "wct_purple",
-              "width": 3,
-              showlegend: true,
-              "fill_between": "Pth_ts_src", # Traces to plot fill between need to be defined next to each other
-            },
-          ]
-        },
 
     thermal_storage_temperatures_hot: {
       row_height: 0.6,
-      title: "Hot tank",
+      // title: "Hot tank",
       # ylabels_left: ["T<sub>wct</sub> (ºC)"],
-      ylabels_left: ["⁰C"],
+      ylabels_left: ["Hot tank<br>(⁰C)"],
       ylims_left: [60, 100],
       tight_vertical_spacing: true,
       showlegend: true,
+      legend_position: "side",
 
       "traces_left": [
           # Hot tank
@@ -416,19 +452,19 @@
             "width": 3,
             showlegend: true,
           },
-          {
-            "var_id": "Tts_h_m",
-            "mode": "lines",
-            "dash": "dash",
-            "color": "plotly_red", # gray
-            "width": 3,
-            showlegend: true,
-          },
+          // {
+          //   "var_id": "Tts_h_m",
+          //   "mode": "lines",
+          //   "dash": "dash",
+          //   "color": "plotly_red", # gray
+          //   "width": 3,
+          //   showlegend: true,
+          // },
           {
             "var_id": "Tts_h_b",
             "mode": "lines",
             "color": "plotly_red", # gray
-            "dash": "dot",
+            "dash": "longdash",
             "width": 3,
             showlegend: true,
           },
@@ -462,17 +498,15 @@
             showlegend: true,
           },
       ]
-
-      # TODO: Estaría guay añadir una traza a la derecha con la evolución de 
-      # la energía disponible (línea con área), calculada relativa a la Ts_in de la MED
     },
 
     thermal_storage_temperatures_cold: {
       row_height: 0.6,
-      title: "Cold tank",
-      ylabels_left: ["⁰C"],
+      // title: "Cold tank",
+      ylabels_left: ["Cold tank<br>(⁰C)"],
       ylims_left: [60, 100],
       showlegend: true,
+      legend_position: "top",
 
       traces_left: [
 
@@ -484,19 +518,19 @@
           width: 3,
           showlegend: true,
         },
-        {
-          var_id: "Tts_c_m",
-          mode: "lines",
-          dash: "dash",
-          color: "plotly_green",
-          width: 3,
-          showlegend: true,
-        },
+        // {
+        //   var_id: "Tts_c_m",
+        //   mode: "lines",
+        //   dash: "dash",
+        //   color: "plotly_green",
+        //   width: 3,
+        //   showlegend: true,
+        // },
         {
           var_id: "Tts_c_b",
           mode: "lines",
           color: "plotly_green",
-          dash: "dot",
+          dash: "longdash",
           width: 3,
           showlegend: true,
         },
@@ -565,7 +599,7 @@
     med_flows: {
       title: "<b>MED</b>"
       row_height: 0.8,
-      ylabels_left: ["m<sup>3</sup>/h"],
+      ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
       ylabels_right: ["m<sup>3</sup>/h"],
       tigth_vertical_spacing: true,
       ylims_left: 'manual',
@@ -581,7 +615,7 @@
           var_id: "qmed_f",
           color: "c_blue",
           mode: "lines",
-          dash: "dot"
+          dash: "solid"
           width: 3,
           showlegend: true,
         },
@@ -589,7 +623,7 @@
           var_id: "qmed_d",
           color: "plotly_green",
           mode: "lines",
-          dash: "dashdot"
+          dash: "solid"
           width: 3,
           showlegend: true,
         },
@@ -597,7 +631,7 @@
           var_id: "qmed_c",
           color: "plotly_cyan",
           mode: "lines"
-          dash: "dash"
+          dash: "solid"
           width: 3,
           showlegend: true,
         }
@@ -616,7 +650,7 @@
 
     med_temperatures: {
       row_height: 1,
-      ylabels_left: ["⁰C"],
+      ylabels_left: ["Temperatures<br>(⁰C)"],
       ylims_left: 'manual',
       showlegend: true,
 
@@ -624,7 +658,7 @@
         {
           var_id: "Tmed_s_in",
           mode: "lines",
-          color: "wct_purple",
+          color: "plotly_red",
           width: 3,
           showlegend: true,
         },
@@ -659,8 +693,8 @@
       "ylabels_right": ["mbar"],
       "ylims_right": [10, 90],
       "traces_right": [ 
-        {"var_id": "Pmed_c", showlegend: true, color: "c_blue", dash: "dot"}, 
-        {"var_id": "Pmed_14", showlegend: true, color: "plotly_red", dash: "dot"} 
+        // {"var_id": "Pmed_c", showlegend: true, color: "c_blue", dash: "dot"}, 
+        {"var_id": "Pmed_14", showlegend: true, color: "bg_gray", dash: "longdash"} 
       ]
     },
 

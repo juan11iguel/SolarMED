@@ -26,9 +26,8 @@
             "ylabels_right": [
                 "m<sup>3</sup>/h"
             ],
-            "tigth_vertical_spacing": true,
             "ylims_left": "manual",
-            "show_active": true,
+            "show_active": false,
             "active_var_id": "med_active",
             "active_color": "dc_green",
             "showlegend": true,
@@ -38,22 +37,19 @@
                     "var_id": "qmed_f",
                     "showlegend": true,
                     "color": "c_blue",
-                    "mode": "lines",
-                    "dash": "dot"
+                    "mode": "lines"
                 },
                 {
                     "var_id": "qmed_d",
                     "showlegend": true,
                     "color": "plotly_green",
-                    "mode": "lines",
-                    "dash": "dashdot"
+                    "mode": "lines"
                 },
                 {
                     "var_id": "qmed_c",
                     "showlegend": true,
                     "color": "plotly_cyan",
-                    "mode": "lines",
-                    "dash": "dash"
+                    "mode": "lines"
                 }
             ],
             "traces_right": [
@@ -103,7 +99,7 @@
 
             "ylabels_right": ["mbar"],
             "ylims_right": [10, 90],
-            "traces_right": [ {"var_id": "Pmed_c", "shoelegend": true}, {"var_id": "Pmed_14", "shoelegend": true} ]
+            "traces_right": [ {"var_id": "Pmed_c", "showlegend": true}, {"var_id": "Pmed_14", "showlegend": true} ]
         }
     }
 }

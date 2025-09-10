@@ -3,11 +3,12 @@ import numpy as np
 from scipy.optimize import fsolve
 from iapws import IAPWS97 as w_props
 from loguru import logger
+from scipy.interpolate import interp1d
 
-from solarmed_modeling.curve_fitting.curves import sigmoid_interpolation
+# from solarmed_modeling.curve_fitting.curves import sigmoid_interpolation
 
 dot = np.multiply
-ts_pressure: float = 0.16  # MPa
+ts_pressure: float = 0.16  # MPaCon
 
 supported_eval_alternatives: list[str] = ["standard", "constant-water-props"]
 """ 
@@ -30,24 +31,79 @@ class FixedModelParameters:
     Tmax: float = 120 # Maximum temperature [ºC]
     
 
-def calculate_stored_energy(Ti: np.ndarray[float], V_i: np.ndarray[float], Tmin: float) -> float:
-    # T in ºC, V_i in m³ 
-    # Perform polynomial interpolation for temperatures
-    interp_volumes = np.linspace(np.min(V_i), np.max(V_i), num=100)  # Generate interpolated volume points
-    interp_temperatures = sigmoid_interpolation(V_i, Ti, interp_volumes)
-    
-    # Calculate the energy stored above Tmin
-    # Estimate specific heat capacity (cp) and density (rho)
-    cp  = np.array([w_props(T=T+273.15, P=ts_pressure).cp if T>=Tmin else 0 for T in interp_temperatures])
-    rho = np.array([w_props(T=T+273.15, P=ts_pressure).rho if T>=Tmin else 0 for T in interp_temperatures])
-    
-    # Calculate the temperature differences above Tmin
-    temperature_diff = np.maximum(0, interp_temperatures - Tmin)
-    
-    # Calculate the energy
-    energy = np.sum(interp_volumes * rho * cp * temperature_diff)/3600 # m³·kg/m³·KJ/KgK·K == kWh
+def volume_weighted_interpolation(V_i, T_i, V_interp):
+    """
+    Interpolates temperature profile along tank volume.
 
-    return energy
+    Parameters
+    ----------
+    V_i : array-like
+        Volumes (m³) corresponding to sensor locations (bottom→top).
+    T_i : array-like
+        Temperatures (°C) at those volumes.
+    V_interp : array-like
+        Volumes (m³) where temperatures are interpolated.
+
+    Returns
+    -------
+    np.ndarray
+        Interpolated temperatures at V_interp.
+    """
+    f = interp1d(V_i, T_i, kind="linear", fill_value="extrapolate", assume_sorted=True)
+    return f(V_interp)
+
+
+def calculate_stored_energy(
+    Ti: np.ndarray, 
+    V_i: np.ndarray, 
+    Tmin: float, 
+    water_props: "w_props" = None
+) -> np.ndarray:
+    """
+    Calculate stored thermal energy in a stratified tank using volume integration.
+
+    Parameters
+    ----------
+    Ti : np.ndarray
+        Temperatures in °C.
+        Shape (n_points,) for a single sample, or (n_samples, n_points).
+    V_i : np.ndarray
+        Volumes (m³) for each temperature measurement. Ordered bottom → top.
+    Tmin : float
+        Minimum temperature (°C) to consider for useful energy.
+    water_props : w_props, optional
+        Water properties (rho, cp). If None, estimated from average T.
+
+    Returns
+    -------
+    np.ndarray
+        Stored energy in kWh. Scalar if Ti is 1D, or (n_samples,) if Ti is 2D.
+    """
+
+    Ti = np.atleast_2d(Ti)  # Shape → (n_samples, n_points)
+    single_sample = (Ti.shape[0] == 1)
+
+    # Interpolation grid along volumes (fine resolution for integration)
+    interp_volumes = np.linspace(np.min(V_i), np.max(V_i), num=50)
+
+    # Interpolate temperature profiles for all samples
+    interp_temperatures = np.vstack([
+        volume_weighted_interpolation(V_i, row, interp_volumes) for row in Ti
+    ])  # Shape: (n_samples, n_interp)
+
+    # Water properties (constant across all samples)
+    if water_props is None:
+        avg_temp = np.mean(interp_temperatures) + 273.15
+        water_props = w_props(T=avg_temp, P=ts_pressure)
+
+    # Temperature difference above Tmin
+    temperature_diff = np.maximum(0, interp_temperatures - Tmin)
+
+    # Energy per sample: integrate over tank volume
+    # E = ∫ ρ * cp * ΔT dV
+    energy = np.trapz(temperature_diff, x=interp_volumes, axis=1) * water_props.rho * water_props.cp / 3600.0
+
+    return energy[0] if single_sample else energy
 
 def thermal_storage_model_single_tank(
         Ti_ant: np.ndarray[float],

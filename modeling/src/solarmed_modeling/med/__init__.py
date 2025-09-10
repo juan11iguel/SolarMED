@@ -1,3 +1,4 @@
+from typing import Optional
 from dataclasses import dataclass, field
 from pathlib import Path
 import numpy as np
@@ -15,27 +16,6 @@ warnings.filterwarnings(
 
 supported_eval_alternatives = ["standard"]
 
-@dataclass
-class FixedModelParameters:
-    """
-    MED fixed model parameters.
-    Default values could be replaced by values from a configuration file. 
-    """
-    Tmed_s_min: float = 60  # Minimum operating heat source temperature [ºC]
-    Tmed_s_max: float = 75  # Maximum operating heat source temperature [ºC]
-    qmed_c_min: float = 3   # Minimum cooling flow rate [m³/h]
-    qmed_c_max: float = 21  # Maximum cooling flow rate [m³/h]
-    qmed_s_min: float = 30  # Minimum heat source flow rate [m³/h]
-    qmed_s_max: float = 48  # Maximum heat source flow rate [m³/h]
-    qmed_f_min: float = 5   # Minimum feed flow rate [m³/h]
-    qmed_f_max: float = 9   # Maximum feed flow rate [m³/h]
-
-    param_array: list[tuple[float, float, float]] = field(default_factory=lambda: [
-        (2.03122253e+00, 5.98578573e+00, 4.47722101e-03),
-        (1.81219256e+03, 1.03129028e+02, 1.47705700e-02),
-        (133.14646561,   4.93363467,   0.29595623)
-        ])
-
 def import_train_data(model_data_path: Path, ydim: int = 3) -> tuple[np.ndarray[float], np.ndarray[float]]:
     """ Import GPR model train data """
     
@@ -47,62 +27,118 @@ def import_train_data(model_data_path: Path, ydim: int = 3) -> tuple[np.ndarray[
     
     return X_train, Y_train
     
+@dataclass
+class FixedModelParameters:
+    """
+    MED fixed model parameters.
+    Default values could be replaced by values from a configuration file. 
+    """
+    
+    Tmed_s_min: float = 55  # Minimum operating heat source temperature [ºC]
+    Tmed_s_max: float = 81  # Maximum operating heat source temperature [ºC]
+    qmed_c_min: float = 3   # Minimum cooling flow rate [m³/h]
+    qmed_c_max: float = 22  # Maximum cooling flow rate [m³/h]
+    qmed_s_min: float = 30  # Minimum heat source flow rate [m³/h]
+    qmed_s_max: float = 48  # Maximum heat source flow rate [m³/h]
+    qmed_f_min: float = 5   # Minimum feed flow rate [m³/h]
+    qmed_f_max: float = 9   # Maximum feed flow rate [m³/h]
+    deltaTc_range: tuple[float, float] = (1.5, 25)  # Condenser inlet-outlet temperature difference range [°C]
 
+    param_array: list[tuple[float, float, float]] = field(default_factory=lambda: [(1.9867205543419775, 6.693755214726311, 0.004159348871379535), (999.8787080345198, 27.55730316759485, 0.011559108440227887), (116.61624543437144, 5.938738928616871, 0.39178961211905033)])
+    param_array_aux: list[tuple[float, float, float]] = field(default_factory=lambda: [(385.2097576747307, 21.78824050066122, 0.14051420169703088)])
+
+@dataclass
 class MedModel:
     """
-    
+    MED GPR model wrapper.
     Outputs: qd, Ts,out, qc
-    Inputs: Ms, Ts,in, Mf, Tc,out, Tc,in
-    
+    Inputs: Ms, Ts,in, Mf, Tc,in, Tc,out
     """
     
-    X: np.ndarray[float]
-    Y: np.ndarray[float]
-    param_array: list[tuple[float, float, float]]
-    models: list[GPy.models.GPRegression]
+    models: Optional[list[GPy.models.GPRegression]] = None
+    models_aux: Optional[list[GPy.models.GPRegression]] = None
+    train_data_path: Optional[Path] = None
+    fmp: FixedModelParameters = field(default_factory=lambda: FixedModelParameters())
+    n_outputs: int = 3
     
-    param_array: list[tuple[float, float, float]] = [
-        (2.03122253e+00, 5.98578573e+00, 4.47722101e-03),
-        (1.81219256e+03, 1.03129028e+02, 1.47705700e-02),
-        (133.14646561,   4.93363467,   0.29595623)
-    ]
+    def __post_init__(self):
+        
+        if self.train_data_path is None:
+            self.train_data_path = Path(__file__).resolve().parent 
+            
+        X, Y = import_train_data(self.train_data_path / 'med_gpr_data.npy', ydim=self.n_outputs)
+        Xaux, Yaux = import_train_data(self.train_data_path / 'med_gpr_data_aux.npy', ydim=1)            
+        
+        self.models = self._create_models(self.fmp.param_array, X, Y)
+        self.models_aux = self._create_models(self.fmp.param_array_aux, Xaux, Yaux)
     
-    def __init__(self, X: np.ndarray[float] = None, Y: np.ndarray[float] = None, train_data_path: Path = None, 
-                 param_array: list[tuple[float, float, float]] = None):
-        
-        # assert (X is not None and Y is not None) or train_data_path is not None, \
-        #     "Either train data (`X` and `Y`) are provided, or a valid (`train_data_path`) path to load them using `import_model_data` needs to be provided"
-        
-        if train_data_path is not None:
-            self.X, self.Y = import_train_data(train_data_path)
-        elif X is not None and Y is not None:
-            self.X = X
-            self.Y = Y
-        else:
-            self.X, self.Y = import_train_data(
-                Path(__file__).resolve().parent / 'train_data.npy'
-            )
-        
-        if param_array is not None:
-            self.param_array = param_array
-        self.models = self._create_models()
-    
-    def _create_models(self) -> list[GPy.models.GPRegression]:
+    def _create_models(self, param_array: list[tuple[float, ...]], X: np.ndarray[float], Y: np.ndarray[float]) -> list[GPy.models.GPRegression]:
+        """
+        Create GPR models for each output using the provided training data and fixed model parameters.
+        """
         models = []
-        for i, param in enumerate(self.param_array):
-            model = GPy.models.GPRegression(self.X, self.Y[:, [i]], initialize=False)
+        for i, param in enumerate(param_array):
+            model = GPy.models.GPRegression(X, Y[:, [i]], initialize=False)
             model.update_model(False) # do not call the underlying expensive algebra on load
             model.initialize_parameter() # Initialize the parameters (connect the parameters up)
             model[:] = param # Load the parameters
             model.update_model(True) # Call the algebra only once
             models.append(model)
+            
         return models
     
-    def predict(self, X: np.ndarray, return_variances: bool = False) -> np.ndarray[float] | tuple[np.ndarray[float], np.ndarray[float]]:
+    def predict(self, X: np.ndarray, return_variances: bool = False, aux: bool = False) -> np.ndarray[float] | tuple[np.ndarray[float], np.ndarray[float]]:
         
-        Y_preds, Y_pred_vars = zip(*(model.predict(X) for model in self.models))
+        models = self.models if not aux else self.models_aux
+        Y_preds, Y_pred_vars = zip(*(model.predict(X) for model in models))
         Y_preds = np.hstack(Y_preds)  # Combine predictions
         
         if return_variances:
             return Y_preds, np.hstack(Y_pred_vars)  # Combine variances
         return Y_preds
+    
+    def __call__(self, qs_m3h: float, Ts_in_C: float, qf_m3h: float, Tc_in_C: float, Tc_out_C: float, debug: bool = False) -> tuple[float, float, float, float]:
+        """
+        Evaluate the model for given inputs.
+        
+        Returns:
+            Tuple containing (qd_m3h, Ts_out_C, qc_m3h, Pvc_mbar)
+        """
+                
+        if (
+            qf_m3h > 0 and 
+            qs_m3h > 0 and 
+            Ts_in_C > 0 # and
+            # (Tc_in_C+self.fmp.deltaTc_range[0] < Tc_out_C < Tc_in_C+self.fmp.deltaTc_range[1]) 
+        ):
+            
+            qd_m3h, Ts_out_C, qc_m3h = self.predict(
+                np.array([[qs_m3h, Ts_in_C, qf_m3h, Tc_in_C, Tc_out_C]])    
+            ).flatten()
+            
+            qc_m3h -= 5.
+
+            # qc_m3h = qd_m3h * (4.18 * (Tc_in_C - Tc_out_C)) / (w_props(P=Pvc_mbar/1000, x=0).h -w_props(P=Pvc_mbar/1000, x=1).h)
+            # if debug:
+            #     return qd_m3h, Ts_out_C, qc_m3h, Pvc_mbar, qc_m3h_gpr
+            
+            if self.fmp.qmed_c_min <= qc_m3h <= self.fmp.qmed_c_max:
+                return qd_m3h, Ts_out_C, qc_m3h, Tc_out_C # Model solved
+            
+            if qc_m3h > self.fmp.qmed_c_max:
+                Tc_out_C = self.predict(
+                    np.array([[qs_m3h, Ts_in_C, qf_m3h, Tc_in_C, self.fmp.qmed_c_max]]
+                ), aux=True).flatten()[0]
+            elif qc_m3h < self.fmp.qmed_c_min:
+                Tc_out_C = self.predict(
+                    np.array([[qs_m3h, Ts_in_C, qf_m3h, Tc_in_C, self.fmp.qmed_c_min]]
+                ), aux=True).flatten()[0]
+            
+            qd_m3h, Ts_out_C, qc_m3h = self.predict(
+                np.array([[qs_m3h, Ts_in_C, qf_m3h, Tc_in_C, Tc_out_C]])    
+            ).flatten()
+            
+            return qd_m3h, Ts_out_C, qc_m3h, Tc_out_C
+            
+        else:
+            return [np.nan]*(self.n_outputs+1)

@@ -44,7 +44,7 @@
         units_scada: "W/m2",
         units_model: "W/m2",
         // instrument: "" // TODO: Add pyranometer to instruments
-        label_html: "I (W/m<sup>2</sup>)",
+        label_html: "I",
         label_latex: "$I\\:(W/m^2)$",
         range_model: [0, null],
         description: "Solar irradiation",
@@ -56,7 +56,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>med,c,in</sub> (⁰C)",
+        label_html: "T<sub>med,c,in</sub>",
         label_latex: "$T_{med,c,in}$",
         // range_model: [],
         description: "Seawater inlet temperature / MED condenser inlet temperature",
@@ -84,7 +84,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>med,s,in</sub> (⁰C)",
+        label_html: "T<sub>med,s,in</sub>",
         label_latex: "$T_{med,s,in}$",
         // range_model: [],
         description: "MED heat source inlet temperature",
@@ -96,7 +96,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>med,s,out</sub> (⁰C)",
+        label_html: "T<sub>med,s,out</sub>",
         label_latex: "$T_{med,s,out}$",
         // range_model: [],
         description: "MED heat source outlet temperature",
@@ -108,7 +108,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>med,c,out</sub> (⁰C)",
+        label_html: "T<sub>med,c,out</sub>",
         label_latex: "$T_{med,c,out}$",
         // range_model: [],
         description: "MED condenser outlet temperature",
@@ -121,7 +121,7 @@
         units_scada: "L/s",
         units_model: "m3/h",
         instrument: "flow_meter_EH_Proline_Promag_50P"
-        label_html: "q<sub>med,s</sub> (L/s)",
+        label_html: "q<sub>med,s</sub>",
         label_latex: "$q_{med,s}\\:(kg/s)$",
         range_scada: [7, 15], // l/s
         range_model: [25.2, 54], // m³/h
@@ -134,7 +134,7 @@
         units_scada: "m3/h",
         units_model: "m3/h",
         instrument: "flow_meter_EH_Proline_Promag_P300"
-        label_html: "q<sub>med,f</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>med,f</sub>",
         label_latex: "$q_{med,f}\\:(m^3/h)$",
         range_model: [5, 9], // m³/h
         range_scada: [5, 9], // m³/h
@@ -147,10 +147,10 @@
         units_scada: "m3/h",
         units_model: "m3/h",
         instrument: "flow_meter_ABB_ProcessMaster_630"
-        label_html: "q<sub>med,c</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>med,c</sub>",
         label_latex: "$q_{med,c}\\:(m^3/h)$",
-        range_model: [8, 22], // m³/h
-        range_scada: [8, 22], // m³/h
+        range_model: [4, 22], // m³/h
+        range_scada: [4, 22], // m³/h
         description: "MED condenser flow rate",
     },
 
@@ -160,7 +160,7 @@
         units_scada: "m3/h",
         units_model: "m3/h",
         instrument: "flow_meter_ABB_TRIO_WIRL_VT4"
-        label_html: "q<sub>med,d</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>med,d</sub>",
         label_latex: "$q_{med,d}\\:(m^3/h)$",
         range_model: [1.3, 3.1], // m³/h
         description: "MED distillate flow rate",
@@ -253,7 +253,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>sf,in</sub> (⁰C)",
+        label_html: "T<sub>sf,in</sub>",
         label_latex: "$T_{sf,in}$",
         // range_model: [],
         description: "Solar field inlet temperature",
@@ -265,7 +265,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>sf,out</sub> (⁰C)",
+        label_html: "T<sub>sf,out</sub>",
         label_latex: "$T_{sf,out}$",
         // range_model: [],
         description: "Solar field outlet temperature",
@@ -278,7 +278,7 @@
         units_scada: "L/min", // Mirado en VARIABLES_NEW_AQUASOL_OKKK 20240201
         units_model: "m3/h",
         // instrument: "" TODO: Add flow meter to instruments
-        label_html: "q<sub>sf</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>sf</sub>",
         label_latex: "$q_{sf}\\:(m^3/h)$",
         range_scada: [6.2, 148.8], // L/min
         range_model: [0.372, 8.928], // m³/h
@@ -294,7 +294,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,in</sub> (⁰C)",
+        label_html: "T<sub>ts,h,in</sub>",
         label_latex: "$T_{ts,h,in}$",
         // range_model: [],
         description: "Thermal storage hot tank inlet temperature, from solar field heat exchanger",
@@ -306,7 +306,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,in</sub> (⁰C)",
+        label_html: "T<sub>ts,h,in</sub>",
         label_latex: "$T_{ts,h,in}$",
         // range_model: [],
         description: "(Duplicate of Tts,h,in) Thermal storage hot tank inlet temperature, from solar field heat exchanger",
@@ -318,7 +318,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,out</sub> (⁰C)",
+        label_html: "T<sub>ts,h,out</sub>",
         label_latex: "$T_{ts,h,out}$",
         // range_model: [],
         description: "Thermal storage hot tank outlet temperature, to MED three-way valve",
@@ -331,7 +331,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,out</sub> (⁰C)",
+        label_html: "T<sub>ts,h,out</sub>",
         label_latex: "$T_{ts,h,out}$",
         description: "(Duplicate of Tts,h,out) Thermal storage hot tank outlet temperature, to MED three-way valve",
     },
@@ -342,7 +342,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,c,b,in</sub> (⁰C)",
+        label_html: "T<sub>ts,c,b,in</sub>",
         label_latex: "$T_{ts,c,b,in}$",
         // range_model: [],
         description: "Thermal storage cold tank bottom inlet temperature, return from the MED",
@@ -354,7 +354,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,c,b,out</sub> (⁰C)",
+        label_html: "T<sub>ts,c,b,out</sub>",
         label_latex: "$T_{ts,c,b,out}$",
         // range_model: [],
         description: "Thermal storage cold tank bottom outlet temperature, to solar field heat exchanger",
@@ -366,7 +366,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,c,b,out</sub> (⁰C)",
+        label_html: "T<sub>ts,c,b,out</sub>",
         label_latex: "$T_{ts,c,b,out}$",
         // range_model: [],
         description: "(Duplicate of Tts,c,b,out) Thermal storage cold tank bottom outlet temperature, to solar field heat exchanger",
@@ -378,7 +378,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,t</sub> (⁰C)",
+        label_html: "T<sub>ts,h,t</sub>",
         label_latex: "$T_{ts,h,t}$",
         // range_model: [],
         description: "Thermal storage hot tank top temperature",
@@ -390,7 +390,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,m</sub> (⁰C)",
+        label_html: "T<sub>ts,h,m</sub>",
         label_latex: "$T_{ts,h,m}$",
         // range_model: [],
         description: "Thermal storage hot tank middle temperature",
@@ -402,7 +402,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,b</sub> (⁰C)",
+        label_html: "T<sub>ts,h,b</sub>",
         label_latex: "$T_{ts,h,b}$",
         // range_model: [],
         description: "Thermal storage hot tank bottom temperature",
@@ -414,7 +414,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,c,t</sub> (⁰C)",
+        label_html: "T<sub>ts,c,t</sub>",
         label_latex: "$T_{ts,c,t}$",
         // range_model: [],
         description: "Thermal storage cold tank top temperature",
@@ -426,7 +426,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,c,m</sub> (⁰C)",
+        label_html: "T<sub>ts,c,m</sub>",
         label_latex: "$T_{ts,c,m}$",
         // range_model: [],
         description: "Thermal storage cold tank middle temperature",
@@ -438,7 +438,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,c,b</sub> (⁰C)",
+        label_html: "T<sub>ts,c,b</sub>",
         label_latex: "$T_{ts,c,b}$",
         // range_model: [],
         description: "Thermal storage cold tank bottom temperature",
@@ -451,7 +451,7 @@
     //     units_scada: "L/s",
     //     units_model: "m3/h",
     //     instrument: "flow_meter_EH_Proline_Promag_50P", // TODO: Comprobar que sea el mismo
-    //     label_html: "q<sub>ts,h,t,out</sub> (m<sup>3</sup>/h)",
+    //     label_html: "q<sub>ts,h,t,out</sub>",
     //     label_latex: "$q_{ts,h}\\:(m^3/h)$",
     //     range_model: [0, 15], // L/s
     //     description: "Thermal storage hot tank outlet flow rate, to MED three-way valve",
@@ -463,7 +463,7 @@
         units_scada: "L/s", # Mirado en VARIABLES_NEW_AQUASOL_OKKK 20240201
         units_model: "m3/h",
         instrument: "flow_meter_EH_Proline_Promag_50P", // TODO: Comprobar que sea el mismo
-        label_html: "q<sub>ts,c,b,in</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>ts,c,b,in</sub>",
         label_latex: "$q_{ts,dis}$",
         range_scada: [0, 15], // L/s
         range_model: [0, 54], // m³/h
@@ -476,7 +476,7 @@
         units_scada: "L/min", // Mirado en VARIABLES_NEW_AQUASOL_OKKK 20240201
         units_model: "m3/h",
         instrument: "flow_meter_EH_Proline_Promag_50P", // TODO: Comprobar que sea el mismo
-        label_html: "q<sub>ts,c_b_out</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>ts,c_b_out</sub>",
         label_latex: "$q_{ts,src}$",
         range_scada: [6.2, 148.8], // L/min
         range_model: [0.372, 8.928], // m³/h
@@ -493,7 +493,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>hx,p,in</sub> (⁰C)",
+        label_html: "T<sub>hx,p,in</sub>",
         label_latex: "$T_{hx,p,in}$",
         description: "Heat exchanger primary circuit (hot side) inlet temperature"
     },
@@ -504,7 +504,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>hx,p,out</sub> (⁰C)",
+        label_html: "T<sub>hx,p,out</sub>",
         label_latex: "$T_{hx,p,out}$",
         description: "Heat exchanger primary circuit (hot side) outlet temperature"
     },
@@ -515,7 +515,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>hx,s,in</sub> (⁰C)",
+        label_html: "T<sub>hx,s,in</sub>",
         label_latex: "$T_{hx,s,in}$",
         description: "Heat exchanger secondary circuit (cold side) inlet temperature"
     },
@@ -526,7 +526,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>ts,h,b</sub> (⁰C)",
+        label_html: "T<sub>ts,h,b</sub>",
         label_latex: "$T_{ts,h,b}$",
         description: "Heat exchanger secondary circuit (cold side) outlet temperature"
     },
@@ -538,7 +538,7 @@
         units_scada: "L/min", // Mirado en VARIABLES_NEW_AQUASOL_OKKK 20240201
         units_model: "m3/h",
         // instrument: "" // TODO: Add instrument
-        label_html: "q<sub>hx,p</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>hx,p</sub>",
         label_latex: "$q_{hx,p}\\:(m^3/h)",
         description: "Heat exchanger primary circuit (hot side) flow rate"
         // range_model: [0, 210] // L/min
@@ -550,7 +550,7 @@
         units_scada: "L/min",
         units_model: "m3/h",
         // instrument: "" // TODO: Add instrument
-        label_html: "q<sub>hx,s</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>hx,s</sub>",
         label_latex: "$q_{hx,s}\\:(m^3/h)",
         description: "Heat exchanger secondary circuit (cold side) flow rate"
         // range_model: [0, 190] // L/min
@@ -566,7 +566,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>3wv,dis,in</sub> (⁰C)",
+        label_html: "T<sub>3wv,dis,in</sub>",
         label_latex: "$T_{3wv,dis,in}$",
         description: "Three-way valve source temperature, from thermal storage"
     },
@@ -577,7 +577,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A"
-        label_html: "T<sub>3wv,dis,in</sub> (⁰C)",
+        label_html: "T<sub>3wv,dis,in</sub>",
         label_latex: "$T_{3wv,dis,in}$",
         description: "Three-way valve discharge inlet, to MED"
     },
@@ -588,7 +588,7 @@
         units_scada: "C",
         units_model: "C",
         instrument: "pt100_class_A",
-        label_html: "T<sub>3wv,dis,out</sub> (⁰C)",
+        label_html: "T<sub>3wv,dis,out</sub>",
         label_latex: "$T_{3wv,dis,out}$",
         description: "Three-way valve discharge outlet, return from MED"
     },
@@ -601,7 +601,7 @@
         units_scada: "L/s",
         units_model: "m3/h",
         // instrument: "" // TODO: Add instrument
-        label_html: "q<sub>3wv,src</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>3wv,src</sub>",
         label_latex: "$q_{3wv,src}\\:(m^3/h)",
         description: "Three-way valve source flow rate, from/to thermal storage",
         // range_model: [0, 12] // L/s
@@ -613,7 +613,7 @@
         units_scada: "L/s",
         units_model: "m3/h",
         // instrument: "" // TODO: Add instrument
-        label_html: "q<sub>3wv,dis</sub> (m<sup>3</sup>/h)",
+        label_html: "q<sub>3wv,dis</sub>",
         label_latex: "$q_{3wv,dis}\\:(m^3/h)",
         description: "Three-way valve discharge flow rate, from/to MED",
         // range_model: [0, 15] // L/s

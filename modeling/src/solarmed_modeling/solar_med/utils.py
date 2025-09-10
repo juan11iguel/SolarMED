@@ -11,6 +11,7 @@ from solarmed_modeling.utils import resample_results
 from solarmed_modeling.thermal_storage.utils import Th_labels, Tc_labels
 
 from . import (supported_eval_alternatives,
+               SupportedAlternativesLiteral,
                ModelParameters, 
                FixedModelParameters,
                FsmParameters,
@@ -18,7 +19,7 @@ from . import (supported_eval_alternatives,
                MedFsmParams,
                SolarMED)
 
-out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Thx_s_out", *Th_labels, *Tc_labels, "qmed_d", "qmed_c", "Tmed_s_out"]
+out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Thx_s_out", *Th_labels, *Tc_labels, "qmed_d", "qmed_c", "Tmed_s_out", "Pth_sf", "Pth_ts_src", "Pth_ts_dis", "Ets_h", "Ets_c"]
 
 def evaluate_model(
     df: pd.DataFrame, sample_rate: int, 
@@ -35,7 +36,7 @@ def evaluate_model(
         )
     ),
     env_params: EnvironmentParameters = EnvironmentParameters(),
-    alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
+    alternatives_to_eval: list[SupportedAlternativesLiteral] = "constant-water-props",
     log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
     

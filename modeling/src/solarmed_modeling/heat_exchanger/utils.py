@@ -63,8 +63,10 @@ def estimate_flow_secondary(Tp_in: float | np.ndarray[float], Ts_in: float | np.
 
 
 def evaluate_model(
-    df: pd.DataFrame, sample_rate: int, model_params: ModelParameters,
+    df: pd.DataFrame, sample_rate: int, 
+    model_params: ModelParameters,
     fixed_model_params: None = None,
+    fsm_params: None = None,
     alternatives_to_eval: list[Literal["standard", "no-delay", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
@@ -115,12 +117,12 @@ def evaluate_model(
         )
 
     # Initialize result vectors
-    outs_mod: list[np.ndarray[float]] = [np.zeros((len(df) - idx_start, N), dtype=float) for _ in alternatives_to_eval]
+    outs_mod: list[np.ndarray[float]] = [np.zeros((len(df) - idx_start, N+1), dtype=float) for _ in alternatives_to_eval]
     stats = []
-
+    dfs = []
     for alt_idx, alt_id in enumerate(alternatives_to_eval):
         out = outs_mod[alt_idx]
-        out[0] = df.iloc[idx_start]["Tsf_out"]
+        # out[0] = df.iloc[idx_start]["Tsf_out"]
         
         logger.info(f"Starting evaluation of alternative {alt_id}. Sample rate = {sample_rate} s")
         # Evaluate model
@@ -131,37 +133,44 @@ def evaluate_model(
             start_time = time.time()
             
             if alt_id == "standard":
-                out_p, out_s = model(
+                out_p, out_s, eps = model(
                     Tp_in=ds['Thx_p_in'], 
                     Ts_in=ds['Thx_s_in'], 
                     qp=ds['qhx_p'], 
                     qs=ds['qhx_s'], 
                     Tamb=ds['Tamb'], 
                     model_params=model_params,
-                    water_props=None
+                    water_props=None,
+                    return_epsilon=True
                 )
             elif alt_id == "constant-water-props":
-                out_p, out_s = model(
+                out_p, out_s, eps = model(
                     Tp_in=ds['Thx_p_in'], 
                     Ts_in=ds['Thx_s_in'], 
                     qp=ds['qhx_p'], 
                     qs=ds['qhx_s'], 
                     Tamb=ds['Tamb'], 
                     model_params=model_params,
-                    water_props=water_props
+                    water_props=water_props,
+                    return_epsilon=True
                 )
             else:
                 raise ValueError(
                     f"Unsupported alternative {alt_id}, options are: {supported_eval_alternatives}"
                 )
 
-            out[j] = np.array([out_p, out_s])
+            out[j] = np.array([out_p, out_s, eps])
             elapsed_time = time.time() - start_time
             
             if log_iteration:
                 logger.info(
-                    f"[{alt_id}] Iteration {i} / {len(df)}. Elapsed time: {elapsed_time:.5f} s. Error: {abs(out[j]-out_ref[j]):.2f}"
+                    f"[{alt_id}] Iteration {i} / {len(df)}. Elapsed time: {elapsed_time:.5f} s. Error: {abs(out[j, :N]-out_ref[j]):.2f}"
                 )
+        
+        df_mod = pd.DataFrame(out, columns=out_var_ids + ["epsilon"], index=df.index[idx_start:])
+        dfs.append(df_mod)
+        out = out[:, :N]  # Discard epsilon if present
+        outs_mod[alt_idx] = out # (The alias out is a view of outs_mod[alt_idx], the selection creates a copy that must be assigned back)
         
         elapsed_time = time.time() - start_time_alt
         
@@ -175,7 +184,6 @@ def evaluate_model(
             #     raise ValueError(f"Output shape {out_metrics.shape} does not match reference shape {out_ref.shape}")
             
             
-        df_mod = pd.DataFrame(out, columns=out_var_ids, index=df.index[idx_start:])
         
         # Calculate performance metrics
         stats.append({
@@ -194,9 +202,9 @@ def evaluate_model(
         
         logger.info(f"Finished evaluation of alternative {alt_id}. Elapsed time: {elapsed_time:.1f} s, MAE: {stats[-1]['metrics']['MAE']:.2f} ºC")
 
-    dfs: list[pd.DataFrame] = [
-        pd.DataFrame(out, columns=out_var_ids, index=df.index[idx_start:])
-        for out in outs_mod
-    ]
+    # dfs: list[pd.DataFrame] = [
+    #     pd.DataFrame(out, columns=out_var_ids, index=df.index[idx_start:])
+    #     for out in outs_mod
+    # ]
 
     return dfs, stats

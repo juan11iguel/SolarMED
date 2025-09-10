@@ -77,3 +77,14 @@ def within_range_or_min_or_max(value: float, range: rangeType, var_name:str= Non
         return range[1]
     else:
         return value
+    
+def within_range_or_nan(value: float, range: rangeType, var_name:str= None) -> float:
+
+    if value < range[0]:
+        logger.debug(f"({var_name}) Value {value:.2f} is less than {range[0]:.2f} -> NaN")
+        return np.nan
+    elif value > range[1]:
+        logger.debug(f"({var_name}) Value {value:.2f} is greater than {range[1]:.2f} -> NaN")
+        return np.nan
+    else:
+        return value

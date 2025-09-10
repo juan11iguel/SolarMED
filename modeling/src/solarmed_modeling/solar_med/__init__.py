@@ -31,7 +31,8 @@ from solarmed_modeling.heat_exchanger import (heat_exchanger_model,
                                               ModelParameters as HexModParams)
 from solarmed_modeling.thermal_storage import (thermal_storage_two_tanks_model, 
                                                ModelParameters as TsModParams,
-                                               FixedModelParameters as TsFixedModParams)
+                                               FixedModelParameters as TsFixedModParams,
+                                               calculate_stored_energy)
 from solarmed_modeling.three_way_valve import three_way_valve_model
 from solarmed_modeling.med import (FixedModelParameters as MedFixedModParams,
                                    MedModel)
@@ -68,7 +69,7 @@ np.set_printoptions(precision=2) # Set numpy to print only 2 decimal places
 dot = np.multiply # Alias for element-wise multiplication
 Nsf_max: int = 100  # Maximum number of steps to keep track of the solar field flow rate, should be higher than the maximum expected delay
 
-SupportedAlternativesLiteral: TypeVar = Literal["standard", "constant-water-props"]
+SupportedAlternativesLiteral = Literal["standard", "constant-water-props"]
 supported_eval_alternatives: tuple[str] = get_args(SupportedAlternativesLiteral)
 """ 
     - standard: intializes two water properties objects for low and high temperatures at every step 
@@ -314,6 +315,10 @@ class SolarMED(BaseModel):
                            description="Output. Thermal storage inlet power (kWth)")
     Pth_ts_dis: float = Field(None, title="Pth,ts,dis", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWth"},
                            description="Output. Thermal storage outlet power (kWth)")
+    Ets_h: float = Field(None, title="Ets,h", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWh"},
+                       description="Output. Energy stored in the hot tank (kWh)")
+    Ets_c: float = Field(None, title="Ets,c", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWh"},
+                       description="Output. Energy stored in the cold tank (kWh)")
     Jts: float = Field(None, title="Jts,e", json_schema_extra={"var_type": ModelVarType.TIMESERIES, "units": "kWe"},
                        description="Output. Thermal storage electrical power consumption (kWe)")
 
@@ -453,11 +458,11 @@ class SolarMED(BaseModel):
 
     # Private attributes
     _water_props: tuple[w_props, w_props] = PrivateAttr(None) # Water properties objects used accross the model
-    _MedModel: MedModel = PrivateAttr(None) #= Field(None, repr=False, description="MATLAB MED model instance")
+    _med_model: MedModel = PrivateAttr(None) #= Field(None, repr=False, description="MATLAB MED model instance")
     _med_fsm: MedFsm = PrivateAttr(None) # Finite State Machine object for the MED system. Should not be accessed/manipulated directly
     _sf_ts_fsm: SolarFieldWithThermalStorageFsm = PrivateAttr(None) # Finite State Machine object for the Solar Field with Thermal Storage system. Should not be accessed/manipulated directly
     _fmp: FixedModelParameters = PrivateAttr(None)  # Just a short alias for fixed_model_params
-    _mp: FixedModelParameters = PrivateAttr(None)  # Just a short alias for model_params
+    _mp: ModelParameters = PrivateAttr(None)  # Just a short alias for model_params
     # _created_at: datetime = PrivateAttr(default_factory=datetime.datetime.now) # Should not be accessed/manipulated directly
 
     model_config = ConfigDict(
@@ -589,7 +594,7 @@ class SolarMED(BaseModel):
         if self.use_models:
             # Initialize the MATLAB engine
             # self.init_matlab_engine()
-            self._MedModel = MedModel(param_array=self._fmp.med.param_array)
+            self._med_model = MedModel(fmp=self._fmp.med)
 
         # Make sure thermal storage state is a numpy array
         self.Tts_h = np.array(self.Tts_h, dtype=float)
@@ -967,53 +972,18 @@ class SolarMED(BaseModel):
         Tmed_c_in = self.Tmed_c_in
 
         Tmed_c_out0 = Tmed_c_out
-        med_model_solved: bool = False
+        # med_model_solved: bool = False
 
         if not self.med_active or not self.use_models:
             return override_model()
-
-        # MsIn = self._matlab.double([qmed_s / 3.6], size=(1, 1))  # m³/h -> L/s
-        # TsinIn = self._matlab.double([Tmed_s_in], size=(1, 1))
-        # MfIn = self._matlab.double([qmed_f], size=(1, 1))
-        # TcwinIn = self._matlab.double([Tmed_c_in], size=(1, 1))
-        # op_timeIn = self._matlab.double([0], size=(1, 1))
-        # wf=wmed_f # El modelo sólo es válido para una salinidad así que ni siquiera
-        # se considera como parámetro de entrada
-
-        while not med_model_solved and (Tmed_c_in < Tmed_c_out < Tmed_s_in):
-
-            # TcwoutIn = self._matlab.double([Tmed_c_out], size=(1, 1))
-            # # try:
-            # qmed_d, Tmed_s_out, qmed_c, _, _ = self._MED_model.MED_model(
-            #     MsIn,  # L/s
-            #     TsinIn,  # ºC
-            #     MfIn,  # m³/h
-            #     TcwoutIn,  # ºC
-            #     TcwinIn,  # ºC
-            #     op_timeIn,  # hours
-            #     nargout=5
-            # )
-            inputs = np.array([[
-                qmed_s,      # m³/h
-                Tmed_s_in,   # ºC
-                qmed_f,      # m³/h
-                Tmed_c_out,  # ºC
-                Tmed_c_in    # ºC
-            ]])
-            qmed_d, Tmed_s_out, qmed_c = self._MedModel.predict(inputs)[0, :]
-
-            if qmed_c > self._fmp.med.qmed_c_max:
-                Tmed_c_out += 1
-            elif qmed_c < self._fmp.med.qmed_c_min:
-                Tmed_c_out -= 1
-            else:
-                med_model_solved = True
-
-        if not med_model_solved:
-            self.med_active = False
-            logger.warning('MED is not active due to unfeasible operation in the condenser, setting all MED outputs to 0')
-
-            return override_model()
+        
+        qmed_d, Tmed_s_out, qmed_c, Tmed_c_out = self._med_model(
+            qs_m3h=qmed_s,
+            Ts_in_C=Tmed_s_in,
+            qf_m3h=qmed_f,
+            Tc_in_C=Tmed_c_in,
+            Tc_out_C=Tmed_c_out
+        )
 
         # Else
         if abs(Tmed_c_out0 - Tmed_c_out) > 0.1:
@@ -1278,6 +1248,9 @@ class SolarMED(BaseModel):
             self.Pth_ts_dis = 0
             self.Tts_h_out = 0
             self.Tts_c_in = 0
+            # Energy stored
+            self.Ets_c = 0
+            self.Ets_h = 0
             
             return
         
@@ -1316,7 +1289,21 @@ class SolarMED(BaseModel):
             # TODO: If there is an alternative thermal storage configuration, the index needs to be the one where the extraction is done
             self.Tts_h_out = self.Tts_h[0]
             self.Tts_c_in = self.Tmed_s_out
-
+            
+        # Energy stored
+        self.Ets_c = calculate_stored_energy(
+            Ti=self.Tts_c[::-1],  # Bottom to top
+            V_i=self._mp.ts.V_c[::-1], 
+            Tmin=self._fmp.med.Tmed_s_min, 
+            water_props=self._water_props[1]
+        )
+        self.Ets_h = calculate_stored_energy(
+            Ti=self.Tts_h, 
+            V_i=self._mp.ts.V_h, 
+            Tmin=self._fmp.med.Tmed_s_min, 
+            water_props=self._water_props[0]
+        )
+        
     def calculate_sf_aux_outputs(self) -> None:
         
         if not self.sf_active or not self.use_models:

@@ -19,9 +19,10 @@ def benchmark_model(
     sample_rates: list[int] = [5, 30, 400, 1000],
     default_files_suffix: str = "_MED",
     filter_non_active: bool = True,
-    filter_str: str = '(df["qmed_d"] > 0) & (df["Tmed_c_out"] - df["Tmed_c_in"] > 2) & (df["Tmed_s_in"] - df["Tmed_s_out"] > 2)',
+    filter_str: str = '(df["qmed_d"] > 0) & (df["Tmed_c_out"] - df["Tmed_c_in"] > 1.5) & (df["Tmed_s_in"] - df["Tmed_s_out"] > 1.5) & (df["Tmed_s_in"] < 81.5) & (df["qmed_c"] > 10.0)',
     save_results: bool = False,
     viz_val_config: Optional[benchmark.VisualizeValidationConfig] = None,
+    skip_sample_rates_viz: Optional[list[int]] = [5, 30],
 ) -> list[dict[str, str | dict[str, float]]]:
     
     assert all([alt in supported_eval_alternatives for alt in alternatives_to_eval]), f"Unsupported evaluation alternatives: {alternatives_to_eval}. Supported alternatives are: {supported_eval_alternatives}"
@@ -56,5 +57,6 @@ def benchmark_model(
         filter_str=filter_str,
         save_results=save_results,
         viz_val_config=viz_val_config,
-        output_path=output_path
+        output_path=output_path,
+        skip_sample_rates_viz=skip_sample_rates_viz
     )

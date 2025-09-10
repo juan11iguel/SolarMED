@@ -12,6 +12,7 @@ model_id: str = 'thermal_storage'
 def benchmark_model(
     model_params: ModelParameters, 
     fixed_model_params: FixedModelParameters = FixedModelParameters(),
+    fsm_params = None,w
     alternatives_to_eval: list[str] = ["standard", "constant-water-props"],
     test_ids: list[str] = None, 
     data_path: Path = Path("../../../data"), 

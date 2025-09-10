@@ -28,6 +28,21 @@ RUN apt-get update && apt-get install -y \
     graphviz \
     graphviz-dev
 
+# Kaleido dependencies (plotly static image export generation)
+RUN apt-get install -y \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libxkbcommon0 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2t64
+
 # Install zsh, oh-my-zsh with customized theme and plugins (git, ssh-agent, zsh-autosuggestions, zsh-syntax-highlighting)
 RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.2.0/zsh-in-docker.sh)" -- \
     -t https://github.com/denysdovhan/spaceship-prompt \

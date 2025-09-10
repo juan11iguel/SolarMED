@@ -152,22 +152,28 @@ def calculate_nrmse(predicted: np.ndarray[float], actual: np.ndarray[float]) -> 
 
     return nrmse
 
-def calculate_mape(predicted: np.ndarray[float], actual: np.ndarray[float]) -> float:
+def calculate_mape(predicted: np.ndarray, actual: np.ndarray) -> float:
     """
-    Calculate the Mean Absolute Percentage Error (MAPE).
+    Calculate the Mean Absolute Percentage Error (MAPE), robust to NaN and zero values.
 
     Args:
-        predicted (array-like): Predicted values.
-        actual (array-like): Actual values.
+        predicted (np.ndarray): Predicted values.
+        actual (np.ndarray): Actual values.
 
     Returns:
-        float: MAPE value.
+        float: MAPE value (percentage). NaN if no valid elements remain.
     """
+    predicted = np.asarray(predicted, dtype=float)
+    actual = np.asarray(actual, dtype=float)
 
-    error = np.abs((predicted - actual) / actual)
-    mape = np.nanmean(error) * 100  # Convert to percentage
+    # Mask invalid cases: NaN, inf, or actual == 0
+    mask = (~np.isnan(predicted)) & (~np.isnan(actual)) & (actual != 0)
 
-    return mape
+    if not np.any(mask):  # no valid data
+        return np.nan
+
+    error = np.abs((predicted[mask] - actual[mask]) / actual[mask])
+    return np.mean(error) * 100.0
 
 
 def calculate_metrics(

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional
 import hjson
-from . import ModelParameters, FixedModelParameters, supported_eval_alternatives
+from . import ModelParameters, FixedModelParameters, supported_eval_alternatives, FsmParameters
 from .utils import evaluate_model
 from solarmed_modeling import benchmark
 
@@ -10,7 +10,8 @@ model_id: str = 'solar_med'
 def benchmark_model(
     model_params: ModelParameters = ModelParameters(),
     fixed_model_params: FixedModelParameters = FixedModelParameters(),
-    alternatives_to_eval: list[str] = supported_eval_alternatives,
+    fsm_params: FsmParameters = FsmParameters(),
+    alternatives_to_eval: list[str] = ["constant-water-props"],
     test_ids: list[str] = None, 
     data_path: Path = Path("../../../data"), 
     output_path: Path = Path("../../../results/models_validation"),
@@ -46,6 +47,7 @@ def benchmark_model(
     return benchmark.benchmark_model(
         model_params=model_params,
         fixed_model_params=fixed_model_params,
+        fsm_params=fsm_params,
         evaluate_model_fn=evaluate_model,
         alternatives_to_eval=alternatives_to_eval,
         test_ids=test_ids,
