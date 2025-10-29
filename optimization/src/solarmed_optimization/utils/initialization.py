@@ -272,7 +272,7 @@ def initialize_problem_instance_NLP(
     env_vars_opt = env_vars_opt_1st_part.append(env_vars_opt_2nd_part).resample(f"{pp.sample_time_mod}s", origin="start")
     
     # Make sure integer decision variables are in the same time span as the environment variables
-    int_dec_vars = int_dec_vars.dump_in_span(span=(start_dt, None), return_format="series", align_first=True, resampling_method="bfill")
+    int_dec_vars = int_dec_vars.dump_in_span(span=(start_dt, None), return_format="series", align_first=True, resampling_method="nearest")
     
     return NlpProblem(
         int_dec_vars=int_dec_vars,

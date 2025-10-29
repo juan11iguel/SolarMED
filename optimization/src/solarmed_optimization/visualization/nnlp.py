@@ -17,7 +17,8 @@ from phd_visualizations.optimization import plot_obj_scape_comp_1d
 # from solarmed_optimization.visualization.optim_evolution import plot_obj_scape_comp_1d
 
 from solarmed_optimization import ProblemParameters, IntegerDecisionVariables
-from solarmed_optimization.problems.nnlp import OperationPlanResults
+from solarmed_optimization.problems.nnlp import (OperationPlanResults,
+                                                 OperationOptimizationResults)
 from solarmed_optimization.utils import condition_result_dataframe
 from solarmed_optimization.utils.operation_plan import generate_operation_datetimes, OperationPlanner
 
@@ -280,10 +281,9 @@ def plot_operation_plans(
 # fig
     return fig
 
-
 @dataclass
-class OperationPlanVisualizer:
-    op_plan_results: OperationPlanResults
+class OperationOptimizationVisualizer:
+    optim_results: OperationOptimizationResults
     output_path: Optional[Path] = None
     data_path: Path = Path("/workspaces/SolarMED/optimization/data")
     results_plot_simplified_config: Optional[dict] = None
@@ -308,28 +308,38 @@ class OperationPlanVisualizer:
                 with open(self.data_path / "variables_config.hjson") as f:
                     self.vars_config = hjson.load(f)
                     
-        self.best_problem_idxs = self.op_plan_results.fitness.argsort().tolist()
+        self.best_problem_idxs = self.optim_results.fitness.argsort().tolist()
     
     def check_output_path_defined(self):
         if self.output_path is None:
             raise ValueError("Output path not defined")
     
-    def plot_fitness_history(self, save: bool = False, highlight_best: Optional[int] = 3) -> go.Figure:
+    def plot_fitness_history(self, save: bool = False, highlight_best: Optional[int] = 1) -> go.Figure:
         if save:
             self.check_output_path_defined()
-            
-        df = self.op_plan_results.fitness_history.ffill()
+                
+        df = self.optim_results.fitness_history.ffill()
+        if highlight_best >= df.shape[1]:
+            logger.warning("More items specified to highlight than available problems, disabling highlight")
+            highlight_best = 0
+        
         fitness_history_list = [df[col].tolist() for col in df.columns]
         problem_ids = [f"problem {problem_id:03d}" for problem_id in df.columns.tolist()]
+        algo_ids = problem_ids
+        if highlight_best > 0:
+            non_highlighted_id = problem_ids[0].replace("000", f"0-{len(fitness_history_list)}")
+        else:
+            non_highlighted_id = None
             
         fig = plot_obj_scape_comp_1d(
             fitness_history_list=fitness_history_list, 
-            algo_ids=[problem_ids[0].replace("000", f"0-{len(fitness_history_list)}"), *problem_ids[1:]],
+            algo_ids=algo_ids,
             highlight_best=highlight_best,
             title_text="<b>Fitness evolution</b><br>comparison between different problems", # algorithms
             width=600,
             legend=dict(x=0.72, y=1),
             showlegend=False,
+            non_highlighted_id=non_highlighted_id
         )
         
         return fig
@@ -346,7 +356,7 @@ class OperationPlanVisualizer:
         assert plot_config is not None, "plot config should be defined"
         assert self.vars_config is not None, "asdasdasd"
         
-        df = self.op_plan_results.results_df
+        df = self.optim_results.results_df
         df = condition_result_dataframe(df)
         plot_config["plots"]["fitness_cumulative"]["title"] = f"Total acummulated benefit: <b>{df['cumulative_net_profit'].iloc[-1]:.2f}</b> (u.m.)"
 
@@ -359,12 +369,17 @@ class OperationPlanVisualizer:
 
         return fig
     
+    
+@dataclass
+class OperationPlanVisualizer(OperationOptimizationVisualizer):
+    optim_results: OperationPlanResults
+    
     def plot_operation_plans(self, save: bool = False, n_best_problems: Optional[int] = None) -> go.Figure:
         if save:
             self.check_output_path_defined()
             
-        pp = self.op_plan_results.problem_params
-        I = self.op_plan_results.results_df["I"]
+        pp = self.optim_results.problem_params
+        I = self.optim_results.results_df["I"]
             
         int_dec_vars_list = OperationPlanner.initialize(
                 operation_actions = pp.operation_actions,
@@ -389,8 +404,8 @@ class OperationPlanVisualizer:
             self.check_output_path_defined()
             
         fig = plot_op_mode_change_candidates(
-            I_series=I_exp if I_exp is not None else self.op_plan_results.results_df["I"], 
-            pp=self.op_plan_results.problem_params,
+            I_series=I_exp if I_exp is not None else self.optim_results.results_df["I"], 
+            pp=self.optim_results.problem_params,
             include_experimental = True if I_exp is not None else False,
         )
         

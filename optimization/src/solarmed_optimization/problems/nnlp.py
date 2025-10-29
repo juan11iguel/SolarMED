@@ -40,7 +40,6 @@ from solarmed_optimization.utils.evaluation import (evaluate_model_multi_day,
 def get_scenario_id(scenario_idx: int) -> str:
 	return f"scenario_{scenario_idx:02d}"
 
-# TODO: This class should be abstracted into a OperationOptimizationResults and then inherit from it and extend it
 @dataclass(kw_only=True)
 class OperationOptimizationResults:
 	date_str: str # Date in YYYYMMDD format
@@ -243,194 +242,6 @@ class OperationPlanResults(OperationOptimizationResults):
 		scenario_idx = self.scenario_idx if scenario_idx is None else scenario_idx
 		
 		return f'/{date_str}/{action}/{get_scenario_id(scenario_idx)}'
-
-# @dataclass
-# class OperationPlanResults:
-# 	date_str: str # Date in YYYYMMDD format
-# 	action: OpPlanActionType # Operation plan action identifier
-# 	x: pd.DataFrame # Decision vector (columns) for each problem (rows)
-# 	# int_dec_vars: list[pd.DataFrame] # Integer decision variables for each problem
-# 	fitness: pd.Series # Fitness values for each problem
-# 	fitness_history: pd.DataFrame # Optimization algorithm evolution fitness history (rows) for each problem (columns)
-# 	# environment_df: pd.DataFrame # Environment data
-# 	scenario_idx: int = 0 # Uncertainty scenario index, zero by default
-# 	metadata_flds: tuple[str, ...] = ("date_str", "action", "scenario_idx", "evaluation_time", "best_problem_idx", "algo_params", "problems_eval_params", "problem_params")
-# 	best_problem_idx: Optional[int] = None # Index of the best performing problem
-# 	results_df: Optional[pd.DataFrame] = None # Simulation timeseries results for the best performing problem
-# 	evaluation_time: Optional[float] = None # Time, in seconds, taken to evaluate layer
-# 	algo_params: Optional[AlgoParams] = None # Algorithm parameters
-# 	problems_eval_params: Optional[ProblemsEvaluationParameters] = None
-# 	problem_params: Optional[ProblemParameters] = None # Problem parameters
-# 	env_vars: Optional[EnvironmentVariables] = None # Environment variables
-	
-# 	def __post_init__(self):
-# 		if self.best_problem_idx is None:
-# 			self.best_problem_idx = int(self.fitness.idxmin())
-# 		self.set_environment_variables()
-   
-# 	def set_environment_variables(self, env_vars: Optional[EnvironmentVariables] = None) -> None:
-# 		if self.env_vars is not None:
-# 			return
-		
-# 		# Else
-# 		if env_vars is not None:
-# 			self.env_vars = env_vars
-			
-# 		elif self.env_vars is None and self.results_df is not None:
-# 			self.env_vars = EnvironmentVariables.from_dataframe(self.results_df)
-		
-# 	def evaluate_best_problem(self, problems: list[BaseNlpProblem] | BaseNlpProblem, model: SolarMED) -> pd.DataFrame:
-# 		print("best problem idx", self.best_problem_idx, "best x:", self.x.iloc[self.best_problem_idx].values)
-# 		results_df = evaluate_optimization_nlp(
-# 			x=self.x.iloc[self.best_problem_idx].values, 
-# 			problem=problems[self.best_problem_idx] if isinstance(problems, list) else problems,
-# 			model=SolarMED(**model.dump_instance())
-# 		)
-#   		# Remove NaNs, add columns for decision variables
-# 		self.results_df = condition_result_dataframe(results_df)
-# 		self.set_environment_variables()
-   
-# 		return self.results_df
-	
-# 	def get_hdf_base_path(self, date_str: str = None, action: OpPlanActionType = None, scenario_idx: int = None) -> str:
-# 		date_str = self.date_str if date_str is None else date_str
-# 		action = self.action if action is None else action
-# 		scenario_idx = self.scenario_idx if scenario_idx is None else scenario_idx
-		
-# 		return f'/{date_str}/{action}/{get_scenario_id(scenario_idx)}'
-	
-# 	def export(self, output_path: Path, compress: bool = True, reduced: bool = False) -> None:
-# 		""" Export results to a file. """
-# 		if not output_path.exists():
-# 			output_path.parent.mkdir(parents=True, exist_ok=True)
-		
-# 		temp_path = output_path.with_suffix(".h5")
-# 		if output_path.with_suffix(".gz").exists():
-# 			# Uncompress the gzip file into a temporary .h5 file
-# 			with gzip.open(output_path.with_suffix(".gz"), 'rb') as f_in:
-# 				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
-# 					shutil.copyfileobj(f_in, f_out)
-# 					temp_path = Path(f_out.name)
-
-# 		# if reduced:
-# 		#     self = copy.deepcopy(self)  # To avoid modifying the original object
-# 		#     self.results_df = None
-
-# 		with pd.HDFStore(temp_path, mode='a') as store:
-# 			path_str = self.get_hdf_base_path()
-
-# 			# Add the results dataframes to the file
-# 			store.put(f'{path_str}/x', self.x)
-# 			store.put(f'{path_str}/fitness', self.fitness)
-# 			store.put(f'{path_str}/fitness_history', self.fitness_history)
-# 			store.put(f'{path_str}/results', self.results_df)
-
-# 			# Add metadata attributes to the file
-# 			storer = store.get_storer(f"{path_str}/results")
-# 			storer.attrs.description = (
-# 				f"Evaluation results for the SolarMED optimal coupling. "
-# 				f"Operation plan layer - {self.action} for day {self.date_str}"
-# 			)
-# 			for fld_id in self.metadata_flds:
-# 				fld_val = getattr(self, fld_id)
-# 				if is_dataclass(fld_val):
-# 					fld_val = asdict(fld_val)
-# 				setattr(storer.attrs, fld_id, fld_val)
-
-# 		# Compress the .h5 file using gzip
-# 		if compress:
-# 			suffix = ".gz"
-# 			with open(temp_path, 'rb') as f_in, gzip.open(output_path.with_suffix(suffix), 'wb') as f_out:
-# 				shutil.copyfileobj(f_in, f_out)
-# 			temp_path.unlink()  # Remove temporary file .h5 file
-# 		else:
-# 			suffix = ".h5"
-# 			# Copy the uncompressed file to the output path
-# 			if temp_path != output_path.with_suffix(suffix):
-# 				shutil.copy(temp_path, output_path.with_suffix(suffix))
-# 				temp_path.unlink()  # Remove temporary file .h5 file
-		
-# 		logger.info(f"Exported results to {output_path.with_suffix(suffix)} / {path_str}")
-
-# 	@classmethod
-# 	def initialize(cls, input_path: Path, date_str: str, action: OpPlanActionType, scenario_idx: int = 0, log: bool = True) -> "OperationPlanResults":
-# 		""" Initialize an OperationPlanResults object from a file. """
-		
-# 		if not isinstance(input_path, Path):
-# 			input_path = Path(input_path)
-  
-# 		if input_path.suffix == ".gz":
-# 			# Uncompress the gzip file into a temporary .h5 file
-# 			with gzip.open(input_path, 'rb') as f_in:
-# 				with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
-# 					shutil.copyfileobj(f_in, f_out)
-# 					temp_path = Path(f_out.name)
-# 		else:
-# 			temp_path = input_path
-
-# 		try:
-# 			base_path_str = cls.get_hdf_base_path(None, date_str=date_str, action=action, scenario_idx=scenario_idx)
-		
-# 			with pd.HDFStore(temp_path, mode='r') as store:
-# 				# Load dataframes
-# 				try:
-# 					results_df = store.get(f'{base_path_str}/results')
-# 				except KeyError:
-# 					# results_df = None  # In case results_df was not saved (reduced export)
-# 					all_keys = store.keys()
-# 					# Find unique base paths (/date_str/action/scenario_idx)
-# 					unique_base_paths = {
-# 						str(PurePosixPath(k).parents[0]) for k in all_keys
-# 					}
-# 					unique_base_paths = sorted(unique_base_paths)
-					
-# 					raise KeyError(f"Could not find {base_path_str}. Available evaluation results {len(unique_base_paths)}: {unique_base_paths}")
-
-					
-# 				x = store.get(f'{base_path_str}/x')
-# 				fitness = store.get(f'{base_path_str}/fitness')
-# 				fitness_history = store.get(f'{base_path_str}/fitness_history')
-
-# 				# Load metadata attributes
-# 				storer = store.get_storer(f'{base_path_str}/results')
-# 				# for attr_name in storer.attrs._v_attrnames:
-# 				# 	value = getattr(storer.attrs, attr_name)
-# 				# 	print(f"{attr_name} = {value}")
-
-# 				metadata_flds_dict = {}
-# 				for fld_id in cls.metadata_flds:
-# 					# print(f"{fld_id=}")
-# 					fld_def = cls.__dataclass_fields__[fld_id]
-# 					fld_type = fld_def.type
-# 					value = getattr(storer.attrs, fld_id, None)
-
-# 					dataclass_type = resolve_dataclass_type(fld_type)
-# 					if dataclass_type and value is not None:
-# 						value = dataclass_type(**value)
-
-# 					metadata_flds_dict[fld_id] = value
-# 				# action = getattr(storer.attrs, 'action', None)
-# 				# evaluation_time = getattr(storer.attrs, 'evaluation_time', None)
-# 				# best_problem_idx = getattr(storer.attrs, 'best_problem_idx', None)
-
-# 		finally:
-# 			if input_path.suffix == ".gz":
-# 				temp_path.unlink()  # Clean up temp .h5 file
-
-# 		# Create the OperationPlanResults object
-# 		op_plan_results = OperationPlanResults(
-# 			x=x,
-# 			fitness=fitness,
-# 			fitness_history=fitness_history,
-# 			results_df=results_df,
-
-# 			**metadata_flds_dict
-# 		)
-
-# 		if log:
-# 			logger.info(f"Initialized {cls.__name__} from {input_path} / {base_path_str}")
-
-# 		return op_plan_results
 
 def batch_export(output_path: Path, op_plan_results_list: list[OperationPlanResults], compress: bool = True) -> None:
 	""" Export multiple OperationPlanResults objects to a single file. """
@@ -668,7 +479,7 @@ class Problem(BaseNlpProblem):
 		})
 		# Resample integer decision variables to model sample time. Do it here to avoid doing it every time in the fitness function
 		if int_dec_vars.sfts_mode.index.freq is None or int_dec_vars.sfts_mode.index.freq.n != self.sample_time_mod:
-			self.int_dec_vars = int_dec_vars.resample(self.sample_time_mod)
+			self.int_dec_vars = int_dec_vars.resample(self.sample_time_mod, origin="start")
 		else:
 			self.int_dec_vars = int_dec_vars
 		# self.int_dec_vars = int_dec_vars
@@ -824,12 +635,114 @@ class Problem(BaseNlpProblem):
 				dtype=float
 			) 
 			for var_id in self.dec_var_real_ids
+			if dec_var_updates_dict[var_id] > 0 # No updates for the variable
 		])
   
 		return x
+
+	def adapt_dec_vars_to_problem(
+		self, dec_vars0: DecisionVariables, return_dec_vector: bool = False, 
+		include_episode_range: bool = False
+	) -> DecisionVariables | np.ndarray[float]:
+		""" Adapt decision variables to the current problem instance. """
   
+		# TODO: From the original dec variables, we are taking the operation span
+		# of the whole system, whereas different subsystems can activate and be deactivated
+		# at different times. We should fill/extend to the new span (also considering the
+		# different spans per subsystem) for the specific subsystem active span.
+  
+		int_dec_vars_new = self.int_dec_vars
+		int_dec_vars0 = IntegerDecisionVariables.from_dec_vars(dec_vars0)
+		
+		dates0 = int_dec_vars0.get_dates()
+		dates_new = int_dec_vars_new.get_dates()
+		# print(f"{dates0=}, {dates_new=}")
+
+		op_spans0 = [
+			int_dec_vars0.get_start_and_end_datetimes(day=date.day) 
+			for date in dates0
+		]
+		op_spans_new = self.daily_operation_spans
+		# print(f"Operation spans new: {op_spans_new}")
+
+		dec_vars_new_list = []
+		for idx in range(len(dates_new)):
+			op_span_new = op_spans_new[idx]
+			
+			# The day is already in the old decision variables. Transfer them
+			if dates_new[idx] in dates0:
+				idx0 = list(dates0).index(dates_new[idx])
+				# First extract active operation from the old decision variables
+				dvars = dec_vars0.dump_in_span(span=op_spans0[idx0], return_format="series",)
+				
+				# Then dump them in the new operation span back and forward filling as necessary
+				dvars = dvars.dump_in_span(
+					span=op_span_new, 
+					return_format="series", 
+					align_first=True, 
+					resampling_method="nearest", 
+					fill_until_end=True
+				)
+				# print("avail. data", idx0, dates0[idx0], dvars.qsf.index[0], dvars.qsf.index[-1])
+			
+			# The day is new, use the first date available in the old decision variables
+			else:
+				# First extract active operation from the old decision variables
+				idx0 = np.argmin(dates_new[idx] - dates0)
+				dvars = dec_vars0.dump_in_span(span=op_spans0[idx0], return_format="series",)
+				
+				# Then dump them in the new operation span (keeping the old date)
+				op_span_ = (op_span_new[0].replace(day=dates0[idx0].day), op_span_new[1].replace(day=dates0[idx0].day))
+				dvars = dvars.dump_in_span(
+					span=op_span_, 
+					return_format="series", 
+					align_first=True, 
+					resampling_method="nearest", 
+					fill_until_end=True
+				)
+				
+				# Replace index date with the new one
+				# print("no data", dvars.qsf.index[0], dvars.qsf.index[-1])
+				dvars.replace_index_date(new_date=dates_new[idx])
+				# print(dvars.qsf.index[0], dvars.qsf.index[-1])
+			
+			# Expand decision variables to include inactive operation
+			if include_episode_range:
+				raise NotImplementedError()
+				
+			dec_vars_new_list.append(dvars)
+
+		# Join all daily decision variables into a single object
+		dec_vars_new = dec_vars_new_list[0]
+		for dvars in dec_vars_new_list[1:]:
+			dec_vars_new = dec_vars_new.append(dvars)
+
+		# Ensure the new decision object (dec_vars_new) integer variables match the 
+		# provided ones (int_dec_vars_new)
+		op_spans_new_ = [(dec_vars_new.qsf.index[dec_vars_new.qsf.index.date == date][0],
+						  dec_vars_new.qsf.index[dec_vars_new.qsf.index.date == date][-1]) 
+						 for date in dec_vars_new.get_dates()]
+		assert op_spans_new == op_spans_new_, f"Operation spans do not match: {op_spans_new} != {op_spans_new_}"
+
+		if return_dec_vector:
+			x = self.decision_variables_to_decision_vector(dec_vars_new)
+			assert len(x) == self.size_dec_vector, \
+				f"Decision vector size mismatch: {len(x)} != {self.size_dec_vector}"
+			# Enforce bounds to the decision vector
+			x = self.enforce_bounds_to_dec_vector(x)
+			return x
+		else:
+			return dec_vars_new
+      
 	def get_bounds(self, ) -> tuple[np.ndarray, np.ndarray]:
 		return np.hstack(self.box_bounds_lower), np.hstack(self.box_bounds_upper)
+
+	def enforce_bounds_to_dec_vector(self, x: np.ndarray[float]) -> np.ndarray[float]:
+		""" Enforce bounds to the decision vector """
+		
+		lower_bounds, upper_bounds = self.get_bounds()
+		x = np.clip(x, lower_bounds, upper_bounds)
+		return x
 		
 	def fitness(self, x: np.ndarray[float], debug_mode: bool = False) -> list[float]:
 			
@@ -893,10 +806,10 @@ def generate_bounds(problem_instance: Problem, int_dec_vars: IntegerDecisionVari
 		# print(f"{var_id}, {update_times_index=}")
 		
 		# print(int_var_values.index[int_var_values.index.duplicated()])
-		if len(update_times_index) <= 1:
+		if len(update_times_index) == 0:
 			# System is not activated throught horizon
-			lb[var_idx] = np.array(0)
-			ub[var_idx] = np.array(0)
+			# lb[var_idx] = np.array(0)
+			# ub[var_idx] = np.array(0)
 			continue
 		
 		# Else

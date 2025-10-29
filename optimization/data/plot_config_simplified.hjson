@@ -8,10 +8,10 @@
   height: 1300,
   width: 1200,
   margin: {
-    l:20,
-    r:50,
-    t:150,
-    b:20,
+    l:10,
+    r:10,
+    t:100,
+    b:10,
     pad:5
   },
   vertical_spacing: 0.035,
@@ -20,6 +20,7 @@
   arrow_xrel_pos: 60, # seconds
   legend_fontsize: 12,
   legend_delta_y: 0.01,
+  template: "plotly_white", 
 
   # Individual plot attributes
   # First specify the plot attributes
@@ -28,7 +29,7 @@
     environment: {
       title: "<b>Environment</b>",
       row_height: 1,
-      bg_color: "steelblue",
+      // bg_color: "steelblue",
       ylabels_left: ["ºC"],
       ylabels_right: ["W/m<sup>2</sup>"], # As many as n_yaxis-1
       ylims_left: 'manual',
@@ -82,7 +83,7 @@
     fitness: {
       title: "<b>Benefit</b>",
       row_height: 1,
-      bg_color: "bg_gray",
+      // bg_color: "bg_gray",
       # ylabels_left: ["C (u.m.)"],
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
       ylabels_left: ["u.m."],
@@ -131,7 +132,7 @@
 
     fitness_cumulative: {
       row_height: 0.5,
-      bg_color: "bg_gray",
+      // bg_color: "bg_gray",
       # ylabels_left: ["C (u.m.)"],
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
       ylabels_left: ["Cumulative<br>benefit<br>(u.m.)"],
@@ -158,7 +159,7 @@
 
     operational_states_sfts: {
       title: <b>Operational states</b>
-      bg_color: "steelblue",
+      // bg_color: "steelblue",
       row_height: 0.5,
       title_delta_y: 0.01,
       ylabels_left: ["sf-ts<br>state"],
@@ -207,7 +208,7 @@
 
     },
     operational_states_med: {
-        bg_color: "steelblue",
+        // bg_color: "steelblue",
         row_height: 0.5,
         ylabels_left: ["MED<br>state"],
         ylims_left: 'manual',
@@ -228,7 +229,7 @@
 
     power_balance: {
         title: "<b>Energy source-load</b>",
-        bg_color: "bg_gray",
+        // bg_color: "bg_gray",
         row_height: 1,
         ylabels_left: ["Power<br>balance<br>(kW<sub>th</sub>)"],
         ylims_left: 'manual',
@@ -263,7 +264,7 @@
       // TODO: Include other temperatures that exist in the real system if it does not clog,
       // probably better to move to its ows visualization
       row_height: 1,
-      bg_color: "bg_gray", # bg gray
+      // bg_color: "bg_gray", # bg gray
       ylabels_left: ["Temperatures<br>(⁰C)"],
       # ylabels_left: ["T<sub>dc</sub> (ºC)"],
       ylims_left: 'manual',
@@ -294,7 +295,7 @@
     thermal_storage_temperatures_hot: {
       row_height: 1,
       title: "Thermal storage",
-      bg_color: "bg_blue", # bg gray
+      // bg_color: "bg_blue", # bg gray
       # ylabels_left: ["T<sub>wct</sub> (ºC)"],
       ylabels_left: ["Hot tank<br>temp.(⁰C)"],
       ylims_left: "manual",
@@ -359,7 +360,7 @@
     med_flows: {
       title: "Desalination unit",
       row_height: 0.7,
-      bg_color: "bg_gray",
+      // bg_color: "bg_gray",
       ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
       ylabels_right: ["m<sup>3</sup>/h"],
       ylims_left: 'manual',
@@ -415,7 +416,7 @@
 
     med_temperatures: {
       row_height: 1,
-      bg_color: "bg_gray", # bg gray
+      // bg_color: "bg_gray", # bg gray
       ylabels_left: ["Temperatures<br>(⁰C)"],
       ylims_left: 'manual',
       showlegend: true,

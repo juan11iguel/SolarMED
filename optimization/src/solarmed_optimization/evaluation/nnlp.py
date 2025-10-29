@@ -222,6 +222,7 @@ def evaluate_operation_plan_layer(
     algo_params: AlgoParams,
     problems_eval_params: ProblemsEvaluationParameters,
     uncertainty_factor: float = 0.,
+    results_df: Optional[pd.DataFrame] = None,
     stored_results: Optional[Path] = None,
     debug_mode: bool = False,
 ) -> tuple[list[OperationPlanResults], BaseNlpProblem, int]:
@@ -254,6 +255,18 @@ def evaluate_operation_plan_layer(
             store_fitness=False,
             log=debug_mode
         )
+        
+        # Setup initial decision variables from prior decision variables
+        if results_df is None:
+            x0 = None
+        else:
+            x0 = [
+                problem.adapt_dec_vars_to_problem(
+                    dec_vars0=DecisionVariables.from_dataframe(results_df),
+                    return_dec_vector=True
+                )
+                for problem in problems
+            ]
             
         if stored_results is not None:
             # Skip evaluting the layer if results exists
@@ -280,6 +293,7 @@ def evaluate_operation_plan_layer(
                 algo_params=algo_params,
                 problems_eval_params=problems_eval_params,
                 action=action,
+                x0=x0,
             )
             op_plan_results.evaluate_best_problem(problems=problems, model=problem_data_copy.model)
             op_plan_results.scenario_idx = scenario_idx
@@ -326,10 +340,10 @@ def evaluate_operation_optimization_problems(
 def evaluate_operation_optimization_layer(
     problem_data: ProblemData,
     int_dec_vars: IntegerDecisionVariables,
-    results_df: pd.DataFrame,
     start_dt: datetime.datetime,
     algo_params: AlgoParams,
     problems_eval_params: ProblemsEvaluationParameters,
+    results_df: Optional[pd.DataFrame] = None,
     stored_results: Optional[Path] = None,
     debug_mode: bool = False,
 ) -> tuple[OperationOptimizationResults, BaseNlpProblem]:
@@ -339,12 +353,19 @@ def evaluate_operation_optimization_layer(
     problem = initialize_problem_instance_NLP(problem_data, int_dec_vars=int_dec_vars, start_dt=start_dt)
 
     # Setup initial decision variables from prior decision variables
-    dec_vars = (
-        DecisionVariables.from_dataframe(results_df).
-        dump_in_span(span=(start_dt, None), return_format="series", align_first=True, resampling_method="nearest")
-    )
-    x0 = problem.decision_variables_to_decision_vector(dec_vars)
-    
+    if results_df is None:
+        x0 = None
+    else:
+        dec_vars = (
+            DecisionVariables.from_dataframe(results_df).
+            dump_in_span(span=(start_dt, None), return_format="series", align_first=True, resampling_method="nearest")
+        )
+        x0 = problem.decision_variables_to_decision_vector(dec_vars)
+        problem.adapt_dec_vars_to_problem(
+            dec_vars0=DecisionVariables.from_dataframe(results_df),
+            return_dec_vector=True
+        )
+        
     if stored_results is not None:
         # Skip evaluting the layer if results exists
         date_str = problem.env_vars.get_date_str()

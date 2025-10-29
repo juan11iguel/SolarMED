@@ -1,5 +1,9 @@
 from dataclasses import asdict, fields, is_dataclass
 from typing import get_origin, get_args, Union, Any, Type, Literal, Optional
+from pathlib import Path, PurePosixPath
+import shutil
+import gzip
+import tempfile
 from datetime import datetime, timezone
 from enum import Enum
 import json
@@ -95,6 +99,15 @@ def resolve_dataclass_type(fld_type: Type) -> Type | None:
     elif isinstance(fld_type, type) and is_dataclass(fld_type):
         return fld_type
     return None
+
+def get_first_type_hint(cls, field_name: str) -> Type:
+    """Get the first type hint for a field in a dataclass, handling Union and Optional types."""
+    annotation = cls.__annotations__[field_name]
+    args = get_args(annotation)
+    if args:
+        return args[0]  # First type in the hint
+    return annotation  # If no args (not a Union/Optional/etc.), return as is
+
     
 def get_valid_modes(fsm_inputs: MedFsmInputs, 
                     lookup_table: dict[tuple[MedMode, MedState], MedFsmInputs] = med_fsm_inputs_table,
@@ -172,7 +185,7 @@ def downsample_by_segments(source_array:  np.ndarray, target_size: int, dtype: T
         assert len(downsampled_array) == target_size, "Downsampled array size mismatch"
     """
     if target_size < 1 or target_size > len(source_array):
-        raise ValueError("target_size must be between 1 and the size of the source array.")
+        raise ValueError(f"target_size must be between 1 and the size of the source array ({len(source_array)}), got {target_size}")
 
     dtype = dtype or source_array[0].dtype
 
@@ -591,3 +604,52 @@ def decision_vectors_to_dataframe(x: list[np.ndarray], problems: list[Any]) -> p
     )
     
     return x_df
+
+def check_available_objects_in_hdf_file(input_path: Path, hdf_path: str, depth: Optional[int] = None) -> list[str]:
+    """
+    Check available objects in an HDF5 file under a given hdf_path, optionally filtering by nesting depth.
+
+    Parameters:
+    - input_path: Path to the HDF5 or .gz file.
+    - hdf_path: Root path to look under (e.g., '20180921/operation').
+    - depth: If set, returns paths truncated to this nesting depth.
+
+    Returns:
+    - List of unique object paths as strings.
+    """
+    if not isinstance(input_path, Path):
+        input_path = Path(input_path)
+        
+    if input_path.suffix == ".gz":
+        with gzip.open(input_path, 'rb') as f_in:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".h5") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+                temp_path = Path(f_out.name)
+    else:
+        temp_path = input_path
+
+    hdf_path = str(hdf_path).strip("/")
+
+    with pd.HDFStore(temp_path, mode="r") as store:
+        all_keys = [k.strip("/") for k in store.keys()]
+
+        matching_keys = [
+            k for k in all_keys if k.startswith(hdf_path + "/")
+        ]
+
+        if not matching_keys:
+            unique_base_paths = {
+                str(PurePosixPath(k).parents[0]) for k in all_keys
+            }
+            unique_base_paths = sorted(unique_base_paths)
+            raise KeyError(f"Could not find {hdf_path}. Available evaluation results ({len(unique_base_paths)}): {unique_base_paths}")
+
+        if depth is not None:
+            truncated = {
+                "/".join(k.split("/")[:depth])
+                for k in matching_keys
+                if len(k.split("/")) >= depth
+            }
+            return sorted(truncated)
+
+        return sorted(matching_keys)
