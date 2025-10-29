@@ -18,11 +18,15 @@ def benchmark_model(
     datasets_path: Path = None,
     filenames_data: list[str] = None,
     sample_rates: list[int] = [5, 30, 400],
+    horizon_times: list[int] | None = None,
     default_files_suffix: list[str] = ["_solarMED", "_MED"],
     filter_non_active: bool = False,
     filter_str: str = '',
     save_results: bool = False,
     viz_val_config: Optional[benchmark.VisualizeValidationConfig] = None,
+    skip_sample_rates_viz: Optional[list[int]] = None,
+    skip_horizon_times_viz: Optional[list[int]] = None,
+    **kwargs
 ) -> list[dict[str, str | dict[str, float]]]:
     
     assert all([alt in supported_eval_alternatives for alt in alternatives_to_eval]), f"Unsupported evaluation alternatives: {alternatives_to_eval}. Supported alternatives are: {supported_eval_alternatives}"
@@ -34,9 +38,9 @@ def benchmark_model(
             params_str = "",
             out_var_ids = ["Tsf_in", "Tsf_out", "Thx_s_out", 'Tts_h_t', 'Tts_h_m', 'Tts_h_b', 'Tts_c_t', 'Tts_c_m', 'Tts_c_b', "qmed_d", "qmed_c"],
             out_var_units = ['°C']*9 + ['m³/h']*2,
-            pop_var_ids = ['I', 'Tamb', 'Tmed_c_in', 'qsf', 'qhx_p', 'qhx_s']
+            pop_var_ids = ['I', 'Tamb', 'Tmed_c_in', 'qsf', 'qhx_p', 'qhx_s', 'qmed_f', 'Tts_h_m', 'Tts_h_b', 'Tts_c_t', 'Tts_c_m']
         )
-        viz_val_config.plot_config["plots"]["med_temperatures"].pop("traces_right")
+        # viz_val_config.plot_config["plots"]["med_temperatures"].pop("traces_right")
         # for plot in viz_val_config.plot_config["plots"].values():
         #     if "show_active" in list(plot.keys()):
         #         plot["show_active"] = False
@@ -60,5 +64,8 @@ def benchmark_model(
         filter_str=filter_str,
         save_results=save_results,
         viz_val_config=viz_val_config,
-        output_path=output_path
+        output_path=output_path,
+        horizon_times=horizon_times,
+        skip_sample_rates_viz=skip_sample_rates_viz,
+        skip_horizon_times_viz=skip_horizon_times_viz,
     )

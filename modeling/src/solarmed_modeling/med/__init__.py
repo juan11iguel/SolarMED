@@ -80,7 +80,9 @@ class MedModel:
         for i, param in enumerate(param_array):
             model = GPy.models.GPRegression(X, Y[:, [i]], initialize=False)
             model.update_model(False) # do not call the underlying expensive algebra on load
-            model.initialize_parameter() # Initialize the parameters (connect the parameters up)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                model.initialize_parameter() # Initialize the parameters (connect the parameters up)
             model[:] = param # Load the parameters
             model.update_model(True) # Call the algebra only once
             models.append(model)

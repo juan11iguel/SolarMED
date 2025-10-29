@@ -1,28 +1,29 @@
 import math
-from typing import Literal
 import time
 import numpy as np
 import pandas as pd
 from loguru import logger
-from iapws import IAPWS97 as w_props
 
 from solarmed_modeling.metrics import calculate_metrics
 from solarmed_modeling.utils import resample_results
 from solarmed_modeling.thermal_storage.utils import Th_labels, Tc_labels
 
-from . import (supported_eval_alternatives,
-               SupportedAlternativesLiteral,
-               ModelParameters, 
-               FixedModelParameters,
-               FsmParameters,
-               EnvironmentParameters,
-               MedFsmParams,
-               SolarMED)
+from solarmed_modeling.solar_med import (
+    supported_eval_alternatives,
+    SupportedAlternativesLiteral,
+    ModelParameters, 
+    FixedModelParameters,
+    FsmParameters,
+    EnvironmentParameters,
+    MedFsmParams,
+    SolarMED
+)
 
 out_var_ids: list[str] = ["Tsf_in", "Tsf_out", "Thx_s_out", *Th_labels, *Tc_labels, "qmed_d", "qmed_c", "Tmed_s_out", "Pth_sf", "Pth_ts_src", "Pth_ts_dis", "Ets_h", "Ets_c"]
 
 def evaluate_model(
-    df: pd.DataFrame, sample_rate: int, 
+    df: pd.DataFrame, 
+    sample_rate: int, 
     model_params: ModelParameters, 
     fixed_model_params: FixedModelParameters = FixedModelParameters(),
     fsm_params: FsmParameters = FsmParameters(
@@ -37,16 +38,36 @@ def evaluate_model(
     ),
     env_params: EnvironmentParameters = EnvironmentParameters(),
     alternatives_to_eval: list[SupportedAlternativesLiteral] = "constant-water-props",
-    log_iteration: bool = False, base_df: pd.DataFrame = None,
+    log_iteration: bool = False, 
+    base_df: pd.DataFrame = None,
+    horizon_time: int | None = None,
+    **kwargs,
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
+    
+    """_summary_
+    
+    Args:
+        horizon_time: int | None. If not None, feedback experimental data every `horizon_time` seconds.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
     
     assert all([alt in supported_eval_alternatives for alt in alternatives_to_eval]), f"Invalid `alternatives_to_eval`: {alternatives_to_eval}, should be a list with any of these elements: {supported_eval_alternatives}"
     
     span = math.ceil(600 / sample_rate) # 600 s
     idx_start = np.max([span, 2]) # idx_start-1 should at least be one 
     idx_end = len(df)
+    
+    if horizon_time is not None:
+        horizon_size = horizon_time // sample_rate
+    else:
+        horizon_size = idx_end - idx_start
         
-    # Experimental (reference) outputs, used lated in performance metrics evaluation
+    # Experimental (reference) outputs, used later in performance metrics evaluation
     if base_df is None:
         idx_start_ref = idx_start
         ref_df = df
@@ -57,14 +78,14 @@ def evaluate_model(
         idx_start_ref = int(round(600 / base_df.index.freq.n, 0))
         ref_df = base_df
     out_ref = ref_df.iloc[idx_start_ref:][out_var_ids].values
-    
+        
     # Initialize result vectors
     stats = []
     dfs: list[pd.DataFrame] = []
     for alt_idx, alt_id in enumerate(alternatives_to_eval):
         # Initial values
         # Initialize model
-        logger.info(f"Starting evaluation of alternative {alt_id}. Sample rate = {sample_rate} s")
+        logger.info(f"Starting evaluation of alternative {alt_id}. Sample rate = {sample_rate} s. Prediction horizon = {horizon_time} s")
         start_time_alt = time.time()
         
         model = SolarMED(
@@ -94,6 +115,37 @@ def evaluate_model(
         for i in range(idx_start + 1, idx_end):
             ds = df.iloc[i]
             start_time = time.time()
+            
+            # print(f"{i=} | {i-idx_start=} | {horizon_size=} | {(i-idx_start) % horizon_size=}")
+
+            # Feedback experimental outputs every prediction horizon
+            if (i-idx_start) % horizon_size == 0:
+                # print(f"{i=} | {i-idx_start=} | {horizon_size=} | Feedbacking experimental data")
+                ds_exp = df.iloc[i-1]
+                
+                model_instance = model.dump_instance()
+                model_instance.update(dict(
+                    # Initial states
+                    ## FSM states
+                    # fsms_internal_states=model.fsms_internal_states, # From previous step
+                    # med_state=model.med_state,
+                    # sf_ts_state=model.sf_ts_state,
+                    ## Thermal storage
+                    Tts_h=[
+                        ds_exp["Tts_h_t"],
+                        ds_exp["Tts_h_m"],
+                        ds_exp["Tts_h_b"],
+                    ],
+                    Tts_c=[
+                        ds_exp["Tts_c_t"],
+                        ds_exp["Tts_c_m"],
+                        ds_exp["Tts_c_b"],
+                    ],
+                    ## Solar field
+                    Tsf_in_ant=df["Tsf_in"].iloc[i-1 - span : i-1].values,
+                    qsf_ant=df["qsf"].iloc[i-1 - span : i-1].values,
+                ))
+                model = SolarMED(**model_instance)
             
             model.step(
                 # Decision variables
@@ -132,6 +184,15 @@ def evaluate_model(
             # Resample out to base_df sample rate using ffill
             out_metrics = resample_results(out_mod, new_index=base_df.index[idx_start_ref:], 
                                            current_index=df.index[idx_start:], reshape=False)
+            
+        for var_id in ["Pth_ts_src", "Pth_ts_dis"]:
+            if var_id in out_var_ids:
+                var_idx = out_var_ids.index(var_id)
+                
+                # TODO: This should not be needed! Why is qts_src kept active after sf shutdown? Why does it not affect experimental data?
+                out_metrics[:, var_idx] = np.maximum(out_metrics[:, var_idx], 0)
+                # Also filter low experimental values (< 10 kW) since they are not relevant and skew metrics (e.g., MAPE) 
+                out_ref[out_ref[:, var_idx] < 10.0, var_idx] = 0.0
 
         # Calculate performance metrics
         stats.append({
@@ -145,7 +206,8 @@ def evaluate_model(
             "elapsed_time": elapsed_time,
             "average_elapsed_time": elapsed_time / (len(df) - idx_start),
             "model_parameters": model.model_dump_configuration(),
-            "sample_rate": sample_rate
+            "sample_rate": sample_rate,
+            "horizon_time": horizon_time,
         })
         
         # Sync model index with reference dataframe and append to results

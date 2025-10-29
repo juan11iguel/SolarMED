@@ -1,3 +1,4 @@
+import itertools
 from pathlib import Path
 import datetime
 import hjson
@@ -30,6 +31,7 @@ def benchmark_model(
     datasets_path: Path = None,
     filenames_data: list[str] = None,
     sample_rates: list[int] = default_sample_rates,
+    horizon_times: list[int] | None = None,
     default_files_suffix: str | list[str] = "_solarMED",
     filter_non_active: bool = False, 
     filter_str: str = "",
@@ -37,6 +39,7 @@ def benchmark_model(
     viz_val_config: Optional[VisualizeValidationConfig] = None,
     output_path: Path = Path("../../results/models_validation"),
     skip_sample_rates_viz: Optional[list[int]] = None,
+    skip_horizon_times_viz: Optional[list[int]] = None,
 ) -> list[dict[str, str | dict[str, float]]]:
     """Benchmark a model by evaluating it on different datasets and sample rates.
     
@@ -87,6 +90,9 @@ def benchmark_model(
         ]), "test_ids must be in YYYYMMDD format"
 
         filenames_data = [f"{test_id}{default_files_suffix[0]}.csv" for test_id in test_ids]
+        
+    if horizon_times is None:
+        horizon_times = [None]
 
     stats = []
     for idx, test_id in enumerate(test_ids):
@@ -132,25 +138,25 @@ def benchmark_model(
             except Exception as e:
                 logger.warning(f"Error evaluating filter_str: {filter_str}. Error: {e}")
                 continue
-            
-            
-                                
+
         dfs_mod: list[pd.DataFrame] = []
         try:
-            for df_, ts in zip(dfs, sample_rates):
-                out = evaluate_model_fn(
-                    df_, 
-                    ts, 
-                    model_params, 
-                    fixed_model_params=fixed_model_params,
-                    fsm_params=fsm_params,
-                    alternatives_to_eval=alternatives_to_eval, 
-                    base_df=dfs[0]
-                )
-                
-                stats.extend(out[1])
-                dfs_mod.extend(out[0])
-                del out
+            for df_ in dfs:
+                for ts, ht in itertools.product(sample_rates, horizon_times):
+                    out = evaluate_model_fn(
+                        df_, 
+                        sample_rate=ts,
+                        horizon_time=ht,
+                        model_params=model_params, 
+                        fixed_model_params=fixed_model_params,
+                        fsm_params=fsm_params,
+                        alternatives_to_eval=alternatives_to_eval, 
+                        base_df=dfs[0],
+                    )
+                    
+                    stats.extend(out[1])
+                    dfs_mod.extend(out[0])
+                    del out
                             
             # Match sample rates so they can be plot together
             # dfs_mod = [df_.reindex(df.index, method='ffill') for df_ in dfs_mod]
@@ -170,23 +176,50 @@ def benchmark_model(
                 
                 # Save results to csv
                 dfs[0].to_csv(output_path / f"out_exp_{viz_val_config.subsystem_id}_{date_str}.csv")
-                [df_.to_csv(output_path / f"out_mod_{viz_val_config.subsystem_id}_{ts}s_{date_str}.csv") for ts, df_ in zip(sample_rates, dfs_mod) ]
+                [
+                    df_.to_csv(output_path / f"out_mod_{viz_val_config.subsystem_id}_Ts_{ts}s_H_{ht}s_{date_str}.csv")
+                    for (ts, ht), df_ in zip(itertools.product(sample_rates, horizon_times), dfs_mod)
+                ]
                 
                 # Remove variables not wanted in the plots
                 if viz_val_config.pop_var_ids is not None:
-                    [df_.drop(columns=[col for col in viz_val_config.pop_var_ids if col in df_.columns], inplace=True) for df_ in dfs_mod]
+                    [
+                        df_.drop(
+                            columns=[col for col in viz_val_config.pop_var_ids if col in df_.columns], 
+                            inplace=True
+                        ) 
+                        for df_ in dfs_mod
+                    ]
                 
                 if viz_val_config.params_str is None:
                     viz_val_config.params_str = ", ".join([f"{k}: {v}" for k, v in asdict(model_params).items()])
 
+                if horizon_times is not None:
+                    plt_title_hor_str = f"| Horizon time (H)={horizon_times} s</span>"
+                else:
+                    plt_title_hor_str = ''
+
                 fig = experimental_results_plot(
                     viz_val_config.plot_config,
                     df0,
-                    df_comp=[df_ for ts, df_ in zip(sample_rates, dfs_mod) if ts not in (skip_sample_rates_viz or [])],
-                    comp_trace_labels=[f"[Ts={ts}s]" for ts in sample_rates if ts not in (skip_sample_rates_viz or [])]*len(alternatives_to_eval),
+                    df_comp=[
+                        df_ for (ts,ht), df_ in zip(itertools.product(sample_rates, horizon_times), dfs_mod) 
+                        if (ts not in (skip_sample_rates_viz or [])) and (ht not in (skip_horizon_times_viz or []))
+                    ],
+                    comp_trace_labels=[
+                        "[" + 
+                        ", ".join(
+                            part for part in [
+                                f"Ts={ts}s" if len(sample_rates) > 1 else None,
+                                f"H={ht/3600:0.1f}h" if (horizon_times is not None and len(horizon_times) > 1) else None,
+                            ] if part is not None
+                        ) + "]"
+                        for ts, ht in itertools.product(sample_rates, horizon_times)
+                        if (ts not in (skip_sample_rates_viz or [])) and (ht not in (skip_horizon_times_viz or []))
+                    ] * len(alternatives_to_eval),
                     # {df.index[0].strftime('%d/%m/%Y')}
                     # ɣ: {model_params.gamma:.4f}
-                    title_text=f"<b>{viz_val_config.subsystem_id.capitalize().replace('_', ' ')}</b> model validation<br><span style='font-size: 13px;'>{viz_val_config.params_str} | T<sub>s</sub>={sample_rates}s</span>",
+                    title_text=f"<b>{viz_val_config.subsystem_id.capitalize().replace('_', ' ')}</b> model validation<br><span style='font-size: 13px;'>{viz_val_config.params_str} | T<sub>s</sub>={sample_rates}s {plt_title_hor_str}</span>",
                     vars_config=vars_config,
                     resample=False,
                     template="plotly_white",
@@ -200,7 +233,7 @@ def benchmark_model(
                 )
                 
                 if viz_val_config.out_var_ids is not None:
-                    for df_mod, ts in zip(dfs_mod,sample_rates):
+                    for df_mod, (ts, ht) in zip(dfs_mod, itertools.product(sample_rates, horizon_times)):
                         fig = regression_plot(
                             df_ref=dfs[0],
                             df_mod=df_mod,
@@ -211,7 +244,7 @@ def benchmark_model(
                             legend_pos="side",   
                         )
                         save_figure(
-                            figure_name=f"{viz_val_config.subsystem_id}_regression_{ts}s_{date_str}",
+                            figure_name=f"{viz_val_config.subsystem_id}_regression_Ts_{ts}s_H_{ht}s_{date_str}",
                             figure_path=output_path,
                             fig=fig, formats=('png', 'html'), 
                             width=fig.layout.width, height=fig.layout.height, scale=2

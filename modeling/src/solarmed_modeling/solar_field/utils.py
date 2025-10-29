@@ -19,9 +19,10 @@ def evaluate_model(
     sample_rate: int, 
     model_params: ModelParameters, 
     fixed_model_params: FixedModelParameters = FixedModelParameters(),
-    fsm_params = None,
+    # fsm_params = None,
     alternatives_to_eval: list[Literal["standard", "no-delay", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
+    **kwargs
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
     
     """

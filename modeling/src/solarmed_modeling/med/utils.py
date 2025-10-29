@@ -14,12 +14,13 @@ from . import MedModel, FixedModelParameters, supported_eval_alternatives
 def evaluate_model(
     df: pd.DataFrame, 
     sample_rate: int,
-    model_params: None = None,
-    fsm_params: None = None,
+    # model_params: None = None,
+    # fsm_params: None = None,
     fixed_model_params: FixedModelParameters = FixedModelParameters(),
     alternatives_to_eval: list[Literal["standard"]] = supported_eval_alternatives,
     log_iteration: bool = False, 
     base_df: pd.DataFrame = None,
+    **kwargs
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
     
     """

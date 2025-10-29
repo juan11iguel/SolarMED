@@ -29,6 +29,18 @@
   xdomain: [0, 0.9],
   legend_xmargin: 0.08,
   title_y: 0.99,
+  subplot_titles_x: -0.01,
+  legend_delta_y: 0.012,
+  // legend_itemwidth: 25,
+  // legend_fontsize: 10,
+
+  legend: {
+    itemwidth: 30,
+    font_size: 11.5,
+    entrywidth:46,
+    // itemsizing: "constant",
+    // maxheight: 0.2,
+  },
 
   # Individual plot attributes
   # First specify the plot attributes
@@ -316,7 +328,7 @@
           title: "<b>Thermal storage</b>",
           // "title": "Power balance",
           "ylabels_left": ["Energy<br>(kWh<sub>th</sub>)"],
-          "ylims_left": [0, 400],
+          "ylims_left": [0, 450],
           "showlegend": true,
           "legend_position": "top",
     
@@ -382,6 +394,7 @@
       // ylabels_right: ["kW<sub>th</sub>"],
       ylims_left: 'manual',
       showlegend: true,
+      legend_position: "top",
 
       traces_left: [
         {
@@ -598,17 +611,18 @@
 
     med_flows: {
       title: "<b>MED</b>"
-      row_height: 0.8,
+      row_height: 1,
       ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
       ylabels_right: ["m<sup>3</sup>/h"],
-      tigth_vertical_spacing: true,
+      tigth_vertical_spacing: false,
       ylims_left: 'manual',
       showlegend: true,
+      legend_position: "top",
 
       # Plotted between this plot and the next one
-      show_active: true,
-      active_var_id: "med_active",
-      active_color: "dc_green", # Needs to end with
+      // show_active: true,
+      // active_var_id: "med_active",
+      // active_color: "dc_green", # Needs to end with
 
       traces_left: [
         {

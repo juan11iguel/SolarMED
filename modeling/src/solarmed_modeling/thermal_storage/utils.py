@@ -20,11 +20,12 @@ def evaluate_model(
     sample_rate: int, 
     model_params: ModelParameters, 
     fixed_model_params: FixedModelParameters,
-    fsm_params: None = None,
+    # fsm_params: None = None,
     alternatives_to_eval: list[Literal["standard", "constant-water-props"]] = supported_eval_alternatives,
     log_iteration: bool = False, base_df: pd.DataFrame = None,
     Th_labels: list[str] = ['Tts_h_t', 'Tts_h_m', 'Tts_h_b'],
-    Tc_labels: list[str] = ['Tts_c_t', 'Tts_c_m', 'Tts_c_b']
+    Tc_labels: list[str] = ['Tts_c_t', 'Tts_c_m', 'Tts_c_b'],
+    **kwargs
 ) -> tuple[list[pd.DataFrame], list[dict[str, str | dict[str, float]]]]:
     
     """

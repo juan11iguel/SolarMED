@@ -12,6 +12,14 @@ import numpy as np
 import pandas as pd
 from transitions.extensions import GraphMachine as Machine
 
+import logging
+""" Disable
+WARNING	transitions.core:core.py:_checked_assignment()- Skip binding of 'is_SF_HEATING_TS' to model due to model override policy.
+WARNING	transitions.core:core.py:_checked_assignment()- Skip binding of 'is_IDLE' to model due to model override policy.
+WARNING	transitions.core:core.py:_checked_assignment()- Skip binding of 'is_SF_HEATING_TS' to model due to model override policy.
+"""
+logging.getLogger("transitions").setLevel(logging.ERROR)
+
 CombinationType = dict[str, bool | int]
 
 # States definition
