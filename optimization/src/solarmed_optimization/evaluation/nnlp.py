@@ -64,12 +64,9 @@ def evaluate_problems(
 ) -> tuple[str, pd.DataFrame, pd.Series, pd.DataFrame, int] :
     # date_str, x, fitness, fitness_history, evaluation_time
     
-    # TODO: Find a way to have a common evaluate_problems(...) that can be used for both
-    # evaluate_operation_optimization_problem and evaluate_operation_plan_problems
     date_str = list(asdict(problems[0].env_vars).values())[0].index[0].strftime("%Y%m%d")
     start_time = time.time()
 
-    # TODO: Here x should be providable from a previous evaluation
     x = [x0_ for x0_ in x0] if x0 is not None else [None] * len(problems)
     fitness = [f0 for f0 in fitness0] if fitness0 is not None else [None] * len(problems)
     fitness_history = [None] * len(problems)

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import hjson
 from loguru import logger
 import plotly.graph_objects as go
+import datetime
 
 from phd_visualizations import save_figure
 from phd_visualizations.test_timeseries import experimental_results_plot
@@ -29,7 +30,7 @@ def compact_repr(lst):
     counts = Counter(tuple(lst[i:i+3]) for i in range(0, len(lst), 3))
     return " + ".join([f"{v}×{list(k)}" for k, v in counts.items()])
 
-def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, include_experimental: bool = True) -> go.Figure:
+def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, include_experimental: bool = True, starting_dt: datetime.datetime | None = None) -> go.Figure:
     """
     Visualize the irradiance and the candidates using plotly
 
@@ -47,7 +48,13 @@ def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, i
     I_opt = I_series.resample(f"{pp.sample_time_opt}s", origin="start").first()
     I_opt_resampled = I_opt.resample(f"{pp.sample_time_mod}s", origin="start").interpolate()
 
-    operation_datetimes = generate_operation_datetimes(I_opt_resampled, pp.operation_actions, pp.irradiance_thresholds)
+    I_opt_resampled_ = I_opt_resampled
+    if starting_dt is not None:
+        if isinstance(starting_dt, str):
+            starting_dt = pd.to_datetime(starting_dt)
+        I_opt_resampled_ = I_opt_resampled[I_opt_resampled.index >= starting_dt]
+        
+    operation_datetimes = generate_operation_datetimes(I_opt_resampled_, pp.operation_actions, pp.irradiance_thresholds)
 
     if include_experimental:
         fig.add_trace(
@@ -285,6 +292,7 @@ def plot_operation_plans(
 class OperationOptimizationVisualizer:
     optim_results: OperationOptimizationResults
     output_path: Optional[Path] = None
+    output_file_name: str = "results"
     data_path: Path = Path("/workspaces/SolarMED/optimization/data")
     results_plot_simplified_config: Optional[dict] = None
     results_plot_config: Optional[dict] = None
@@ -293,6 +301,8 @@ class OperationOptimizationVisualizer:
     
     def __post_init__(self):
         if self.output_path is not None:
+            if isinstance(self.output_path, str):
+                self.output_path = Path(self.output_path)
             self.output_path.mkdir(parents=True, exist_ok=True)
 
         if self.data_path is not None:
@@ -313,10 +323,18 @@ class OperationOptimizationVisualizer:
     def check_output_path_defined(self):
         if self.output_path is None:
             raise ValueError("Output path not defined")
+        
+    def save_figure(self, fig: go.Figure, figure_name: str, **kwargs):
+        self.check_output_path_defined()
+        
+        save_figure(
+            fig,
+            figure_name=f"{self.output_file_name}_{figure_name}",
+            figure_path=self.output_path,
+            formats=["html", "png"],
+        )
     
     def plot_fitness_history(self, save: bool = False, highlight_best: Optional[int] = 1) -> go.Figure:
-        if save:
-            self.check_output_path_defined()
                 
         df = self.optim_results.fitness_history.ffill()
         if highlight_best >= df.shape[1]:
@@ -342,12 +360,12 @@ class OperationOptimizationVisualizer:
             non_highlighted_id=non_highlighted_id
         )
         
+        if save:
+            self.save_figure(fig, "fitness_evolution")
+        
         return fig
 
     def plot_result_timeseries(self, save: bool = False, version: Literal["simplified", "complete"] = "simplified") -> go.Figure:
-        if save:
-            self.check_output_path_defined()
-            
             
         if version == "simplified":
             plot_config = self.results_plot_simplified_config
@@ -366,6 +384,9 @@ class OperationOptimizationVisualizer:
             # df_comp=best_dfs[1:2] if max_n_cases > 1 else None,
             vars_config=self.vars_config, resample=False
         )
+        
+        if save:
+            self.save_figure(fig, "results_timeseries")
 
         return fig
     
@@ -375,18 +396,17 @@ class OperationPlanVisualizer(OperationOptimizationVisualizer):
     optim_results: OperationPlanResults
     
     def plot_operation_plans(self, save: bool = False, n_best_problems: Optional[int] = None) -> go.Figure:
-        if save:
-            self.check_output_path_defined()
             
         pp = self.optim_results.problem_params
         I = self.optim_results.results_df["I"]
             
         int_dec_vars_list = OperationPlanner.initialize(
-                operation_actions = pp.operation_actions,
-                irradiance_thresholds = pp.irradiance_thresholds
-            ).generate_decision_series(I=I)
+            operation_actions = pp.operation_actions,
+            irradiance_thresholds = pp.irradiance_thresholds
+        ).generate_decision_series(I=I)
             
         if n_best_problems is not None:
+            n_best_problems = min(n_best_problems, len(int_dec_vars_list)-1)
             int_dec_vars_list = int_dec_vars_list[:n_best_problems]
             
         fig = plot_operation_plans(
@@ -396,17 +416,22 @@ class OperationPlanVisualizer(OperationOptimizationVisualizer):
             problem_idxs=self.best_problem_idxs[:n_best_problems] if n_best_problems is not None else None,
         )
         
+        if save:
+            self.save_figure(fig, "operation_plans")
+        
         return fig
     
     def plot_op_mode_change_candidates(self, save: bool = False, I_exp: Optional[pd.Series] = None) -> go.Figure:
         
-        if save:
-            self.check_output_path_defined()
             
         fig = plot_op_mode_change_candidates(
             I_series=I_exp if I_exp is not None else self.optim_results.results_df["I"], 
             pp=self.optim_results.problem_params,
             include_experimental = True if I_exp is not None else False,
+            starting_dt=self.optim_results.results_df.index[0]
         )
+        
+        if save:
+            self.save_figure(fig, "op_mode_change_candidates")
         
         return fig

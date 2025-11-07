@@ -667,6 +667,9 @@ class Problem(BaseNlpProblem):
 
 		dec_vars_new_list = []
 		for idx in range(len(dates_new)):
+			if idx >= len(op_spans_new):
+				break
+ 
 			op_span_new = op_spans_new[idx]
 			
 			# The day is already in the old decision variables. Transfer them

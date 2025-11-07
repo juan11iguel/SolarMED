@@ -201,7 +201,7 @@ def initialize_problem_instances_nNLP(
     # print(I)
     
     # 3. Build operation plan
-    operation_planner = OperationPlanner.initialize(pp.operation_actions, pp.irradiance_thresholds)
+    operation_planner = OperationPlanner.initialize(pp.operation_actions, pp.irradiance_thresholds, pp.operation_actions_include_null_operation, I=I)
     if log:
         print(operation_planner)
     

@@ -1088,7 +1088,10 @@ class SolarMED(BaseModel):
     
         return Tts_h, Tts_c, 
         
-    def solve_heat_exchanger(self, return_epsilon: bool = False, update_attrs: bool = True) -> tuple[float, float, float] | tuple[float, float]:
+    def solve_heat_exchanger(
+        self, return_epsilon: bool = False, update_attrs: bool = True, 
+        qsf_sp: float | None = None, qts_src_sp: float | None = None
+    ) -> tuple[float, float, float] | tuple[float, float]:
         """ Solve the heat exchanger model """
         
         if not self.use_models:
@@ -1105,8 +1108,8 @@ class SolarMED(BaseModel):
             Tp_in=self.Tsf_out,  # Solar field outlet temperature (ºC)
             Ts_in=self.Tts_c[-1],  # Cold tank bottom temperature (ºC)
 
-            qp=self.qsf_sp,  # Solar field flow rate (output, m³/h)
-            qs=self.qts_src_sp,  # Thermal storage charge flow rate (output, m³/h)
+            qp=self.qsf_sp if qsf_sp is None else qsf_sp,  # Solar field flow rate (output, m³/h)
+            qs=self.qts_src_sp if qts_src_sp is None else qts_src_sp,  # Thermal storage charge flow rate (output, m³/h)
 
             Tamb=self.Tamb,  # Ambient temperature (ºC)
 
@@ -1128,7 +1131,7 @@ class SolarMED(BaseModel):
         else:
             return Thx_p_out, Thx_s_out
 
-    def solve_solar_field(self, update_attrs: bool = True) -> tuple[float, float]:
+    def solve_solar_field(self, update_attrs: bool = True, qsf_sp: float | None = None) -> tuple[float, float]:
         """
         Solve the solar field model
         Make sure to set `Tsf_out_ant` to the prior `Tsf_out` value before calling this method
@@ -1155,7 +1158,7 @@ class SolarMED(BaseModel):
         # Else
         Tsf_out, qsf = solar_field_with_q_validation_model(
             Tin=np.append(self.Tsf_in_ant, self.Tsf_in), # From current value, up to array start
-            q=self.qsf_sp,
+            q=self.qsf_sp if qsf_sp is None else qsf_sp,
             q_ant=self.qsf_ant,
             I=self.I, 
             Tamb=self.Tamb, 
@@ -1365,9 +1368,6 @@ class SolarMED(BaseModel):
             
         # Electrical consumption
         self.Jmed = 0
-        self.Jmed += np.sum(
-            [actuator(getattr(self, var_id)) for var_id, actuator in self.actuators_consumptions.med.items()]
-        )
         self.Jmed += auxiliary_consumption()
 
         if not self.med_active:
@@ -1375,6 +1375,10 @@ class SolarMED(BaseModel):
             self.Pth_med = 0.0
             self.STEC_med = np.nan
         else:
+            # Electrical consumption
+            self.Jmed += np.sum(
+                [actuator(getattr(self, var_id)) for var_id, actuator in self.actuators_consumptions.med.items()]
+            )
             # Electrical performance
             self.SEEC_med = self.Jmed / self.qmed_d # kWhe/m³
             # Thermal performance

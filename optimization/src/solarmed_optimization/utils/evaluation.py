@@ -36,6 +36,7 @@ def evaluate_idle_thermal_storage(
     sample_time: int = 3600, 
     df: Optional[pd.DataFrame] = None,
     debug_mode: bool = False,
+    update_model_instance: bool = True,
 ) -> tuple[np.ndarray[float], np.ndarray[float], None|pd.DataFrame]:
     """Evaluate the thermal storage when the only factor are the thermal losses
     to the environment (idle operation). This function evaluates the thermal 
@@ -144,6 +145,10 @@ def evaluate_idle_thermal_storage(
         else:
             # Just concatenate
             df = pd.concat([df, df_])
+            
+    if update_model_instance:
+        model.Tts_h = Tts_h[-1]
+        model.Tts_c = Tts_c[-1]
             
     return Tts_h[-1], Tts_c[-1], df
 

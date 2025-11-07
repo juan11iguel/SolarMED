@@ -39,6 +39,35 @@ def generate_pause_update_datetimes(I: pd.Series, t_min: int) -> list[datetime]:
 def check_irradiance_data(I: pd.Series) -> AssertionError | None:
     assert len(I) > 0, "Irradiance series is empty, probably a consequence of more actions in operation_plan than days in irradiance data"
 
+def ensure_valid_operation_actions(op_actions: OperationActionType, I: pd.Series) -> OperationActionType:
+    
+    before = op_actions.copy()
+    
+    # TODO: Not entirely convinced about this approach. 
+    # What if there are three days and the non-conformant is the second? With 
+    # this approach we would be removing actions for the third day and fail to 
+    # properly filter the actions
+    
+    days = I.index.day.unique().values
+    n_days = len(
+        # The day should have more than one entry to be considered valid
+        [day for day in days if len(I[I.index.day == day]) > 1]
+    )
+    
+    # n_days = I.index.normalize().nunique()
+        
+    for subsystem_id, actions in op_actions.items():
+        n_unique_repeated_actions = len([a for a, n in actions if a == actions[0][0]])
+        n_unique_actions = len(actions) - n_unique_repeated_actions
+        if n_unique_repeated_actions > n_days:
+            # Remove excess actions
+            op_actions[subsystem_id] = op_actions[subsystem_id][:n_days*n_unique_actions]
+
+    if len(list(before.values())[0]) > len(list(op_actions.values())[0]):
+        logger.info(f"More actions ({n_unique_repeated_actions}) than available days in data ({n_days}), truncating excess actions: {before} -> {op_actions}")
+        
+    return op_actions
+
 def generate_startup_update_datetimes(I: pd.Series, n: int, irradiance_thresholds: IrradianceThresholds = IrradianceThresholds()) -> list[datetime]:
     """ Function that given a timeseries of irradiance returns n candidates 
         for operation startup within the given data span
@@ -165,11 +194,16 @@ def generate_update_datetimes(I: pd.Series, n: int, action_type: ActionType | st
     
     raise ValueError(f"Unknown option {action_type}, should be one of {[name for name in action_type.__members__.names()]}")
 
-def generate_operation_datetimes(I: pd.Series, operation_actions: OperationActionType, irradiance_thresholds: IrradianceThresholds) -> OperationUpdateDatetimesType:
+def generate_operation_datetimes(
+    I: pd.Series, 
+    operation_actions: OperationActionType, 
+    irradiance_thresholds: IrradianceThresholds
+) -> OperationUpdateDatetimesType:
     """ Function that returns an object equivalent to operation actions but 
     replaces the number of updates with the datetimes of the possible updates"""
     
     irradiance_thresholds = copy.deepcopy(irradiance_thresholds)
+    operation_actions = ensure_valid_operation_actions(operation_actions, I)
     
     operation_datetimes = {}
     for subsystem_id, subsystem_actions in operation_actions.items():
@@ -198,7 +232,10 @@ def generate_operation_datetimes(I: pd.Series, operation_actions: OperationActio
             
     return operation_datetimes
 
-def generate_operation_combos(operation_actions: dict[str, list[tuple[str, int]]]) -> list[tuple[tuple[int], ...]]:
+def generate_operation_combos(
+    operation_actions: dict[str, list[tuple[str, int]]],
+    include_null_operation: bool = True
+) -> list[tuple[tuple[int], ...]]:
     """Generate all possible operation plans for the subsystems based on the given actions
 
     Args:
@@ -262,10 +299,12 @@ def generate_operation_combos(operation_actions: dict[str, list[tuple[str, int]]
         operation_plans_subsystems.append(
             list(product(*combs))
         )        
-        # Add the null operation option (tuple([0]*n), tuple([0]*n))
-        operation_plans_subsystems[-1].append(
-            tuple([tuple([0]*action[1]) for action in actions])
-        ) 
+        
+        if include_null_operation:
+            # Add the null operation option (tuple([0]*n), tuple([0]*n))
+            operation_plans_subsystems[-1].append(
+                tuple([tuple([0]*action[1]) for action in actions])
+            ) 
         
     # Combine the operation plans for each subsystem
     operation_plans = list(product(*operation_plans_subsystems))
@@ -356,8 +395,20 @@ class OperationPlanner:
     operation_datetimes: Optional[OperationUpdateDatetimesType] = None
     
     @classmethod
-    def initialize(cls, operation_actions: OperationActionType, irradiance_thresholds: IrradianceThresholds, ) -> "OperationPlanner":
-        plans = generate_operation_combos(operation_actions)
+    def initialize(
+        cls, 
+        operation_actions: OperationActionType, 
+        irradiance_thresholds: IrradianceThresholds, 
+        include_null_operation: bool = True,
+        I: Optional[pd.Series] = None,
+    ) -> "OperationPlanner":
+        
+        if I is not None:
+            # Validate operaction_actions
+            operation_actions = ensure_valid_operation_actions(operation_actions, I)
+        
+        plans = generate_operation_combos(operation_actions, include_null_operation)
+        
         return cls(plans, operation_actions, irradiance_thresholds)
     
     def __str__(self) -> str:
@@ -374,9 +425,12 @@ class OperationPlanner:
             output.append("".join(output_parts))
         return "\n".join(output)
     
-    def generate_decision_series(self, I: pd.Series, 
-                                 operation_min_duration: timedelta = timedelta(seconds=1),
-                                 initial_dec_var_values: Optional[InitialDecVarsValues] = None) -> list[IntegerDecisionVariables]:
+    def generate_decision_series(
+        self, 
+        I: pd.Series, 
+        operation_min_duration: timedelta = timedelta(seconds=1),
+        initial_dec_var_values: Optional[InitialDecVarsValues] = None,
+    ) -> list[IntegerDecisionVariables]:
         """ Generate the decision series for the given irradiance data
         Args:
             I (pd.Series): timeseries of irradiance. Should be the irradiance data given to the optimization layer resampled to the model sample time.
@@ -405,6 +459,9 @@ class OperationPlanner:
         #         )
         #         # print(f"subsystem {subsystem_id} | day {current_day} | action: {action_type} | n: {n_updates} | result: {I.loc[dts[-1]]}")
         #     update_datetimes.append(dts)
+        
+        # Let it throw the error if invalid
+        # self.operation_actions = ensure_valid_operation_actions(self.operation_actions, I)
         
         operation_datetimes = generate_operation_datetimes(I, self.operation_actions, self.irradiance_thresholds)
         self.operation_datetimes = operation_datetimes

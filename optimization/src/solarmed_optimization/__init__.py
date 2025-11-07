@@ -34,6 +34,7 @@ OperationUpdateDatetimesType = dict[str, list[tuple[str, list[datetime]]]]
 
 OpPlanActionType = Literal["startup", "shutdown"]
 PygmoArchipelagoTopologies = Literal["unconnected", "ring", "fully_connected"]
+StrategyIdentifier = Literal["nNLP_complete", "nNLP_op_plan_only", "NLP_op_optim_only"] # Strategy identifier
  
 def prepend(obj_cls: Type[Any], obj: Any, prepend_object: Any) -> Any:
     """ Prepend the current decision variables with another set of decision variables.
@@ -901,6 +902,7 @@ class ProblemSamples:
 
 @dataclass
 class ProblemParameters:
+    strategy_id: StrategyIdentifier # Strategy identifier
     sample_time_mod: int = 400 # Model sample time, seconds
     sample_time_opt: int = int(3600 * 0.8) # Optimization evaluations period, seconds
     sample_time_ts: int = 3600 # Thermal storage sample time, seconds (used in nNLP alternative)
@@ -940,6 +942,7 @@ class ProblemParameters:
     system_shutdown_duration: timedelta = timedelta(hours=1) # Approximate time to shutdown all subsystems in the system
     operation_min_duration: timedelta = timedelta(hours=2) # Mininum exptected operation time in order for the system to be activated
     operation_actions: Optional[OperationActionType] = None # Optional for MINLP, required in nNLP alternative. Defines the operation actions/updates for each subsystem
+    operation_actions_include_null_operation: bool = True # Whether to include null operation actions in the operation_actions list
     real_dec_vars_update_period: RealDecisionVariablesUpdatePeriod = field(default_factory=lambda: RealDecisionVariablesUpdatePeriod()) # nNLP
     initial_dec_vars_values: InitialDecVarsValues = field(default_factory=lambda: InitialDecVarsValues())  # ... (nNLP)
     irradiance_thresholds: IrradianceThresholds = field(default_factory=lambda: IrradianceThresholds()) # ... (nNLP)
@@ -971,8 +974,8 @@ class ProblemParameters:
 class ProblemData:
     df: pd.DataFrame
     problem_params: ProblemParameters
-    problem_samples: ProblemSamples
-    model: SolarMED
+    problem_samples: ProblemSamples # Samples information, used to convert between time and samples
+    model: SolarMED # Model instance
     # optim_params: Optional[OptimizationParamters] = None
  
     def copy(self, ) -> "ProblemData":
@@ -1065,21 +1068,24 @@ class ProblemsEvaluationParameters:
     """
     Parameters for the problems evaluation process.
     """
-    drop_fraction: float = 0.3 # Fraction of problems to drop per update (0 to 1)
-    max_n_obj_fun_evals: int = 1_000 # Total maximum number of objective function evaluations
-    max_n_parallel_problems: int = 50 # Maximum number of problems to evaluate in parallel
-    n_updates: Optional[int] = None # Number of (problem drop) updates to perform
-    n_obj_fun_evals_per_update: Optional[int] = None # Number of objective function evaluations between updates
-    archipelago_topology: Optional[PygmoArchipelagoTopologies] = "unconnected"
-    n_instances: int = 1 # Number of problem instances (islands) evolving in parallel in a connected archipelago. Used for op.optim 
+    drop_fraction: float = 0.3  # Fraction of problems to drop per update (0 to 1)
+    max_n_obj_fun_evals: int = 1_000  # Total maximum number of objective function evaluations
+    max_n_parallel_problems: int = 50  # Maximum number of problems to evaluate in parallel
+    n_updates: Optional[int] = None  # Number of (problem drop) updates to perform
+    n_obj_fun_evals_per_update: Optional[int] = None  # Number of objective function evaluations between updates
+    archipelago_topology: Optional["PygmoArchipelagoTopologies"] = "unconnected"
+    n_instances: int = 1  # Number of problem instances (islands) evolving in parallel in a connected archipelago.
+    min_n_problems: int = 1  # Minimum number of problems to keep after each update
 
     def __post_init__(self):
         if self.archipelago_topology != "unconnected":
             assert self.n_instances >= 1, "If using a connected archipelago topology, n_instances must be greater or equal to 1"
             self.n_updates = 1
-        assert self.n_updates is not None or self.n_obj_fun_evals_per_update is not None, "Either n_updates or n_obj_fun_evals_per_update must be provided"
-        assert self.drop_fraction >= 0 and self.drop_fraction <= 1, "Fraction of problems to drop per update must be between 0 and 1"
-
+        assert self.n_updates is not None or self.n_obj_fun_evals_per_update is not None, (
+            "Either n_updates or n_obj_fun_evals_per_update must be provided"
+        )
+        assert 0 <= self.drop_fraction <= 1, "Fraction of problems to drop per update must be between 0 and 1"
+        assert self.min_n_problems >= 1, "min_n_problems must be at least 1"
 
         if self.n_obj_fun_evals_per_update is None:
             self.n_obj_fun_evals_per_update = self.max_n_obj_fun_evals // self.n_updates
@@ -1088,32 +1094,31 @@ class ProblemsEvaluationParameters:
 
     def update_problems(self, problems_fitness: list[float]) -> tuple[list[int], list[int]]:
         """
-        Drop the worst performing problems based on the drop_fraction.
+        Drop the worst performing problems based on the drop_fraction,
+        but keep at least `min_n_problems` overall.
         Returns the indices of the problems to keep and to drop.
-        NaN values in problems_fitness are ignored in the decision process,
+        NaN values in problems_fitness are ignored in the ranking process,
         but their positions are preserved in index calculations.
         """
-
-        # Get the indices of non-NaN entries
         valid_indices = [i for i, val in enumerate(problems_fitness) if not math.isnan(val)]
-        # Get the fitness values of non-NaN entries
         valid_fitness = [(i, problems_fitness[i]) for i in valid_indices]
-        # Sort valid fitness values by value (descending = worst first)
-        valid_fitness_sorted = sorted(valid_fitness, key=lambda x: x[1], reverse=True)
+        valid_fitness_sorted = sorted(valid_fitness, key=lambda x: x[1], reverse=True)  # Worst first
 
-        # Determine number to drop
-        n_to_drop = int(len(valid_fitness_sorted) * self.drop_fraction)
-        # Extract the global indices to drop
+        n_valid = len(valid_fitness_sorted)
+        n_to_drop = int(n_valid * self.drop_fraction)
+
+        # Ensure at least min_n_problems remain
+        n_to_drop = max(0, min(n_to_drop, n_valid - self.min_n_problems))
+
         drop_indices = [i for i, _ in valid_fitness_sorted[:n_to_drop]]
-        # Extract the global indices to keep (remaining non-NaNs not in drop)
         keep_indices = [i for i in valid_indices if i not in drop_indices]
 
         return keep_indices, drop_indices
 
     def copy(self) -> "ProblemsEvaluationParameters":
-        """ Create a deep copy of this ProblemsEvaluationParameters instance. """
+        """Create a deep copy of this ProblemsEvaluationParameters instance."""
         return copy.deepcopy(self)
-
+    
 @dataclass
 class OptimizationParams:
     algo_params: AlgoParams

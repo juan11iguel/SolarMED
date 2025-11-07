@@ -12,6 +12,8 @@ import pandas.api.types as pandas_dtypes
 import warnings
 import pygmo as pg
 from tables.exceptions import NaturalNameWarning
+import shutil
+import gzip
 
 from solarmed_modeling.solar_med import InitialStates
 from solarmed_optimization import ProblemParameters, PopulationResults
@@ -309,4 +311,40 @@ def get_fitness_history(algo_id: str, algo_log: pg.algorithm | pd.DataFrame |  l
     fitness_history = pd.Series(fitness_value, index=algo_log["Fevals"].values)
     
     return fitness_history
+
+
+def export_simulation_results(sim_df: pd.DataFrame, output_path: Path, compress_results: bool = False) -> None:
+    """
+    Export simulation results DataFrame to an HDF5 file under key 'sim_df'.
+    Preserves other keys. Handles .gz compressed files by decompressing before writing.
+    
+    Parameters:
+    - sim_df: Simulation results DataFrame to export.
+    - output_path: Base path for the result file (without suffix).
+    - compress: Whether to gzip-compress the final output file.
+    """
+    # if not isinstance(output_path, Path):
+    #     output_path = Path(output_path)
+
+    h5_path = output_path.with_suffix(".h5")
+    gz_path = output_path.with_suffix(".gz")
+
+    # If only the compressed version exists, decompress it first
+    if not h5_path.exists() and gz_path.exists():
+        with gzip.open(gz_path, 'rb') as f_in, open(h5_path, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        logger.info(f"Decompressed existing {gz_path} to {h5_path} for updating")
+
+    # Overwrite the "sim_df" key only, keep others
+    sim_df.to_hdf(h5_path, key="sim_df", mode="a", format="table")
+
+    if compress_results:
+        with open(h5_path, 'rb') as f_in, gzip.open(gz_path, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        h5_path.unlink()  # Delete the uncompressed version
+        final_path = gz_path
+    else:
+        final_path = h5_path
+
+    logger.info(f"Simulation results exported to {final_path}. Span {sim_df.index[0]} - {sim_df.index[-1]}")
 

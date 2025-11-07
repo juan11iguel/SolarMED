@@ -573,6 +573,9 @@ def condition_result_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df["net_loss"] = df["net_loss"].fillna(0.0)
     df["Jtotal"] = df["Jtotal"].fillna(0.0)
     
+    # df["Ets_h"] = df["Ets_h"].ffill()
+    # df["Ets_c"] = df["Ets_c"].ffill() 
+    
     for var_id in df.columns:
         if not var_id.startswith("dec_var_"):
             continue
@@ -585,6 +588,9 @@ def condition_result_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df["cumulative_net_profit"] = df["net_profit"].cumsum()
     # df["sfts_mode"] = df["sf_ts_state"] + 1
     # df["med_mode"] = df["med_state"].apply(lambda x: 2 if 1 <= x < 5 or x == 5 else 1 if x == 0 else x)
+    # Calculate daily cumulative net profit (resetting at the start of each day)
+    df["daily_cumulative_net_profit"] = df.groupby(df.index.date)["net_profit"].cumsum()
+    df["daily_cumulative_I"] = df.groupby(df.index.date)["I"].cumsum()
 
     return df
 
