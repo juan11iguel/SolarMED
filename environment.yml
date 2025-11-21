@@ -16,9 +16,9 @@ dependencies:
   - h5py=3.12.1
   - pip  # Ensure pip is available in the environment
   - pip:
-      - phd-visualizations @ git+https://github.com/juan11iguel/phd_visualizations@main
+      - phd-visualizations @ git+https://github.com/juan11iguel/phd_visualizations@6941be2d522d2c77bd74a05111c7f381d9df42eb
       - pydantic==2.9.2
       # - solarmed-modeling @ git+https://github.com/juan11iguel/solarMED-modeling@med_gpr
       # only works in devcontainer, change path to path in current environment
       - -e /workspaces/SolarMED/modeling
-      - -e /workspaces/SolarMED/optimization  
+      - -e /workspaces/SolarMED/optimization
