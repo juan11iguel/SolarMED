@@ -30,7 +30,13 @@ def compact_repr(lst):
     counts = Counter(tuple(lst[i:i+3]) for i in range(0, len(lst), 3))
     return " + ".join([f"{v}×{list(k)}" for k, v in counts.items()])
 
-def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, include_experimental: bool = True, starting_dt: datetime.datetime | None = None) -> go.Figure:
+def plot_op_mode_change_candidates(
+    I_series: pd.Series, 
+    pp: ProblemParameters, 
+    include_experimental: bool = True, 
+    starting_dt: datetime.datetime | None = None,
+    **kwargs,
+) -> go.Figure:
     """
     Visualize the irradiance and the candidates using plotly
 
@@ -42,6 +48,10 @@ def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, i
     Returns:
         go.Figure: Plotly figure
     """
+    
+    kwargs.setdefault("margin", dict(l=5, r=5, t=70, b=5))
+    kwargs.setdefault("title_x", 0.025)
+    kwargs.setdefault("width", 1000)
 
     fig = go.Figure()
 
@@ -73,7 +83,7 @@ def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, i
             x=I_opt.index,
             y=I_opt.values,
             mode="lines",
-            name=f"Optimization irradiance (Downsampled to {pp.sample_time_opt/3600:.1f} hours)",
+            name=f"Optim. irradiance (Sampled to {pp.sample_time_opt/3600:.1f} hours)",
             showlegend=True,
             line=dict(width=2, color=color_palette["plotly_orange"], dash="dash"),
         )
@@ -83,7 +93,7 @@ def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, i
             x=I_opt_resampled.index,
             y=I_opt_resampled.values,
             mode="lines",
-            name=f"Optimization irradiance (Resampled to {pp.sample_time_mod} seconds)",
+            name=f"Optim. irradiance (Sampeld to {pp.sample_time_mod} secs)",
             showlegend=True,
             line=dict(width=1, dash="dot"),
             fill="tozeroy",
@@ -151,6 +161,8 @@ def plot_op_mode_change_candidates(I_series: pd.Series, pp: ProblemParameters, i
             bordercolor="rgba(0,0,0,0)"
             # font_family="Rockwell"
         ),
+        legend_font_family="Courier New, monospace",
+        **kwargs
     )
     # fig
     return fig
@@ -327,11 +339,14 @@ class OperationOptimizationVisualizer:
     def save_figure(self, fig: go.Figure, figure_name: str, **kwargs):
         self.check_output_path_defined()
         
+        kwargs.setdefault("formats", ["html", "png"])
+        
         save_figure(
             fig,
             figure_name=f"{self.output_file_name}_{figure_name}",
             figure_path=self.output_path,
-            formats=["html", "png"],
+            # formats=["html", "png"],
+            **kwargs
         )
     
     def plot_fitness_history(self, save: bool = False, highlight_best: Optional[int] = 1) -> go.Figure:
@@ -421,17 +436,18 @@ class OperationPlanVisualizer(OperationOptimizationVisualizer):
         
         return fig
     
-    def plot_op_mode_change_candidates(self, save: bool = False, I_exp: Optional[pd.Series] = None) -> go.Figure:
+    def plot_op_mode_change_candidates(self, save: bool = False, I_exp: Optional[pd.Series] = None, save_kwargs: dict | None = {}, **kwargs) -> go.Figure:
         
             
         fig = plot_op_mode_change_candidates(
             I_series=I_exp if I_exp is not None else self.optim_results.results_df["I"], 
             pp=self.optim_results.problem_params,
             include_experimental = True if I_exp is not None else False,
-            starting_dt=self.optim_results.results_df.index[0]
+            starting_dt=self.optim_results.results_df.index[0],
+            **kwargs
         )
         
         if save:
-            self.save_figure(fig, "op_mode_change_candidates")
+            self.save_figure(fig, "op_mode_change_candidates", **save_kwargs)
         
         return fig

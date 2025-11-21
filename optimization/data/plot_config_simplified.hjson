@@ -5,6 +5,7 @@
   # General plot attributes
   title: "Solar MED optimal coupling",
   subtitle: "Evaluation results", // Model validation?
+  title_y: 0.98,
   height: 1300,
   width: 1200,
   margin: {
@@ -17,7 +18,7 @@
   vertical_spacing: 0.035,
   subplot_titles_x: 0.0,
   xdomain: [0, 0.85],
-  arrow_xrel_pos: 60, # seconds
+  xaxis_nticks: 16,
   legend_fontsize: 12,
   legend_delta_y: 0.01,
   template: "plotly_white", 
@@ -87,8 +88,9 @@
       # ylabels_left: ["C (u.m.)"],
       # ylabels_right: ["C<sub>e</sub> (kW<sub>e</sub>)", "C<sub>w</sub> (<sub>L/h</sub>)"], # As many as n_yaxis-1
       ylabels_left: ["u.m."],
-      ylabels_right: ["m<sup>3</sup>", "kW<sub>e</sub>"],
-      ylims_left: 'manual',
+      ylabels_right: ["kW<sub>e</sub>"], # "m<sup>3</sup>"
+      ylims_left: [0, null],
+      ylims_right: [0, null],
       showlegend: true,
       legend_position: "top"
 
@@ -104,17 +106,17 @@
         ],
 
       traces_right: [
-        [ # First yaxis - qd
-          // Experimental
-          {
-            var_id: "qmed_d",
-            name: "q<sub>med,d</sub>",
-            mode: "lines",
-            color: "dc_green", # green DC
-            dash: "dash",
-            showlegend: true,
-          },
-        ],
+        // [ # First yaxis - qd
+        //   // Experimental
+        //   {
+        //     var_id: "qmed_d",
+        //     name: "q<sub>med,d</sub>",
+        //     mode: "lines",
+        //     color: "dc_green", # green DC
+        //     dash: "dash",
+        //     showlegend: true,
+        //   },
+        // ],
         [  # Second yaxis
           
           // Experimental
@@ -141,9 +143,9 @@
       legend_position: "top"
       
       # Plotted between this plot and the next one
-      show_active: true,
-      active_var_id: "sf_active",
-      active_color: "plotly_yellow",
+      // show_active: true,
+      // active_var_id: "sf_active",
+      // active_color: "plotly_yellow",
 
       traces_left: [
           {
@@ -160,16 +162,16 @@
     operational_states_sfts: {
       title: <b>Operational states</b>
       // bg_color: "steelblue",
-      row_height: 0.5,
+      row_height: 0.3,
       title_delta_y: 0.01,
       ylabels_left: ["sf-ts<br>state"],
-      // showlegend: true,
-      // legend_position: "side",
+      showlegend: true,
+      legend_position: "top",
 
       # Plotted between this plot and the next one
-      show_active: true,
-      active_var_id: "med_active",
-      active_color: "wct_purple",
+      // show_active: true,
+      // active_var_id: "med_active",
+      // active_color: "wct_purple",
 
       traces_left: [
         {
@@ -178,7 +180,7 @@
           fill: "tozeroy",
           color: "plotly_yellow",
           // stackgroup: "one",
-          // showlegend: true,
+          showlegend: true,
         },
         // {
         //   var_id: "med_state",
@@ -209,11 +211,12 @@
     },
     operational_states_med: {
         // bg_color: "steelblue",
-        row_height: 0.5,
+        row_height: 0.3,
         ylabels_left: ["MED<br>state"],
         ylims_left: 'manual',
-        // showlegend: true,
-        // legend_position: "side",
+        showlegend: true,
+        legend_position: "top",
+        // tight_vertical_spacing: true,
 
         traces_left: [
           {
@@ -222,13 +225,13 @@
             fill: "tozeroy",
             color: "wct_purple",
             // stackgroup: "one",
-            // showlegend: true,
+            showlegend: true,
           }
         ],
     },
 
     power_balance: {
-        title: "<b>Energy source-load</b>",
+        title: "<b>Heat generation and storage subsystem (sfts)</b>",
         // bg_color: "bg_gray",
         row_height: 1,
         ylabels_left: ["Power<br>balance<br>(kW<sub>th</sub>)"],
@@ -240,7 +243,7 @@
         traces_left: [
             {
             var_id: "Pth_hx_p",
-            name: "P<sub>th,sf</sub>",
+            name: "Q̇<sub>sf</sub>",
             mode: "lines",
             color: "plotly_yellow",
             width: 3,
@@ -249,7 +252,7 @@
             },
             {
             var_id: "Pth_ts_dis",
-            name: "P<sub>th,med</sub>",
+            name: "Q̇<sub>med</sub>",
             mode: "lines",
             color: "wct_purple", # Should never be greater than Phx_p, but define a color anyway
             width: 3,
@@ -260,7 +263,7 @@
     },
     
     solar_field_temperatures: {
-      title: "<b>Subsystems</b>. Solar field",
+      title: "Solar field",
       // TODO: Include other temperatures that exist in the real system if it does not clog,
       // probably better to move to its ows visualization
       row_height: 1,
@@ -268,6 +271,8 @@
       ylabels_left: ["Temperatures<br>(⁰C)"],
       # ylabels_left: ["T<sub>dc</sub> (ºC)"],
       ylims_left: 'manual',
+      ylabels_right: ["Flows (m<sup>3</sup>/h)"],
+      ylims_right: [0.0,40.0],
       showlegend: true,
       legend_position: "top",
 
@@ -289,12 +294,65 @@
           dash: "dash", # "dot", "dash", "dashdot"
           showlegend: true,
         },
+      ],
+      traces_right: [
+        {
+          var_id: "qsf",
+          name: "q<sub>sf</sub>",
+          mode: "lines",
+          color: "plotly_yellow", # gray
+          width: 1.5,
+          dash: "dot", # "dot", "dash", "dashdot"
+          showlegend: true,
+        },
+        {
+          var_id: "qts_src", //"qts_src",
+          name: "q<sub>ts,src</sub>"
+          mode: "lines",
+          showlegend: true,
+          color: "plotly_red",
+          dash: "dot", # "dot", "dash", "dashdot"
+          width: 1.5,
+        },
       ]
     },
 
+    "thermal_storage_energy": {
+        "row_height": 1.0,
+        title: "Thermal storage",
+        // "title": "Power balance",
+        "ylabels_left": ["Energy<br>(kWh<sub>th</sub>)"],
+        "ylims_left": "manual_from_zero",
+        "showlegend": true,
+        "legend_position": "top",
+  
+        "traces_left": [
+          {
+            "var_id": "Ets_c",
+            "name": "Q<sub>ts,c</sub>",
+            "mode": "lines",
+            "color": "plotly_green",
+            "width": 3,
+            "showlegend": true,
+            "fill": "tonexty", 
+            stackgroup: "energy",
+          },
+          {
+            "var_id": "Ets_h",
+            "name": "Q<sub>ts,h</sub>",
+            "mode": "lines",
+            "color": "plotly_red",
+            "width": 3,
+            "showlegend": true,
+            "fill": "tonexty",
+            stackgroup: "energy",
+          },
+        ]
+      },
+
     thermal_storage_temperatures_hot: {
       row_height: 1,
-      title: "Thermal storage",
+      // title: "Thermal storage",
       // bg_color: "bg_blue", # bg gray
       # ylabels_left: ["T<sub>wct</sub> (ºC)"],
       ylabels_left: ["Hot tank<br>temp.(⁰C)"],
@@ -334,8 +392,8 @@
   
           # To MED
           {
-            "var_id": "Tts_h_out",
-            "name": "T<sub>ts,h,out</sub>",
+            "var_id": "Tts_c_in",
+            "name": "T<sub>ts,c,in</sub>",
             "mode": "markers",
             "color": "wct_purple",
             "width": 3,
@@ -358,7 +416,7 @@
     },
 
     med_flows: {
-      title: "Desalination unit",
+      title: "<b>Thermal separator subsystem (med)</b>",
       row_height: 0.7,
       // bg_color: "bg_gray",
       ylabels_left: ["Flows<br>(m<sup>3</sup>/h)"],
