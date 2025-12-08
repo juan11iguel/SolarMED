@@ -93,7 +93,7 @@ def plot_op_mode_change_candidates(
             x=I_opt_resampled.index,
             y=I_opt_resampled.values,
             mode="lines",
-            name=f"Optim. irradiance (Sampeld to {pp.sample_time_mod} secs)",
+            name=f"Optim. irradiance (Sampled to {pp.sample_time_mod} secs)",
             showlegend=True,
             line=dict(width=1, dash="dot"),
             fill="tozeroy",
@@ -172,6 +172,7 @@ def plot_operation_plans(
     pp: Optional[ProblemParameters] = None, 
     I: Optional[pd.Series] = None,
     problem_idxs: Optional[Sequence[int]] = None,
+    problem_fitness_list: Optional[Sequence[float]] = None,
 ) -> go.Figure:
 
     subsystem_ids = list(asdict(int_dec_vars_list[0]).keys())
@@ -244,16 +245,23 @@ def plot_operation_plans(
                 yaxis="y2",
             ))
 
-        # Add annotation
+        # Add annotation for problem label
+        if problem_fitness_list is None:
+            text = problem_labels[problem_idx]
+        else:
+            text = (
+                f"{problem_labels[problem_idx]}<br>"
+                f"<span style='font-size: 0.8em;'>{problem_fitness_list[problem_idx]:.1f} u.m.</span>"
+            )
         fig.add_annotation(
             xref="paper", yref="y2",
             x=0, y=base_y + 0.1*len(subsystem_ids) / 2,
-            text=problem_labels[problem_idx],
+            text=text,
             showarrow=False,
             font=dict(size=12),
             xanchor="right"
         )
-        
+                
     # Build compact subtitle lines
     if pp is not None:
         subtitle_lines = [
@@ -310,6 +318,7 @@ class OperationOptimizationVisualizer:
     results_plot_config: Optional[dict] = None
     vars_config: Optional[dict] = None
     best_problem_idxs: Optional[list[int]] = None
+    problem_fitness_list: Optional[list[float]] = None
     
     def __post_init__(self):
         if self.output_path is not None:
@@ -331,6 +340,7 @@ class OperationOptimizationVisualizer:
                     self.vars_config = hjson.load(f)
                     
         self.best_problem_idxs = self.optim_results.fitness.argsort().tolist()
+        self.problem_fitness_list = self.optim_results.fitness.tolist()
     
     def check_output_path_defined(self):
         if self.output_path is None:
@@ -417,18 +427,26 @@ class OperationPlanVisualizer(OperationOptimizationVisualizer):
             
         int_dec_vars_list = OperationPlanner.initialize(
             operation_actions = pp.operation_actions,
-            irradiance_thresholds = pp.irradiance_thresholds
+            irradiance_thresholds = pp.irradiance_thresholds,
+            include_null_operation=self.optim_results.problem_params.operation_actions_include_null_operation,
         ).generate_decision_series(I=I)
             
         if n_best_problems is not None:
             n_best_problems = min(n_best_problems, len(int_dec_vars_list)-1)
-            int_dec_vars_list = int_dec_vars_list[:n_best_problems]
+            int_dec_vars_list = [
+                int_dec_vars_list[self.best_problem_idxs[idx]] 
+                for idx in range(n_best_problems)
+            ]
             
         fig = plot_operation_plans(
             int_dec_vars_list, 
             I=I,
             pp=pp,
             problem_idxs=self.best_problem_idxs[:n_best_problems] if n_best_problems is not None else None,
+            problem_fitness_list=[
+                self.problem_fitness_list[self.best_problem_idxs[i]] 
+                for i in range(n_best_problems)
+            ] if n_best_problems is not None else None,
         )
         
         if save:
